@@ -22,10 +22,12 @@ const VLM = {
   fast: {
     id: 'LiquidAI/LFM2.5-VL-450M-ONNX',
     dtype: { vision_encoder: 'fp16', embed_tokens: 'fp16', decoder_model_merged: 'q4' },
+    multiFrame: false, // 450M ONNX graph is single-image (multi-frame throws shape errors)
   },
   quality: {
     id: 'onnx-community/LFM3-VL-2B-ONNX',
     dtype: { vision_encoder: 'fp16', embed_tokens: 'fp16', decoder_model_merged: 'q4f16' },
+    multiFrame: true, // LFM3-VL is video-native (2fps)
   },
 };
 
@@ -82,7 +84,7 @@ async function safeReply(m, fn, empty) {
     await fn(m);
   } catch (err) {
     console.error('[llm-worker] job failed:', err);
-    post({ type: m.type, id: m.id, ...empty });
+    post({ type: m.type, id: m.id, ...empty, jerr: String(err?.message || err).slice(0, 100) });
   }
 }
 
@@ -123,21 +125,25 @@ async function load(m) {
     textOnlyOk = false;
   }
 
-  // before/after motion pairs need a multi-image-capable processor — probe raw
-  // (generate() splices to one frame until this flag is set, so it can't probe itself)
-  try {
-    const alt = new RawImage(new Uint8ClampedArray(64 * 64 * 4).fill(60), 64, 64, 4);
-    const msgs = [{
-      role: 'user',
-      content: [{ type: 'image' }, { type: 'image' }, { type: 'text', text: 'hi' }],
-    }];
-    const inputs = await processor([blank, alt], processor.apply_chat_template(msgs, {
-      add_generation_prompt: true,
-      enable_thinking: false,
-    }), { add_special_tokens: false });
-    await model.generate({ ...inputs, max_new_tokens: 2 });
-    multiImageOk = true;
-  } catch {
+  // before/after motion pairs need a multi-image-capable model — probe only
+  // when the model claims video support (LFM2.5-VL-450M's graph is single-image)
+  if (cfg.multiFrame) {
+    try {
+      const alt = new RawImage(new Uint8ClampedArray(64 * 64 * 4).fill(60), 64, 64, 4);
+      const msgs = [{
+        role: 'user',
+        content: [{ type: 'image' }, { type: 'image' }, { type: 'text', text: 'hi' }],
+      }];
+      const inputs = await processor([blank, alt], processor.apply_chat_template(msgs, {
+        add_generation_prompt: true,
+        enable_thinking: false,
+      }), { add_special_tokens: false });
+      await model.generate({ ...inputs, max_new_tokens: 2 });
+      multiImageOk = true;
+    } catch {
+      multiImageOk = false;
+    }
+  } else {
     multiImageOk = false;
   }
 

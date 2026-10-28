@@ -131,6 +131,7 @@ function post(msg, transfer = []) { ensureWorker().postMessage(msg, transfer); }
 
 function onWorkerMessage(ev) {
   const m = ev.data;
+  if (m.jerr) window.__lurker.err = 'job: ' + m.jerr; // surfaces in the autolive title
   if (m.type === 'progress') {
     const pct = Math.round((m.progress || 0) * 100);
     if (state.phase === 'live') {
@@ -536,13 +537,18 @@ let personaIdx = (Math.random() * PERSONAS.length) | 0;
 function burstFrames(varied, index) {
   const cur = grabFrameBuffer(els.capture);
   if (!cur) return {};
-  const pair = state.prevCapture ? [state.prevCapture, cur] : [cur];
-  if (varied && index % 2 === 1) {
-    // this viewer gets the wide shot instead of the motion crop
-    const wide = grabFrameBuffer(els.captionCapture) || cur;
-    return wide === cur ? { frames: pair } : { frames: null, image: wide };
+  const wide = () => {
+    const w = grabFrameBuffer(els.captionCapture);
+    return (w && w !== cur) ? { frames: null, image: w } : { frames: [cur] };
+  };
+  if (state.multiFrame) {
+    // video-capable brain: before/after pair tells the real motion story
+    const pair = state.prevCapture ? [state.prevCapture, cur] : [cur];
+    return (varied && index % 2 === 1) ? wide() : { frames: pair };
   }
-  return { frames: pair };
+  // single-image brain: alternate motion-crop vs wide shot so viewers diverge
+  if (varied && index % 2 === 1) return wide();
+  return { frames: null, image: cur };
 }
 
 function sendChatMessage({ sceneChange, offsetMs = 0, burstIndex = 0 }) {
@@ -841,7 +847,8 @@ if (new URLSearchParams(location.search).has('autolive')) {
   setInterval(() => {
     const L = window.__lurker;
     document.title =
-      `LURKER phase=${state.phase} chat=${L.chat} cap=${L.cap} asr=${L.asr} err=${L.err.slice(0, 40)} ` +
+      `LURKER phase=${state.phase} chat=${L.chat} cap=${L.cap} asr=${L.asr} ` +
+      `mf=${state.multiFrame ? 1 : 0} lat=${fmtLatency('chat') || '-'} err=${L.err.slice(0, 40)} ` +
       `| cap:"${L.lastCap.slice(0, 50)}" | msg:"${L.lastMsg.slice(0, 50)}" | asr:"${L.lastAsr.slice(0, 30)}"`;
   }, 1500);
   setTimeout(() => els.startBtn.click(), 800);
