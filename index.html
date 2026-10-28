@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>LurkerTV — an AI Twitch stream that watches you</title>
+  <title>SpasmTV — an AI Twitch stream that watches you</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%239147ff'/%3E%3Ctext x='16' y='22' font-size='16' text-anchor='middle' fill='white' font-family='monospace'%3E%F0%9F%93%BA%3C/text%3E%3C/svg%3E"/>
   <link rel="stylesheet" href="css/style.css"/>
 </head>
 <body>
   <header id="topbar">
-    <div class="brand">LurkerTV <span class="beta">your personal AI stream</span></div>
+    <div class="brand">SpasmTV <span class="beta">your personal AI stream</span></div>
     <div id="controls">
       <select id="model-select" title="Chat brain">
         <option value="fast" selected>Fast chat (~560 MB)</option>
@@ -23,6 +23,36 @@
       </label>
       <button id="start-btn" class="primary">Go live</button>
       <button id="stop-btn" class="ghost" hidden>End stream</button>
+      <button id="settings-btn" class="ghost" title="Vision & latency settings">⚙</button>
+    </div>
+    <div id="settings" hidden>
+      <div class="set-head">Vision</div>
+      <div class="set-row">
+        <label for="set-detail">detail</label>
+        <select id="set-detail">
+          <option value="512">standard · 512px</option>
+          <option value="640">high · 640px (tiles)</option>
+          <option value="768">max · 768px (tiles, slow)</option>
+        </select>
+      </div>
+      <div class="set-row">
+        <label class="toggle"><input type="checkbox" id="set-focus" checked/> motion focus crop</label>
+      </div>
+      <div class="set-row">
+        <label class="toggle"><input type="checkbox" id="set-varied" checked/> viewers see different views</label>
+      </div>
+      <div class="set-head">Hearing</div>
+      <div class="set-row">
+        <label for="set-asr">speech model</label>
+        <select id="set-asr">
+          <option value="tiny">tiny · fastest</option>
+          <option value="base" selected>base · hears you better</option>
+        </select>
+      </div>
+      <div class="set-note">detail above 512 tiles the frame — smarter reads, slower chat.
+        focus crop zooms the chat into wherever motion happens.</div>
+      <div class="set-head">Latency (your machine)</div>
+      <div id="set-latency" class="set-lat">no samples yet</div>
     </div>
   </header>
 
@@ -32,10 +62,11 @@
         <video id="cam" autoplay playsinline muted></video>
         <canvas id="demo-canvas" hidden></canvas>
         <canvas id="frame-capture" hidden></canvas>
+        <canvas id="caption-capture" hidden></canvas>
 
         <div id="offline-cover">
           <div class="offline-inner">
-            <div class="offline-logo">LurkerTV</div>
+            <div class="offline-logo">SpasmTV</div>
             <div class="offline-line">an AI Twitch stream that watches <b>you</b></div>
             <div class="offline-line dim">your camera feed becomes the stream — the chat is a
               vision-language model running on <b>your</b> GPU (WebGPU). nothing is uploaded.</div>
@@ -53,6 +84,7 @@
       <div id="status-strip">
         <span id="status-dot" class="dot"></span>
         <span id="status-text">checking WebGPU…</span>
+        <span id="lat-chip" hidden></span>
         <div id="load-progress" hidden><div id="load-bar"></div></div>
         <span id="load-pct"></span>
       </div>

@@ -1,4 +1,4 @@
-# twitch-sim (LurkerTV)
+# twitch-sim (SpasmTV)
 
 **An AI Twitch stream that watches you.** Your webcam feed becomes the "stream";
 a vision-language model runs entirely in your browser (WebGPU) and plays the

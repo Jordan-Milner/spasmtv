@@ -13,17 +13,22 @@ const els = {
   startBtn: $('start-btn'), stopBtn: $('stop-btn'),
   modelSelect: $('model-select'), micToggle: $('mic-toggle'), demoToggle: $('demo-toggle'),
   cam: $('cam'), demoCanvas: $('demo-canvas'), capture: $('frame-capture'),
+  captionCapture: $('caption-capture'),
   offlineCover: $('offline-cover'), overlay: $('overlay'), titleCard: $('title-card'),
   streamTitle: $('stream-title'), captions: $('captions'),
-  statusDot: $('status-dot'), statusText: $('status-text'),
+  statusDot: $('status-dot'), statusText: $('status-text'), latChip: $('lat-chip'),
   loadProgress: $('load-progress'), loadBar: $('load-bar'), loadPct: $('load-pct'),
   chatForm: $('chat-form'), chatInput: $('chat-input'), chatPanel: $('chat-panel'),
   chatMessages: $('chat-messages'),
+  settingsBtn: $('settings-btn'), settings: $('settings'),
+  setDetail: $('set-detail'), setFocus: $('set-focus'), setVaried: $('set-varied'),
+  setAsr: $('set-asr'), setLatency: $('set-latency'),
 };
 
-const CAPTURE_SIZE = 512;         // longest side handed to the vision model — LFM2.5-VL
-                                  // tiles beyond 512×512, so stay under it (~144 img tokens @16:9)
-const DIFF_W = 64, DIFF_H = 36;   // luma thumbnail used for scene-change detection
+const CAPTURE_DEFAULT = 512;      // vision detail (settings panel: 512/640/768 —
+                                  // above 512 the model tiles the frame)
+const DIFF_W = 32, DIFF_H = 18;   // motion grid used for scene diff + focus crop
+const FULL_W = 960;               // working resolution frames are grabbed at
 const SCENE_CHANGE = 0.055;       // mean abs luma delta that counts as a "clip it!" moment
 
 const TICK_CHAT_MS = 2300;        // chat cadence
@@ -49,8 +54,13 @@ const state = {
   stream: null,             // MediaStream (camera + mic)
   audioCtx: null,
   demoRaf: 0,
+  // settings (settings panel, persisted)
+  settings: { detail: CAPTURE_DEFAULT, focus: true, varied: true, asr: 'base' },
   // vision
   prevThumb: null, diffScore: 0,
+  fullCanvas: null,         // working-res frame for crops + diff
+  prevCapture: null,        // last tick's capture buffer — the "before" in before/after bursts
+  multiFrame: false,        // worker reported multi-image support
   scene: '', sceneAt: 0,
   // audio gate
   pcm: [], pcmSamples: 0, speaking: false, silenceMs: 0,
@@ -59,6 +69,8 @@ const state = {
   lastChatLines: [],
   emoteHint: '',
   titleIdx: 0,
+  // per-kind round-trip latency (ms, last 10)
+  latency: { chat: [], cap: [], asr: [] },
 };
 
 const sim = new ChatSim();
@@ -79,7 +91,7 @@ try { // restore the tail of the previous session's log so reloads keep history
   if (Array.isArray(prev)) chatLog.push(...prev);
 } catch {}
 
-const pendingCtx = new Map(); // reqId → generation context, attached to the reply
+const pendingMeta = new Map(); // reqId → {kind, sentAt, context, viewer} for latency + attribution
 
 function logEvent(kind, text, ctx) {
   chatLog.push({ t: new Date().toISOString(), kind, text, ...(ctx ? { ctx } : {}) });
@@ -126,6 +138,7 @@ function onWorkerMessage(ev) {
     els.loadBar.style.width = pct + '%';
     els.loadPct.textContent = pct + '%';
   } else if (m.type === 'ready') {
+    state.multiFrame = !!m.multiFrame;
     els.loadProgress.hidden = true; els.loadPct.textContent = '';
     goLiveAfterLoad();
   } else if (m.type === 'error') {
@@ -136,16 +149,18 @@ function onWorkerMessage(ev) {
   } else if (m.type === 'asr-ready') {
     if (state.phase === 'live') setStatus('ok', 'live — the chat can see you and hear you');
   } else if (m.type === 'caption') {
+    noteLatency(m.id, 'cap');
     window.__lurker.cap += 1;
     window.__lurker.lastCap = m.text || '';
     logEvent('caption', m.text || '');
     state.scene = m.text; state.sceneAt = Date.now();
   } else if (m.type === 'chat') {
+    noteLatency(m.id, 'chat');
     state.pendingChat = Math.max(0, state.pendingChat - 1);
     window.__lurker.chat += (m.messages || []).length;
     if (m.messages?.length) window.__lurker.lastMsg = m.messages[m.messages.length - 1];
-    const entry = pendingCtx.get(m.id);
-    pendingCtx.delete(m.id);
+    const entry = pendingMeta.get(m.id);
+    pendingMeta.delete(m.id);
     (m.messages || []).forEach((text) => {
       let viewer = entry?.viewer;
       if (!viewer || (viewer.bannedUntil && viewer.bannedUntil > Date.now()))
@@ -155,11 +170,41 @@ function onWorkerMessage(ev) {
     });
     state.lastChatLines = [...state.lastChatLines, ...(m.messages || [])].slice(-6);
   } else if (m.type === 'transcribe') {
+    noteLatency(m.id, 'asr');
     window.__lurker.asr += 1;
     window.__lurker.lastAsr = (m.text || '').slice(0, 80);
     logEvent('asr', m.text || '');
     onTranscript(m.text);
   }
+}
+
+function noteLatency(id, kind) {
+  const meta = pendingMeta.get(id);
+  if (meta?.sentAt) {
+    const arr = state.latency[kind];
+    arr.push(performance.now() - meta.sentAt);
+    if (arr.length > 10) arr.shift();
+    renderLatency();
+  }
+}
+
+function fmtLatency(kind) {
+  const a = state.latency[kind];
+  if (!a.length) return null;
+  return (a.reduce((x, y) => x + y, 0) / a.length / 1000).toFixed(2);
+}
+
+function renderLatency() {
+  const chat = fmtLatency('chat'), cap = fmtLatency('cap'), asr = fmtLatency('asr');
+  const any = chat || cap || asr;
+  els.latChip.hidden = !any;
+  if (any) els.latChip.textContent = `· chat ${chat ?? '—'}s · cap ${cap ?? '—'}s · asr ${asr ?? '—'}s`;
+  els.setLatency.innerHTML =
+    `chat reply: avg <b>${chat ?? '—'}s</b>` +
+    ` (last ${state.latency.chat.length})<br>` +
+    `scene caption: ${cap ?? '—'}s · speech-to-text: ${asr ?? '—'}s<br>` +
+    `<span class="set-note">that's your GPU's prefill+decode. higher vision detail ` +
+    `or the 2B brain = slower chat.</span>`;
 }
 
 /* ---------------- status / phase UI ---------------- */
@@ -191,7 +236,12 @@ async function start() {
   }
 
   setStatus('busy', 'downloading model (first run only)…');
-  post({ type: 'load', model: els.modelSelect.value, asr: els.micToggle.checked });
+  post({
+    type: 'load',
+    model: els.modelSelect.value,
+    asr: els.micToggle.checked,
+    asrModel: state.settings.asr,
+  });
 }
 
 async function goLiveAfterLoad() {
@@ -284,40 +334,91 @@ function activeSource() {
   return els.demoCanvas.hidden ? els.cam : els.demoCanvas;
 }
 
-/* frame grab + scene diff */
+/* frame grab: full working canvas → motion grid → capture (maybe focus-cropped) */
 function tickFrame() {
-  if (state.phase === 'live') {
-    const src = activeSource();
-    if (src && (src.readyState === undefined || src.readyState >= 2)) {
-      const c = els.capture;
-      const aspect = (src.videoWidth || src.width || 16) / (src.videoHeight || src.height || 9);
-      const w = aspect >= 1 ? CAPTURE_SIZE : Math.round(CAPTURE_SIZE * aspect);
-      const h = aspect >= 1 ? Math.round(CAPTURE_SIZE / aspect) : CAPTURE_SIZE;
-      c.width = w; c.height = h;
-      c.getContext('2d', { willReadFrequently: true }).drawImage(src, 0, 0, w, h);
-      state.diffScore = sceneDiff(c);
-    }
-    scheduleNext(tickFrame, TICK_FRAME_MS);
+  if (state.phase !== 'live') return;
+  const src = activeSource();
+  if (src && (src.readyState === undefined || src.readyState >= 2)) {
+    const sw = src.videoWidth || src.width || 1280;
+    const sh = src.videoHeight || src.height || 720;
+    if (!state.fullCanvas) state.fullCanvas = document.createElement('canvas');
+    const f = state.fullCanvas;
+    const fw = FULL_W, fh = Math.round(FULL_W * sh / sw);
+    if (f.width !== fw || f.height !== fh) { f.width = fw; f.height = fh; }
+    f.getContext('2d', { willReadFrequently: true }).drawImage(src, 0, 0, fw, fh);
+    const motion = motionScore(f);
+    state.diffScore = motion.score;
+    drawCapture(f, motion);
   }
+  scheduleNext(tickFrame, TICK_FRAME_MS);
 }
 
-function sceneDiff(captureCanvas) {
+function motionScore(fullCanvas) {
   const t = document.createElement('canvas');
   t.width = DIFF_W; t.height = DIFF_H;
   const ctx = t.getContext('2d', { willReadFrequently: true });
-  ctx.drawImage(captureCanvas, 0, 0, DIFF_W, DIFF_H);
+  ctx.drawImage(fullCanvas, 0, 0, DIFF_W, DIFF_H);
   const px = ctx.getImageData(0, 0, DIFF_W, DIFF_H).data;
   const luma = new Float32Array(DIFF_W * DIFF_H);
   for (let i = 0, j = 0; i < px.length; i += 4, j++)
     luma[j] = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
-  let score = 0;
+  const cells = new Float32Array(DIFF_W * DIFF_H);
+  let acc = 0, hot = 0;
   if (state.prevThumb) {
-    let acc = 0;
-    for (let k = 0; k < luma.length; k++) acc += Math.abs(luma[k] - state.prevThumb[k]);
-    score = acc / luma.length / 255;
+    for (let k = 0; k < luma.length; k++) {
+      const d = Math.abs(luma[k] - state.prevThumb[k]) / 255;
+      cells[k] = d;
+      acc += d;
+      if (d > 0.08) hot += 1;
+    }
   }
   state.prevThumb = luma;
-  return score;
+  return { cells, score: acc / luma.length, hotFrac: hot / luma.length };
+}
+
+function drawCapture(full, motion) {
+  // stash the previous capture first — it's the "before" of before/after bursts
+  if (els.capture.width > 0) state.prevCapture = grabFrameBuffer(els.capture);
+
+  const S = state.settings;
+  let sx = 0, sy = 0, sw = full.width, sh = full.height;
+  const concentrated =
+    motion.hotFrac > 0.02 && motion.hotFrac < 0.45 && motion.score > SCENE_CHANGE * 0.4;
+  if (S.focus && concentrated) {
+    let cx = 0, cy = 0, wsum = 0;
+    for (let y = 0; y < DIFF_H; y++) {
+      for (let x = 0; x < DIFF_W; x++) {
+        const d = motion.cells[y * DIFF_W + x];
+        if (d > 0.08) {
+          cx += (x + 0.5) * d;
+          cy += (y + 0.5) * d;
+          wsum += d;
+        }
+      }
+    }
+    if (wsum > 0) {
+      cx = (cx / wsum / DIFF_W) * full.width;
+      cy = (cy / wsum / DIFF_H) * full.height;
+      const size = Math.round(Math.min(full.width, full.height) * 0.6);
+      sx = Math.max(0, Math.min(full.width - size, Math.round(cx - size / 2)));
+      sy = Math.max(0, Math.min(full.height - size, Math.round(cy - size / 2)));
+      sw = size; sh = size;
+    }
+  }
+
+  const scale = Math.min(S.detail / sw, S.detail / sh);
+  const c = els.capture;
+  c.width = Math.max(64, Math.round(sw * scale));
+  c.height = Math.max(64, Math.round(sh * scale));
+  c.getContext('2d', { willReadFrequently: true })
+    .drawImage(full, sx, sy, sw, sh, 0, 0, c.width, c.height);
+
+  // captions always describe the whole scene, never the crop
+  const cc = els.captionCapture;
+  const cscale = Math.min(512 / full.width, 512 / full.height);
+  cc.width = Math.round(full.width * cscale);
+  cc.height = Math.round(full.height * cscale);
+  cc.getContext('2d', { willReadFrequently: true }).drawImage(full, 0, 0, cc.width, cc.height);
 }
 
 /* scene caption */
@@ -333,9 +434,11 @@ function tickCaption() {
 }
 
 function sendCaption() {
-  const img = grabFrameBuffer();
+  const img = grabFrameBuffer(els.captionCapture);
   if (!img) return;
-  post({ type: 'caption', id: ++state.reqId, image: img }, [img.data.buffer]);
+  const id = ++state.reqId;
+  pendingMeta.set(id, { kind: 'cap', sentAt: performance.now() });
+  post({ type: 'caption', id, image: img }, [img.data.buffer]);
 }
 
 /* chat generation */
@@ -349,7 +452,9 @@ function tickChat() {
       if (state.userMsgTicks > 0) count = Math.max(count, 2);
       count = Math.min(count, 3);
 
-      for (let i = 0; i < count; i++) sendChatMessage({ sceneChange, offsetMs: i * 450 });
+      for (let i = 0; i < count; i++) {
+        sendChatMessage({ sceneChange, offsetMs: i * 450, burstIndex: i });
+      }
       if (state.userMsgTicks > 0) state.userMsgTicks -= 1;
     }
     scheduleNext(tickChat, TICK_CHAT_MS + (Math.random() * 900 - 300));
@@ -369,7 +474,20 @@ const PERSONAS = [
 ];
 let personaIdx = (Math.random() * PERSONAS.length) | 0;
 
-function sendChatMessage({ sceneChange, offsetMs = 0 }) {
+/* burst frames: which view of the stream this particular viewer reacts to */
+function burstFrames(varied, index) {
+  const cur = grabFrameBuffer(els.capture);
+  if (!cur) return {};
+  const pair = state.prevCapture ? [state.prevCapture, cur] : [cur];
+  if (varied && index % 2 === 1) {
+    // this viewer gets the wide shot instead of the motion crop
+    const wide = grabFrameBuffer(els.captionCapture) || cur;
+    return wide === cur ? { frames: pair } : { frames: null, image: wide };
+  }
+  return { frames: pair };
+}
+
+function sendChatMessage({ sceneChange, offsetMs = 0, burstIndex = 0 }) {
   setTimeout(() => {
     if (state.phase !== 'live') return;
     const viewer = sim.pickViewer();
@@ -393,12 +511,16 @@ function sendChatMessage({ sceneChange, offsetMs = 0 }) {
       emotes: state.emoteHint,
     };
     const id = ++state.reqId;
-    pendingCtx.set(id, { context, viewer });
+    pendingMeta.set(id, { kind: 'chat', sentAt: performance.now(), context, viewer });
     const msg = { type: 'chat', id, context };
-    // scene-change bursts react to the actual frame; other lines run text-only
+    // scene-change bursts see actual frames; other lines run text-only for speed
     if (sceneChange) {
-      const img = grabFrameBuffer();
-      if (img) { msg.image = img; post(msg, [img.data.buffer]); return; }
+      Object.assign(msg, burstFrames(state.settings.varied, burstIndex));
+      const transfer = [];
+      if (msg.frames) msg.frames.forEach((fr) => transfer.push(fr.data.buffer));
+      if (msg.image) transfer.push(msg.image.data.buffer);
+      post(msg, transfer);
+      return;
     }
     post(msg);
   }, offsetMs);
@@ -561,9 +683,8 @@ function showCaption(text) {
 
 /* ---------------- frame → transferable RGBA ---------------- */
 
-function grabFrameBuffer() {
-  const c = els.capture;
-  if (!c.width) return null;
+function grabFrameBuffer(c = els.capture) {
+  if (!c || !c.width) return null;
   const data = c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, c.width, c.height);
   const buf = new Uint8Array(data.data.buffer.slice(0));
   return { data: buf, width: c.width, height: c.height };
@@ -596,6 +717,44 @@ els.chatMessages.addEventListener('click', (e) => {
   if (!u) return;
   const viewer = sim.byName(u.textContent);
   if (viewer) sim.openModCard(viewer, e.clientX, e.clientY);
+});
+
+/* ---------------- settings panel ---------------- */
+
+const SETTINGS_KEY = 'spasmtv-settings';
+function saveSettings() {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings)); } catch {}
+}
+
+els.settingsBtn.addEventListener('click', () => {
+  els.settings.hidden = !els.settings.hidden;
+  if (!els.settings.hidden) renderLatency();
+});
+document.addEventListener('click', (e) => {
+  if (!els.settings.hidden && !els.settings.contains(e.target) && !e.target.closest('#settings-btn'))
+    els.settings.hidden = true;
+});
+
+els.setDetail.value = String(state.settings.detail);
+els.setDetail.addEventListener('change', () => {
+  state.settings.detail = +els.setDetail.value;
+  saveSettings();
+});
+els.setFocus.checked = state.settings.focus;
+els.setFocus.addEventListener('change', () => {
+  state.settings.focus = els.setFocus.checked;
+  saveSettings();
+});
+els.setVaried.checked = state.settings.varied;
+els.setVaried.addEventListener('change', () => {
+  state.settings.varied = els.setVaried.checked;
+  saveSettings();
+});
+els.setAsr.value = state.settings.asr;
+els.setAsr.addEventListener('change', () => {
+  state.settings.asr = els.setAsr.value;
+  saveSettings();
+  if (state.worker) post({ type: 'asr-model', model: state.settings.asr, preload: state.phase === 'live' });
 });
 
 /* ---------------- self-test hook (?autolive) ----------------

@@ -29,7 +29,11 @@ const VLM = {
   },
 };
 
-const ASR_ID = 'onnx-community/moonshine-tiny-ONNX';
+const ASR_MODELS = {
+  tiny: 'onnx-community/moonshine-tiny-ONNX',
+  base: 'onnx-community/moonshine-base-ONNX', // noticeably better hearing, still fast
+};
+let asrModelKey = 'base';
 
 const HAS_GPU = !!self.navigator?.gpu;
 const DEVICE = HAS_GPU ? 'webgpu' : 'wasm';
@@ -57,8 +61,15 @@ function onProg(e) {
 self.onmessage = async (ev) => {
   const m = ev.data;
   try {
-    if (m.type === 'load') await load(m);
-    else if (m.type === 'caption') await safeReply(m, onCaption, { text: '' });
+  if (m.type === 'load') await load(m);
+  else if (m.type === 'asr-model') {
+    if (ASR_MODELS[m.model] && m.model !== asrModelKey) {
+      asrModelKey = m.model;
+      asr = null;
+      asrPromise = null; // next utterance builds the new pipeline
+      if (m.preload) ensureAsr();
+    }
+  } else if (m.type === 'caption') await safeReply(m, onCaption, { text: '' });
     else if (m.type === 'chat') await safeReply(m, onChat, { messages: [] });
     else if (m.type === 'transcribe') await safeReply(m, onTranscribe, { text: '' });
   } catch (err) {
@@ -112,13 +123,31 @@ async function load(m) {
     textOnlyOk = false;
   }
 
+  // before/after motion pairs need a multi-image-capable processor — probe raw
+  // (generate() splices to one frame until this flag is set, so it can't probe itself)
+  try {
+    const alt = new RawImage(new Uint8ClampedArray(64 * 64 * 4).fill(60), 64, 64, 4);
+    const msgs = [{
+      role: 'user',
+      content: [{ type: 'image' }, { type: 'image' }, { type: 'text', text: 'hi' }],
+    }];
+    const inputs = await processor([blank, alt], processor.apply_chat_template(msgs, {
+      add_generation_prompt: true,
+      enable_thinking: false,
+    }), { add_special_tokens: false });
+    await model.generate({ ...inputs, max_new_tokens: 2 });
+    multiImageOk = true;
+  } catch {
+    multiImageOk = false;
+  }
+
   if (m.asr) ensureAsr(); // loads in the background; first utterance awaits it
-  post({ type: 'ready' });
+  post({ type: 'ready', multiFrame: multiImageOk, asr: asrModelKey });
 }
 
 function ensureAsr() {
   if (!asrPromise) {
-    asrPromise = pipeline('automatic-speech-recognition', ASR_ID, {
+    asrPromise = pipeline('automatic-speech-recognition', ASR_MODELS[asrModelKey], {
       device: DEVICE,
       dtype: { encoder_model: 'fp32', decoder_model_merged: 'q4' },
       progress_callback: onProg,
@@ -134,24 +163,39 @@ function ensureAsr() {
 
 /* ---------------- generation core ---------------- */
 
-async function generate({ prompt, image, maxNewTokens, sample = false }) {
-  const content = image
-    ? [{ type: 'image' }, { type: 'text', text: prompt }]
-    : [{ type: 'text', text: prompt }];
+let multiImageOk = false;
+
+async function generate({
+  prompt, frames, image, maxNewTokens, sample = false,
+  temperature = 0.85, repetitionPenalty = 1.05, topP = 0.95,
+}) {
+  const images = frames?.length
+    ? frames.map(toRawImage).filter(Boolean)
+    : (image ? [toRawImage(image)] : []);
+  if (images.length > 1 && !multiImageOk) {
+    // this model/processor build can't take a batch — keep the newest frame
+    images.splice(0, images.length - 1);
+  }
+
+  const content = [...images.map(() => ({ type: 'image' })), { type: 'text', text: prompt }];
   const messages = [{ role: 'user', content }];
   const chatPrompt = processor.apply_chat_template(messages, {
     add_generation_prompt: true,
     enable_thinking: false,
   });
-  const inputs = await processor(image, chatPrompt, { add_special_tokens: false });
+  const inputs = await processor(
+    images.length ? images : (textOnlyOk ? null : blankImage()),
+    chatPrompt,
+    { add_special_tokens: false },
+  );
 
   const genOpts = {
     ...inputs,
     max_new_tokens: maxNewTokens,
-    repetition_penalty: 1.05,
+    repetition_penalty: repetitionPenalty,
     do_sample: sample,
   };
-  if (sample) { genOpts.temperature = 0.85; genOpts.top_p = 0.95; }
+  if (sample) { genOpts.temperature = temperature; genOpts.top_p = topP; }
 
   const outputs = await model.generate(genOpts);
   const gen = outputs.slice(null, [inputs.input_ids.dims.at(-1), null]);
@@ -194,6 +238,15 @@ const CHAT_PROMPT_PARTS = (ctx) => {
 // them back anchors a degeneration loop on small models ("A. hair? cringe me!"
 // ×20). Dedupe happens post-generation instead, against this worker-side ring
 // unioned with the recent lines the client saw.
+// soft steer, no identity assumptions: small models over-commit to gendered
+// labels about whoever is on camera — damp strong gendered references either
+// way so the chat leans on what's actually happening instead
+const GENDERED_RE = /\b(she|her|hers|woman|lady|gal|girl|he|him|his|man|dude|guy|bro|king)\b/i;
+
+function softGenderDamp(line) {
+  return GENDERED_RE.test(line) && Math.random() < 0.5;
+}
+
 let workerRecent = [];
 
 const normTokens = (s) =>
@@ -229,16 +282,18 @@ function blankImage() {
 
 async function onChat(m) {
   const ctx = m.context || {};
-  // scene-change bursts see the actual frame; regular lines run text-only for speed
-  let image = null;
-  if (ctx.sceneChange && m.image) image = toRawImage(m.image);
-  else if (!textOnlyOk) image = blankImage();
+  const frames = (ctx.sceneChange && m.frames?.length) ? m.frames : null;
+  let prompt = CHAT_PROMPT_PARTS(ctx);
+  if (frames?.length === 2) {
+    prompt += '\nThe first image is BEFORE the change, the second is AFTER — react to the difference.';
+  }
 
   const priors = [...(ctx.recent || []), ...workerRecent];
   const looped = loopDetected(priors);
   let raw = await generate({
-    prompt: CHAT_PROMPT_PARTS(ctx),
-    image,
+    prompt,
+    frames,
+    image: !frames && ctx.sceneChange ? m.image : null,
     maxNewTokens: 30,
     sample: true,
     temperature: looped ? 1.2 : 0.85,
@@ -246,11 +301,13 @@ async function onChat(m) {
   });
   let lines = toChatLines(raw)
     .filter((s) => !tooSimilar(s, priors))
-    .filter((s) => !(ctx.persona && tooSimilar(s, [ctx.persona], 0.6)));
+    .filter((s) => !(ctx.persona && tooSimilar(s, [ctx.persona], 0.6)))
+    .filter((s) => !softGenderDamp(s));
   if (!lines.length) {
     // everything collided — one hotter retry for fresh material
     raw = await generate({
-      prompt: CHAT_PROMPT_PARTS(ctx),
+      prompt,
+      frames: null,
       image: null,
       maxNewTokens: 30,
       sample: true,

@@ -1,9 +1,11 @@
-# NORTH-STAR — twitch-sim (LurkerTV)
+# NORTH-STAR — twitch-sim (SpasmTV)
 
 **What it is:** an AI Twitch stream that watches *you*. The user's webcam is the
-"stream"; a vision-language model (Liquid AI's LFM2-VL family) runs fully
+"stream"; a vision-language model (Liquid AI's LFM2.5-VL family) runs fully
 in-browser on WebGPU and roleplays the Twitch chat reacting to what it sees —
 and, via a local Whisper-class ASR model, to what the user *says* into their mic.
+Broadly applicable: nothing about the streamer is precoded (no identity, gender,
+or setup assumptions — the model reads what the camera shows).
 
 **Invariants that don't bend:**
 - **Zero backend.** No server we own does any inference or storage. Static files

@@ -38,11 +38,33 @@ function makeName() {
 }
 
 const TIMEOUTS = [
-  { label: '1 sec', ms: 1000 },
-  { label: '1 hour', ms: 3600e3 },
-  { label: '1 day', ms: 86400e3 },
-  { label: '1 week', ms: 604800e3 },
+  { label: '1s', ms: 1000 },
+  { label: '30s', ms: 30000 },
+  { label: '1m', ms: 60000 },
+  { label: '5m', ms: 300000 },
+  { label: '30m', ms: 1800000 },
+  { label: '1h', ms: 3600e3 },
+  { label: '1d', ms: 86400e3 },
+  { label: '1w', ms: 604800e3 },
 ];
+
+function hashStr(s) {
+  let h = 0;
+  for (const c of s) h = (h * 31 + c.charCodeAt(0)) | 0;
+  return Math.abs(h);
+}
+
+// deterministic flavor stats for the mod usercard — clearly a sim, but fun
+function fakeStats(viewer) {
+  const h = hashStr(viewer.name);
+  const pad = (n) => String(n).padStart(2, '0');
+  return {
+    followers: 3 + (h % 9000),
+    created: `${2008 + (h % 17)}-${pad(1 + ((h >> 4) % 12))}-${pad(1 + ((h >> 8) % 28))}`,
+    followingSince: `${2019 + ((h >> 6) % 7)}-${pad(1 + ((h >> 10) % 12))}-${pad(1 + ((h >> 14) % 28))}`,
+    months: h % 49,
+  };
+}
 
 export class ChatSim {
   constructor() {
@@ -195,6 +217,11 @@ export class ChatSim {
     this.mod(`🛡️ @${viewer.name} — ${YELLS[(Math.random() * YELLS.length) | 0]}`);
   }
 
+  warn(viewer) {
+    viewer.warned = true;
+    this.mod(`⚠️ @${viewer.name} — that's a formal warning.`);
+  }
+
   ban(viewer, ms, label) {
     viewer.bannedUntil = Date.now() + ms;
     if (ms > 1000) viewer.justReturned = true;
@@ -205,6 +232,13 @@ export class ChatSim {
         this.system(`@${viewer.name} survived the 1 second ban`);
       }, 1400);
     }
+    this._renderModCard(viewer);
+  }
+
+  banForever(viewer) {
+    viewer.bannedUntil = Infinity;
+    viewer.justReturned = true;
+    this.system(`@${viewer.name} has been banned 🪦`);
     this._renderModCard(viewer);
   }
 
@@ -221,15 +255,31 @@ export class ChatSim {
       card = document.createElement('div');
       card.id = 'modcard';
       document.body.appendChild(card);
+      card.addEventListener('pointerdown', (e) => {
+        if (!e.target.closest('.mc-head') || e.target.closest('button')) return;
+        const startX = e.clientX - card.offsetLeft;
+        const startY = e.clientY - card.offsetTop;
+        const move = (ev) => {
+          card.style.left =
+            Math.max(4, Math.min(window.innerWidth - card.offsetWidth - 4, ev.clientX - startX)) + 'px';
+          card.style.top =
+            Math.max(4, Math.min(window.innerHeight - card.offsetHeight - 4, ev.clientY - startY)) + 'px';
+        };
+        const up = () => {
+          window.removeEventListener('pointermove', move);
+          window.removeEventListener('pointerup', up);
+        };
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', up);
+      });
       document.addEventListener('click', (e) => {
         if (!card.hidden && !card.contains(e.target) && !e.target.closest('.user')) card.hidden = true;
       });
     }
     card._viewer = viewer;
     card.hidden = false;
-    const pad = 12, w = 280;
-    card.style.left = Math.min(x, window.innerWidth - w - pad) + 'px';
-    card.style.top = Math.min(y, window.innerHeight - 320) + 'px';
+    card.style.left = Math.min(x, window.innerWidth - 300) + 'px';
+    card.style.top = Math.min(y, Math.max(8, window.innerHeight - 380)) + 'px';
     this._renderModCard(viewer);
   }
 
@@ -237,22 +287,42 @@ export class ChatSim {
     const card = document.getElementById('modcard');
     if (!card || card.hidden || card._viewer !== viewer) return;
     const banned = viewer.bannedUntil > Date.now();
+    const st = fakeStats(viewer);
     card.innerHTML = `
       <div class="mc-head">
-        <b style="color:${viewer.color}">${escapeHtml(viewer.name)}</b>
-        ${viewer.warned ? '<span class="ubadge q">warned</span>' : ''}
-        ${banned ? '<span class="ubadge mvp">banned</span>' : ''}
+        <div class="mc-title">Mod View</div>
+        <div class="mc-id">
+          <div class="mc-namerow">
+            <b style="color:${viewer.color}">${escapeHtml(viewer.name)}</b>
+            <span class="mc-chip">ID: ${(hashStr(viewer.name) % 90000000) + 10000000}</span>
+          </div>
+          <div class="mc-stat">Followers: ${st.followers.toLocaleString()}</div>
+          <div class="mc-stat">Created: ${st.created}</div>
+          <div class="mc-stat">♥ Following since ${st.followingSince}</div>
+          <div class="mc-stat">★ Previously subscribed for ${st.months} month${st.months === 1 ? '' : 's'}</div>
+        </div>
         <span class="mc-close">✕</span>
       </div>
-      <div class="mc-msgs"></div>
-      <div class="mc-actions">
-        <button class="mc-yell">Yell</button>
+      <div class="mc-pills">
+        <button class="mc-yell">🛡 Yell</button>
+        <button class="mc-warn">⚠ Warn</button>
+        ${viewer.warned ? '<span class="ubadge q">on thin ice</span>' : ''}
+        ${banned ? '<span class="ubadge mvp">timed out</span>' : ''}
+      </div>
+      <div class="mc-strip">
+        <button class="mc-unban" title="Unban">⚡</button>
+        <span class="mc-strip-label">Timeouts</span>
+        <button class="mc-banforever" title="Ban forever">🚫</button>
+      </div>
+      <div class="mc-durs">
         ${TIMEOUTS.map((t) => `<button data-ms="${t.ms}" data-label="${t.label}">${t.label}</button>`).join('')}
         <button class="mc-custom">custom</button>
-        <button class="mc-unban">unban</button>
-      </div>`;
+      </div>
+      <div class="mc-msgs"></div>`;
+
     card.querySelector('.mc-close').onclick = () => { card.hidden = true; };
     card.querySelector('.mc-yell').onclick = () => { this.yell(viewer); this._renderModCard(viewer); };
+    card.querySelector('.mc-warn').onclick = () => { this.warn(viewer); this._renderModCard(viewer); };
     card.querySelectorAll('[data-ms]').forEach((b) => {
       b.onclick = () => this.ban(viewer, +b.dataset.ms, b.dataset.label);
     });
@@ -261,11 +331,15 @@ export class ChatSim {
       if (mins > 0) this.ban(viewer, Math.min(mins * 60e3, 31e9), `${mins} min`);
     };
     card.querySelector('.mc-unban').onclick = () => this.unban(viewer);
+    card.querySelector('.mc-banforever').onclick = () => this.banForever(viewer);
 
     const box = card.querySelector('.mc-msgs');
     const recent = viewer.msgs.slice(-12);
     box.innerHTML = recent.length
-      ? recent.map((m) => `<div class="mc-msg">${escapeHtml(m.text)}</div>`).join('')
+      ? recent.map((m) =>
+          `<div class="mc-msg${viewer.warned ? ' hot' : ''}">` +
+          `<span style="color:${viewer.color}">${escapeHtml(viewer.name)}</span> ` +
+          `${escapeHtml(m.text)}</div>`).join('')
       : '<div class="mc-msg dim">no messages yet</div>';
   }
 }
