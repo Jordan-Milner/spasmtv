@@ -34,7 +34,7 @@ let dec = null;
 let vis = null;
 let aud = null;          // audio encoder, loaded lazily on the first transcribe
 let audLoading = null;
-let chain = Promise.resolve(); // one decode at a time — the KV cache is per call but the GPU is shared
+export const stats = { visMs: 0, prefillMs: 0, decodeMs: 0, steps: 0, promptTokens: 0 };
 
 /* ---------------- download with Cache API + progress ---------------- */
 
@@ -180,11 +180,18 @@ function sample(logits, { temperature, topP, topK, repetitionPenalty }, history)
     for (let i = 1; i < n; i++) if (logits[i] > logits[best]) best = i;
     return best;
   }
-  // top-k via partial selection, then softmax / top-p over the survivors
-  const k = topK > 0 ? Math.min(topK, n) : Math.min(200, n);
-  const idx = Array.from({ length: n }, (_, i) => i);
-  idx.sort((a, b) => logits[b] - logits[a]);
-  const top = idx.slice(0, k);
+  // top-k via a size-k min-heap: one O(n) pass, no 128k-element sort per token
+  const k = topK > 0 ? Math.min(topK, n) : Math.min(100, n);
+  const hv = new Float32Array(k), hi = new Int32Array(k);
+  let hn = 0;
+  const swap = (x, y) => { const v = hv[x]; hv[x] = hv[y]; hv[y] = v; const j = hi[x]; hi[x] = hi[y]; hi[y] = j; };
+  const down = (i) => { for (;;) { let m = i; const l = 2 * i + 1, r = l + 1; if (l < hn && hv[l] < hv[m]) m = l; if (r < hn && hv[r] < hv[m]) m = r; if (m === i) break; swap(i, m); i = m; } };
+  for (let i = 0; i < n; i++) {
+    const v = logits[i];
+    if (hn < k) { hv[hn] = v; hi[hn] = i; let c = hn++; while (c > 0) { const pnt = (c - 1) >> 1; if (hv[pnt] <= hv[c]) break; swap(pnt, c); c = pnt; } }
+    else if (v > hv[0]) { hv[0] = v; hi[0] = i; down(0); }
+  }
+  const top = Array.from(hi.subarray(0, hn)).sort((x, y) => logits[y] - logits[x]);
   const m = logits[top[0]];
   const ps = top.map((i) => Math.exp((logits[i] - m) / temperature));
   const z = ps.reduce((a, b) => a + b, 0);
@@ -216,6 +223,7 @@ function initCache() {
 const i64 = (arr, dims) => new ort.Tensor('int64', BigInt64Array.from(arr, BigInt), dims);
 
 async function run({ prompt, image, audio, maxNewTokens = 24, temperature = 0, topP = 1, topK = 0, repetitionPenalty = 1 }) {
+  const T0 = performance.now();
   let feats = null;
   let nTok = 0;
   let content = '';
@@ -236,6 +244,8 @@ async function run({ prompt, image, audio, maxNewTokens = 24, temperature = 0, t
   const text = `<|startoftext|><|im_start|>user\n${content}${prompt}<|im_end|>\n<|im_start|>assistant\n<think></think>`;
   const ids = Array.from(tokenizer.encode(text, { add_special_tokens: false }));
 
+  stats.visMs = Math.round(performance.now() - T0); stats.promptTokens = ids.length;
+  let tPre = 0;
   let cache = initCache();
   const empty = {
     video_features: new ort.Tensor('float32', new Float32Array(0), [0, 2048]),
@@ -282,22 +292,37 @@ async function run({ prompt, image, audio, maxNewTokens = 24, temperature = 0, t
     const data = await logits.getData();
     const row = Float32Array.from(data.subarray ? data.subarray(data.length - 128000) : data.slice(-128000));
     logits.dispose?.();
+    if (step === 0) { tPre = performance.now(); stats.prefillMs = Math.round(tPre - T0 - stats.visMs); }
     const nxt = sample(row, { temperature, topP, topK, repetitionPenalty }, generated);
     if (EOS.has(nxt) || step === maxNewTokens) break;
     generated.push(nxt);
     cur = [nxt];
   }
+  stats.decodeMs = Math.round(performance.now() - tPre); stats.steps = generated.length;
   for (const t of Object.values(cache)) { try { t.dispose?.(); } catch { /* cpu */ } }
   feats?.dispose?.();
   afeats?.dispose?.();
   return tokenizer.decode(generated, { skip_special_tokens: true }).replace(/\s+/g, ' ').trim();
 }
 
-// serialized entry point — mirrors llm-worker.js generate()'s contract
+// serialized entry point — mirrors llm-worker.js generate()'s contract.
+// One decode at a time; when several wait, higher `priority` goes first so a
+// chat line or transcript never queues behind a scene caption.
+const waiting = [];
+let busy = false;
+async function pump() {
+  if (busy) return;
+  busy = true;
+  while (waiting.length) {
+    waiting.sort((a, b) => (b.opts.priority || 0) - (a.opts.priority || 0) || a.seq - b.seq);
+    const job = waiting.shift();
+    try { job.resolve(await run(job.opts)); } catch (e) { job.reject(e); }
+  }
+  busy = false;
+}
+let seqN = 0;
 export function omniGenerate(opts) {
-  const p = chain.then(() => run(opts));
-  chain = p.catch(() => {});
-  return p;
+  return new Promise((resolve, reject) => { waiting.push({ opts, resolve, reject, seq: seqN++ }); pump(); });
 }
 
 // speech → text with the same model (no Moonshine). pcm: Float32Array, 16 kHz mono.
@@ -305,7 +330,7 @@ export async function omniTranscribe(pcm) {
   await loadOmniAudio();
   const out = await omniGenerate({
     prompt: 'What does the speaker say? Write the full transcript. If there is no speech, reply exactly NONE.',
-    audio: pcm, maxNewTokens: 80, temperature: 0,
+    audio: pcm, maxNewTokens: 80, temperature: 0, priority: 1,
   });
   return /^none\b/i.test(out) ? '' : out;
 }

@@ -234,14 +234,14 @@ function ensureAsr() {
 /* ---------------- generation core ---------------- */
 
 async function generate({
-  prompt, frames, image, maxNewTokens, sample = false, grammar = false,
+  prompt, frames, image, maxNewTokens, sample = false, priority = 0, grammar = false,
   temperature = 0.85, repetitionPenalty = 1.05, topP = 0.95, topK = 0,
 }) {
   if (currentKey === 'omni') {
     // omni takes real text-only calls — no blank-image stand-in needed
     const f = frames?.length ? frames[frames.length - 1] : image;
     return omniGenerate({
-      prompt, image: f ? { data: f.data, width: f.width, height: f.height } : null,
+      priority, prompt, image: f ? { data: f.data, width: f.width, height: f.height } : null,
       maxNewTokens, temperature: sample ? temperature : 0, topP, topK, repetitionPenalty,
     });
   }
@@ -304,7 +304,7 @@ async function onCaption(m) {
   const text = await generate({
     prompt: 'Describe the scene in one short sentence.',
     image: toRawImage(m.image),
-    maxNewTokens: 64,
+    maxNewTokens: currentKey === 'omni' ? 40 : 64, // omni calls queue behind each other — shorter captions free the GPU for chat
   });
   post({ type: 'caption', id: m.id, text });
 }
@@ -407,6 +407,7 @@ async function onChat(m) {
   // frame — no image in the call at all (blank stand-in inside generate())
   const seeing = VISUAL_KINDS.has(kind) && ctx.sceneChange;
   const gen = (hot) => generate({
+    priority: 1,
     prompt,
     frames: seeing && !hot ? m.frames : null,
     image: seeing && !hot ? m.image : null,

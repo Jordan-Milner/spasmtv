@@ -13,7 +13,7 @@ export const TUNE_SCHEMA = [
     { key: 'topP', label: 'top-p', type: 'range', min: 0.5, max: 1, step: 0.01, def: 0.95, worker: true, help: 'Nucleus sampling: only the most likely tokens that add up to this probability are considered. Lower = more predictable.' },
     { key: 'topK', label: 'top-k (0 = off)', type: 'range', min: 0, max: 100, step: 1, def: 40, worker: true, help: 'cuts the long tail of weird tokens' },
     { key: 'repPenalty', label: 'repetition penalty', type: 'range', min: 1, max: 1.5, step: 0.01, def: 1.1, worker: true, help: 'too high makes a 450M model babble to avoid repeating itself' },
-    { key: 'maxNewTokens', label: 'max tokens / line', type: 'range', min: 8, max: 60, step: 1, def: 16, worker: true, help: 'Hard cap on tokens generated per chat line. Short caps cut rambling and speed up chat.' },
+    { key: 'maxNewTokens', label: 'max tokens / line', type: 'range', min: 8, max: 60, step: 1, def: 12, worker: true, help: 'Hard cap on tokens generated per chat line. Short caps cut rambling and speed up chat.' },
     { key: 'maxWords', label: 'trim lines to N words', type: 'range', min: 4, max: 30, step: 1, def: 8, worker: true, help: 'Lines longer than this are trimmed with an ellipsis after generation.' },
   ]},
   { group: 'Prompt', open: true, items: [

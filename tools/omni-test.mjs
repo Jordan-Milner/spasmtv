@@ -2,7 +2,7 @@
 //   node tools/omni-test.mjs   (needs serve.sh on :8619 and videos/speech-test.f32)
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
-const PORT = 9350, BASE = 'http://127.0.0.1:8619/tools/omni-test.html';
+const PORT = 9350, BASE = "http://127.0.0.1:8619/tools/omni-test.html?v=" + Date.now();
 const profile = '/tmp/spasmtv-chrome-profile';
 mkdirSync(profile, { recursive: true });
 const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', [
