@@ -25,6 +25,51 @@ const YELLS = [
   'mods are awake, just so you know.',
 ];
 
+const ARCHETYPES = {
+  'hype-man':    { weight: 3, freq: 1.0, hint: 'you are the hype man — short all-caps bursts, !!! , pile onto anything exciting',           case: 'upper', ellipsis: false, typo: 0.02, emote: 1.3 },
+  'backseat':    { weight: 2, freq: 0.9, hint: 'a backseat gamer — tell the streamer what to do next, unprompted, with timestamps',       case: 'lower', ellipsis: false, typo: 0.03, emote: 0.8 },
+  'lurker':      { weight: 4, freq: 0.4, hint: 'a lurker — nearly silent, post only a single word or emote now and then',                 case: 'lower', ellipsis: true,  typo: 0.02, emote: 1.0 },
+  'regular':     { weight: 3, freq: 1.3, hint: 'a regular — treat something on screen like a running joke you\u2019ve seen every stream', case: 'lower', ellipsis: true,  typo: 0.04, emote: 1.0 },
+  'earnest':     { weight: 2, freq: 0.8, hint: 'earnest — ask one genuine short question about the streamer or the room',                case: 'lower', ellipsis: true,  typo: 0.03, emote: 0.7 },
+  'doomer':      { weight: 2, freq: 0.7, hint: 'a doomer — ironic defeatist, \\"this is who i am now\\" energy',                        case: 'lower', ellipsis: true,  typo: 0.05, emote: 0.8 },
+  'parasocial':  { weight: 2, freq: 0.8, hint: 'parasocial — talk to the streamer like a close friend, bring up things you \\"remember\\"', case: 'lower', ellipsis: true,  typo: 0.04, emote: 1.0 },
+  'troll':       { weight: 2, freq: 0.7, hint: 'a troll — skate the line, say something just barely dumb enough to draw a mod',          case: 'lower', ellipsis: false, typo: 0.03, emote: 1.0 },
+  'newcomer':    { weight: 1, freq: 0.5, hint: 'a newcomer — first time here, ask what\u2019s going on',                                  case: 'lower', ellipsis: true,  typo: 0.03, emote: 0.6 },
+  'copypasta':   { weight: 1, freq: 0.3, hint: 'a copypasta lurker — occasionally paste a classic wall of text verbatim',                case: 'mixed', ellipsis: false, typo: 0.00, emote: 0.5 },
+};
+
+// The 10 archetypes above. Kept as the single source of truth for roster
+// assignment, message-frequency weighting, and the instruction personaHint.
+const ARCHETYPE_KEYS = Object.keys(ARCHETYPES);
+
+// persisted roster: names + archetypes survive reloads so regulars stay theirs
+const ROSTER_KEY = 'spasmtv-roster';
+const ROSTER_VERSION = 1;
+
+// weighted pick of a random archetype from the roster table
+function pickArchetype() {
+  // total weight so Math.random() in [0,1) maps onto the weight axis
+  const total = ARCHETYPE_KEYS.reduce((s, k) => s + ARCHETYPES[k].weight, 0);
+  let r = Math.random() * total;
+  for (const k of ARCHETYPE_KEYS) {
+    r -= ARCHETYPES[k].weight;
+    if (r <= 0) return k;
+  }
+  return ARCHETYPE_KEYS[0];
+}
+
+// weighted pick of an index into a pool, weighted by each viewer's archetype
+// message-frequency — regulars dominate, lurkers and newcomers rarely post
+function pickByFreq(pool) {
+  const total = pool.reduce((s, v) => s + (v.archetype.freq || 1), 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < pool.length; i++) {
+    r -= pool[i].archetype.freq;
+    if (r <= 0) return i;
+  }
+  return pool.length - 1;
+}
+
 function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 function escapeHtml(s) {
   return s.replace(/[&<>"']/g, (c) => (
@@ -88,19 +133,47 @@ export class ChatSim {
       : null;
   }
 
+  _makeViewer(name, archetypeKey) {
+    const archetype = ARCHETYPES[archetypeKey];
+    return {
+      name,
+      color: COLORS[(Math.random() * COLORS.length) | 0],
+      archetype,          // the archetype object (hint + cosmetics + freq)
+      archetypeKey,       // its key, e.g. "regular"
+      personaHint: archetype.hint, // handed to the worker as the base persona
+      q: 0, msgs: [], warned: false, bannedUntil: 0, justReturned: false,
+    };
+  }
+
+  // Build (or rebuild) the roster. Names + archetypes are seeded once into
+  // localStorage so the same regulars show up on every reload. A fresh browser
+  // gets a new seed; an existing seed is reused and only grown.
   buildRoster(n = 34) {
+    let seed = null;
+    try { seed = JSON.parse(localStorage.getItem(ROSTER_KEY)); } catch {}
+    if (!seed || seed.version !== ROSTER_VERSION || !Array.isArray(seed.viewers)) {
+      seed = { version: ROSTER_VERSION, viewers: [] };
+    }
     const seen = new Set();
     this.viewers = [];
-    while (this.viewers.length < n) {
-      const name = makeName();
-      if (seen.has(name)) continue;
+    for (let i = 0; this.viewers.length < n; i++) {
+      let name, archetypeKey;
+      if (i < seed.viewers.length) {
+        const s = seed.viewers[i];
+        name = s.name;
+        archetypeKey = ARCHETYPES[s.archetype] ? s.archetype : pickArchetype();
+      } else {
+        do { name = makeName(); } while (seen.has(name));
+        archetypeKey = pickArchetype();
+      }
       seen.add(name);
-      this.viewers.push({
-        name, color: COLORS[this.viewers.length % COLORS.length],
-        q: 0, msgs: [], warned: false, bannedUntil: 0, justReturned: false,
-      });
+      this.viewers.push(this._makeViewer(name, archetypeKey));
     }
+    // persist just the identity we care about (name + archetype)
+    seed.viewers = this.viewers.map((v) => ({ name: v.name, archetype: v.archetypeKey }));
+    try { localStorage.setItem(ROSTER_KEY, JSON.stringify(seed)); } catch {}
     this.mvp = null;
+    this.lastViewer = null;
   }
 
   byName(name) { return this.viewers.find((v) => v.name === name); }
@@ -111,11 +184,40 @@ export class ChatSim {
 
   pickViewer() {
     const pool = this.activeViewers();
-    for (let i = 0; i < 6; i++) {
-      const v = pool[(Math.random() * pool.length) | 0];
+    if (!pool.length) return null;
+    // weighted by archetype frequency — regulars/posts dominate, lurkers rare
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const v = pool[pickByFreq(pool)];
       if (v && v.name !== this.lastViewer) { this.lastViewer = v.name; return v; }
     }
-    return pool[0] || null;
+    return pool[pickByFreq(pool)];
+  }
+
+  // Client-side cosmetics applied to the DISPLAYED text only: a case style,
+  // an occasional trailing ellipsis, a subtle typo, and (for high-emote
+  // archetypes) a chance to tack on a real emote. The raw model text is what
+  // gets logged, so the scorer never sees cosmetic noise.
+  render(viewer, text) {
+    let t = text;
+    if (t.length > 4 && Math.random() < viewer.archetype.typo) {
+      const words = t.split(' ');
+      const wi = (Math.random() * words.length) | 0;
+      const w = words[wi];
+      if (w.length > 3) {
+        const p = 1 + ((Math.random() * (w.length - 2)) | 0);
+        if (w[p] !== w[p - 1])
+          words[wi] = w.slice(0, p - 1) + w[p] + w[p - 1] + w.slice(p + 1);
+      }
+      t = words.join(' ');
+    }
+    if (viewer.archetype.case === 'upper') t = t.toLowerCase().toUpperCase();
+    else if (viewer.archetype.case === 'mixed' && Math.random() < 0.3) {
+      t = t.split('').map((c) => (Math.random() < 0.5 ? c.toUpperCase() : c.toLowerCase())).join('');
+    }
+    if (viewer.archetype.ellipsis && Math.random() < 0.5 && !/[.!?…]$/.test(t)) t += '…';
+    if (viewer.archetype.emote > 1 && !/[A-Z]{2,}$/.test(t) && Math.random() < (viewer.archetype.emote - 1) * 0.2)
+      t += ' ' + this.randomEmote();
+    return t;
   }
 
   _append(el) {
@@ -161,7 +263,7 @@ export class ChatSim {
       `${badge}<span class="user" style="color:${viewer.color}"></span>` +
       `<span class="sep">: </span><span class="text"></span>`;
     el.querySelector('.user').textContent = viewer.name;
-    el.querySelector('.text').innerHTML = this._formatText(text);
+    el.querySelector('.text').innerHTML = this._formatText(this.render(viewer, text));
     this._append(el);
     return viewer;
   }
@@ -343,3 +445,5 @@ export class ChatSim {
       : '<div class="mc-msg dim">no messages yet</div>';
   }
 }
+
+export { ARCHETYPES, ARCHETYPE_KEYS, pickArchetype, pickByFreq, ROSTER_KEY, ROSTER_VERSION };

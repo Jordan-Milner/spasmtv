@@ -561,7 +561,9 @@ function sendChatMessage({ sceneChange, offsetMs = 0, burstIndex = 0 }) {
     if (!viewer) return;
     state.pendingChat += 1;
     // persona overrides: called-out viewers get defensive, returning prisoners announce it
-    let persona = PERSONAS[personaIdx++ % PERSONAS.length];
+    // base persona is the viewer's archetype instruction (chat-sim.js); the old
+    // round-robin PERSONAS list is kept only as a fallback for missing archetypes
+    let persona = viewer.personaHint || PERSONAS[personaIdx++ % PERSONAS.length];
     if (viewer.justReturned) {
       persona = 'just back from a timeout — announce your return, dramatically unrepentant';
       viewer.justReturned = false;
