@@ -102,3 +102,9 @@ serve.sh              named static server (ps: twitch-sim-server) — needed onl
   via HF API file list); UI pins brain to fast + mic (ASR) off; `?phone`
   previews the mode on desktop. If the tab still reloads during load, that
   phone can't hold even q8 — no catchable error exists for a jetsam kill.
+- 2026-10-28: **active plan is `PLAN-CHAT-V2.md`** ("the regulars": archetype
+  roster, anti-echo prompt v3, kind scheduler, moderation-tuned culture, video
+  sources, `tools/score-chat.mjs` rubric). Its 6 buildable steps are Hub cards
+  (project slug `twitch-sim`, Lane Specced, Repo `~/Projects/twitch-sim`) so the
+  autonomous fleet picks them up; the tuning loop stays a human card because it
+  needs eyes on transcripts.
