@@ -10,6 +10,7 @@
 
 import {
   AutoProcessor,
+  AutoTokenizer,
   AutoModelForImageTextToText,
   RawImage,
   pipeline,
@@ -76,6 +77,32 @@ const post = (m) => self.postMessage(m);
 let processor = null;
 let model = null;
 let currentKey = null;
+// §H/U8 grammar guard — chat generation constrained to a chat-safe charset by
+// regex, so emoji faces / hashtags / template debris never get sampled (they
+// used to die in toChatLines + keep(), each death costing a retry GPU call).
+// Caption and ASR fact prompts stay unconstrained. docs/RESEARCH-CHAT-WEBGPU.md §4.
+let tokenizer = null;
+let grammarOn = false;
+let grammarBroken = false; // one throw = guard off for the session: a broken guard must never kill chat
+let GrammarCtor = null;
+const CHAT_REGEX = "[A-Za-z0-9 ,.!?']{1,90}"; // caps allowed (emote codes are uppercase text), no newline: one line per call
+
+const SO_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers-structured-output@4.3.2/+esm';
+const TF_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2'; // must match the static import above
+
+async function grammarModule() {
+  if (!GrammarCtor) {
+    // the bare package URL ships CJS (no ESM named export) and jsdelivr's +esm
+    // bundle imports transformers.js by a *different* URL — patched to the one
+    // this worker already loaded, so the guard shares our transformers.js copy.
+    const src = await (await fetch(SO_URL)).text();
+    const patched = src.replace('/npm/@huggingface/transformers@4.3.2/+esm', TF_URL);
+    const mod = await import(URL.createObjectURL(new Blob([patched], { type: 'text/javascript' })));
+    if (!mod.StructuredOutputProcessor) throw new Error('no StructuredOutputProcessor export');
+    GrammarCtor = mod.StructuredOutputProcessor;
+  }
+  return GrammarCtor;
+}
 let textFirst = false; // processor arg order for the loaded family (VLM.phone)
 let asr = null;
 let asrPromise = null;
@@ -137,27 +164,46 @@ async function load(m) {
   const key = m.phone ? 'phone' : (VLM[m.model] ? m.model : 'fast');
   const cfg = VLM[key];
   const loadKey = key;
-  if ((model || omniLoaded()) && currentKey === loadKey) { post({ type: 'ready' }); return; }
+  // main.js decides whether the guard is on (off on phones, off with ?grammar=0)
+  const wanted = !!m.grammar && !grammarBroken;
+  if ((model || omniLoaded()) && currentKey === loadKey) {
+    grammarOn = wanted && !!tokenizer && !cfg.omni;
+    post({ type: 'ready' });
+    return;
+  }
   filePct.clear();
   post({ type: 'progress', progress: 0 });
 
   if (cfg.omni) {
+    grammarOn = false; // the regex guard is a transformers.js logits processor; omni has its own sampler
     await loadOmni((p) => post({ type: 'progress', progress: p }));
     currentKey = loadKey;
     await generate({ prompt: 'hi', maxNewTokens: 2 });
-    if (m.asr) ensureAsr();
-    post({ type: 'ready', asr: asrModelKey });
+    // hearing is the same model: its audio encoder loads in the background, Moonshine never does
+    if (m.asr) loadOmniAudio().then(() => post({ type: 'asr-ready' })).catch((e) => console.error('[omni audio]', e));
+    post({ type: 'ready', asr: 'omni' });
     return;
   }
 
-  [processor, model] = await Promise.all([
+  [processor, model, tokenizer] = await Promise.all([
     AutoProcessor.from_pretrained(cfg.id, { progress_callback: onProg }),
     AutoModelForImageTextToText.from_pretrained(cfg.id, {
       device: DEVICE,
       dtype: cfg.dtype,
       progress_callback: onProg,
     }),
+    wanted ? AutoTokenizer.from_pretrained(cfg.id, { progress_callback: onProg }) : null,
   ]);
+  grammarOn = wanted && !!tokenizer;
+  if (grammarOn) {
+    // a CDN or API failure here downgrades to unguarded chat, never to no chat
+    try { await grammarModule(); }
+    catch (err) {
+      grammarOn = false; grammarBroken = true;
+      console.warn('grammar guard off:', err?.message || err);
+      post({ type: 'grammar-off', error: String(err?.message || err) });
+    }
+  }
   currentKey = loadKey;
   textFirst = !!cfg.textFirst;
 
@@ -166,7 +212,7 @@ async function load(m) {
   await generate({ prompt: 'hi', image: blank, maxNewTokens: 2 });
 
   if (m.asr) ensureAsr(); // loads in the background; first utterance awaits it
-  post({ type: 'ready', asr: asrModelKey });
+  post({ type: 'ready', asr: asrModelKey, grammar: grammarOn });
 }
 
 function ensureAsr() {
@@ -188,7 +234,7 @@ function ensureAsr() {
 /* ---------------- generation core ---------------- */
 
 async function generate({
-  prompt, frames, image, maxNewTokens, sample = false,
+  prompt, frames, image, maxNewTokens, sample = false, grammar = false,
   temperature = 0.85, repetitionPenalty = 1.05, topP = 0.95, topK = 0,
 }) {
   if (currentKey === 'omni') {
@@ -226,6 +272,18 @@ async function generate({
   if (sample) {
     genOpts.temperature = temperature; genOpts.top_p = topP;
     if (topK > 0) genOpts.top_k = topK;
+  }
+  if (grammar && grammarOn && !grammarBroken) {
+    try {
+      // one processor per call: the engine carries mutable state per generation,
+      // and chat generates exactly one sequence per call
+      genOpts.logits_processor = new (await grammarModule())(tokenizer, { type: 'regex', regex: CHAT_REGEX });
+    } catch (err) {
+      grammarBroken = true;
+      delete genOpts.logits_processor;
+      console.warn('grammar guard off:', err?.message || err);
+      post({ type: 'grammar-off', error: String(err?.message || err) });
+    }
   }
 
   const outputs = await model.generate(genOpts);
@@ -318,6 +376,8 @@ function softGenderDamp(line, p = 0.5) {
 }
 
 let workerRecent = [];
+let chatCalls = 0; // generate() calls made for chat this session (U8 metric)
+let chatDrops = 0; // first passes that keep() killed (retry cost)
 
 function loopDetected(priors) {
   const tail = priors.slice(-4);
@@ -352,6 +412,7 @@ async function onChat(m) {
     image: seeing && !hot ? m.image : null,
     maxNewTokens: T.maxNewTokens ?? 20,
     sample: true,
+    grammar: true,
     temperature: hot ? (T.temperature ?? 0.85) + 0.4 : looped ? (T.temperature ?? 0.85) + 0.35 : (T.temperature ?? 0.85),
     topP: T.topP ?? 0.95,
     topK: T.topK ?? 0,
@@ -369,9 +430,12 @@ async function onChat(m) {
     .filter((s) => !softGenderDamp(s, (T.genderDamp ?? 50) / 100));
 
   let lines = keep(toChatLines(await gen(false), T.maxWords || 14, true));
-  if (!lines.length) lines = keep(toChatLines(await gen(true), T.maxWords || 14, true));
+  chatCalls += 1;
+  if (!lines.length) { chatCalls += 1; chatDrops += 1; lines = keep(toChatLines(await gen(true), T.maxWords || 14, true)); }
   workerRecent = [...workerRecent, ...lines].slice(-8);
-  post({ type: 'chat', id: m.id, messages: lines, kind });
+  // cumulative GPU calls / first-pass deaths — the U8 guard is measured by
+  // driving calls-per-kept-line toward 1
+  post({ type: 'chat', id: m.id, messages: lines, kind, calls: chatCalls, drops: chatDrops });
 }
 
 // the 450M sometimes degrades into keysmash ("EZERLAFUNKEBOHMTHAZAKABOBT…").

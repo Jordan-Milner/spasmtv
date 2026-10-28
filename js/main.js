@@ -71,6 +71,7 @@ const state = {
   source: 'cam',            // cam | demo | share | file
   demoRaf: 0,
   phoneMode: false,        // iPhone/iPad (or ?phone): SmolVLM-256M brain, no ASR
+  grammar: true,           // §H/U8 regex guard on the chat path (?grammar=0, never on phones)
   // settings (settings panel, persisted)
   settings: { detail: CAPTURE_DEFAULT, focus: true, varied: true, asr: 'base' },
   // vision
@@ -165,7 +166,11 @@ function onWorkerMessage(ev) {
     els.loadProgress.hidden = false;
     els.loadBar.style.width = pct + '%';
     els.loadPct.textContent = pct + '%';
+  } else if (m.type === 'grammar-off') {
+    // the guard is optional; the rubric run needs to know it went away
+    logEvent('guard', 'off', { error: m.error });
   } else if (m.type === 'ready') {
+    if (m.grammar !== undefined) logEvent('guard', m.grammar ? 'on' : 'off');
     state.multiFrame = !!m.multiFrame;
     els.loadProgress.hidden = true; els.loadPct.textContent = '';
     goLiveAfterLoad();
@@ -205,6 +210,7 @@ function onWorkerMessage(ev) {
       logEvent('chat', finalText, {
         ...(entry?.context || {}),
         kind: m.kind || entry?.kind || 'reaction',
+        calls: m.calls, drops: m.drops,
         viewer: shown.name,
         archetype: shown.archetypeKey,
         shown: sim.lastRendered,
@@ -473,6 +479,7 @@ async function start() {
     type: 'load',
     model: els.modelSelect.value,
     phone: state.phoneMode,
+    grammar: state.grammar,
     asr: els.micToggle.checked,
     asrModel: state.settings.asr,
   });
@@ -1259,6 +1266,8 @@ if (new URLSearchParams(location.search).has('autolive')) {
     if (b && [...els.modelSelect.options].some((o) => o.value === b)) els.modelSelect.value = b;
   }
   state.phoneMode = appleMobile || new URLSearchParams(location.search).has('phone');
+  // §H/U8: guard is a desktop extra — one less moving part on phones
+  state.grammar = !state.phoneMode && new URLSearchParams(location.search).get('grammar') !== '0';
   if (state.phoneMode) {
     els.modelSelect.value = 'fast';
     els.modelSelect.disabled = true;
