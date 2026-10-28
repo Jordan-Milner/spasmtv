@@ -1,0 +1,72 @@
+# twitch-sim (LurkerTV)
+
+**An AI Twitch stream that watches you.** Your webcam feed becomes the "stream";
+a vision-language model runs entirely in your browser (WebGPU) and plays the
+role of Twitch chat — reacting to what it sees, and (if you allow the mic) to
+what you *say*. Nothing is uploaded, ever: the only network traffic is a
+one-time model download from Hugging Face's CDN, and every frame/audio sample
+is processed on your own GPU.
+
+## Run it
+
+WebGPU requires a secure context, so serve it over localhost:
+
+```sh
+./serve.sh            # http://localhost:8619  (ps name: twitch-sim-server)
+```
+
+Open http://localhost:8619 in Chrome/Edge 113+, pick a brain, **Go live**.
+
+- First load downloads the model(s) (~300 MB fast / ~1 GB sharp) into the
+  browser cache — reloads after that are instant.
+- No camera? Check **demo** — the chat reacts to a generated fake stream.
+- Talk into your mic — the chat hears you (transcribed locally) and answers
+  within a couple of seconds.
+- You can also type into the chat box: you're the streamer, talk to your chat.
+
+## How it works
+
+```
+webcam frame ──► canvas (448px) ──► vision-language model (WebGPU) ─┐
+mic audio ────► silence gate ──► speech-to-text (WebGPU) ───────────┤
+recent chat lines + your typed messages ────────────────────────────┴─►
+        "write ONE twitch chat message reacting to this" → chat panel
+```
+
+- **Vision:** LiquidAI's LFM2-VL family via transformers.js, quantized, on your
+  GPU. One call captions the scene (~every 8 s or on hard scene cuts), the rest
+  write single chat messages at Twitch cadence.
+- **Audio:** an AudioWorklet taps raw PCM, a simple RMS gate segments speech,
+  and a Whisper-class model transcribes each utterance locally.
+- **Chat sim:** viewer names/colors are client-side cosmetics; the model only
+  writes message text. Viewer count drifts, hype bursts on scene changes.
+
+See `NORTH-STAR.md` for the invariants (zero backend, nothing leaves the
+browser, Twitch energy not chatbot energy) and `PLAN.md` for the ledger.
+
+## Model notes
+
+- **Vision/chat:** `LiquidAI/LFM2.5-VL-450M-ONNX` — the same weights and load
+  config (WebGPU, fp16 vision+embed, q4 decoder, ~556 MB) as LiquidAI's own
+  [WebGPU demo](https://huggingface.co/spaces/LiquidAI/LFM2.5-VL-450M-WebGPU).
+  "Sharper" option: `onnx-community/LFM3-VL-2B-ONNX` q4f16 (~1.8 GB).
+- **Speech-to-text:** `onnx-community/moonshine-tiny-ONNX` (~75 MB, MIT) —
+  built for short streaming utterances; encoder fp32 / merged decoder q4 on
+  WebGPU. Whisper-tiny.en would be the drop-in fallback.
+- **Runtime:** transformers.js 4.3.2 from jsDelivr, ESM, inside a module
+  worker. Requires WebGPU + the `shader-f16` feature (any recent Apple Silicon
+  / discrete GPU in Chrome/Edge).
+- **License:** LFM Open License v1.0 — free to use including commercially under
+  a $10M revenue threshold; fine for a free public web app. Moonshine is MIT.
+
+LiquidAI also ships native audio models (`LFM2.5-Audio-1.5B`, `LFM3-Omni-2B`),
+and the Omni even documents in-browser use — but through raw ONNX Runtime
+graphs, not transformers.js. Until that's turnkey, a local ASR model feeding
+text to the VLM is the sane way to make chat "hear" you, so that's what this does.
+
+## Known limits
+
+- Desktop Chrome/Edge with WebGPU required (Safari/Firefox: no WebGPU or flaky).
+- First message after model load can lag a few seconds while the GPU warms up.
+- The 350–450M "fast" brain writes dumb chat. That's the point. The 1.6B
+  "sharp" option is there when you want cleverness over speed.

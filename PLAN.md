@@ -57,5 +57,7 @@ serve.sh              named static server (ps: twitch-sim-server) — needed onl
 
 ## Ledger
 
-- 2026-10-27: scaffolded; research agents A+B dispatched. Next: build worker on
-  their return, then verify.
+- 2026-10-27: scaffolded; research A+B returned; worker built on verified IDs
+  (LFM2.5-VL-450M-ONNX fast / LFM3-VL-2B-ONNX sharp; moonshine-tiny ASR;
+  transformers.js 4.3.2). Next: browser verification (fake media), then
+  manifest row + proj check.

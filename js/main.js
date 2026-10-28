@@ -19,7 +19,8 @@ const els = {
   chatForm: $('chat-form'), chatInput: $('chat-input'), chatPanel: $('chat-panel'),
 };
 
-const CAPTURE_SIZE = 448;         // longest side handed to the vision model
+const CAPTURE_SIZE = 512;         // longest side handed to the vision model — LFM2.5-VL
+                                  // tiles beyond 512×512, so stay under it (~144 img tokens @16:9)
 const DIFF_W = 64, DIFF_H = 36;   // luma thumbnail used for scene-change detection
 const SCENE_CHANGE = 0.055;       // mean abs luma delta that counts as a "clip it!" moment
 
@@ -126,7 +127,7 @@ async function start() {
   }
 
   setStatus('busy', 'downloading model (first run only)…');
-  post({ type: 'load', model: els.modelSelect.value });
+  post({ type: 'load', model: els.modelSelect.value, asr: els.micToggle.checked });
 }
 
 async function goLiveAfterLoad() {
@@ -289,11 +290,22 @@ function tickChat() {
   }
 }
 
+const PERSONAS = [
+  'hype viewer, sometimes all caps',
+  'confused lurker asking a short question',
+  'regular viewer making an inside joke',
+  'backseat gamer giving unsolicited advice',
+  'cringe jokester',
+  'over-invested viewer narrating everything',
+  'skeptical viewer who suspects it is staged',
+];
+let personaIdx = (Math.random() * PERSONAS.length) | 0;
+
 function sendChatMessage({ sceneChange, offsetMs = 0 }) {
   setTimeout(() => {
     if (state.phase !== 'live') return;
     state.pendingChat += 1;
-    post({
+    const msg = {
       type: 'chat',
       id: ++state.reqId,
       context: {
@@ -302,8 +314,15 @@ function sendChatMessage({ sceneChange, offsetMs = 0 }) {
         sceneChange,
         userMsg: state.userMsgTicks > 0 ? state.userMsg : '',
         recent: state.lastChatLines,
+        persona: PERSONAS[personaIdx++ % PERSONAS.length],
       },
-    });
+    };
+    // scene-change bursts react to the actual frame; other lines run text-only
+    if (sceneChange) {
+      const img = grabFrameBuffer();
+      if (img) { msg.image = img; post(msg, [img.data.buffer]); return; }
+    }
+    post(msg);
   }, offsetMs);
 }
 
@@ -367,7 +386,16 @@ async function startMic() {
     ? new MediaStream([...state.stream.getVideoTracks(), ...mic.getAudioTracks()])
     : mic;
 
-  state.audioCtx = new AudioContext();
+  // Ask for 16 kHz directly (Chrome 74+ resamples in the HAL); if the context
+  // comes back at another rate, resampleTo16k handles it before inference.
+  let ctx;
+  try {
+    ctx = new AudioContext({ sampleRate: 16000 });
+    if (ctx.sampleRate !== 16000) { await ctx.close(); ctx = null; }
+  } catch { ctx = null; }
+  if (!ctx) ctx = new AudioContext();
+  state.audioCtx = ctx;
+
   await state.audioCtx.audioWorklet.addModule(new URL('./recorder-worklet.js', import.meta.url));
   const src = state.audioCtx.createMediaStreamSource(mic);
   const tap = new AudioWorkletNode(state.audioCtx, 'pcm-tap');
@@ -375,10 +403,11 @@ async function startMic() {
   src.connect(tap); // never connected to destination → no echo
 }
 
-const GATE_RMS = 0.012;
-const MIN_SPEECH_MS = 900;
+// RMS hysteresis gate (constants per the moonshine-web demo's VAD tuning)
+const RMS_ON = 0.010, RMS_OFF = 0.005;
+const MIN_SPEECH_MS = 500;
 const MAX_CHUNK_MS = 9000;
-const SILENCE_HANGOVER_MS = 550;
+const SILENCE_HANGOVER_MS = 450;
 const TARGET_SR = 16000;
 
 function onPcm(chunk) {
@@ -386,11 +415,14 @@ function onPcm(chunk) {
   let sum = 0;
   for (let i = 0; i < chunk.length; i++) sum += chunk[i] * chunk[i];
   const rms = Math.sqrt(sum / chunk.length);
-  const loud = rms > GATE_RMS;
   const dtMs = (chunk.length / state.audioCtx.sampleRate) * 1000;
 
-  if (loud) {
+  if (rms > RMS_ON) {
     state.speaking = true;
+    state.silenceMs = 0;
+    state.pcm.push(chunk);
+    state.pcmSamples += chunk.length;
+  } else if (state.speaking && rms > RMS_OFF) {
     state.silenceMs = 0;
     state.pcm.push(chunk);
     state.pcmSamples += chunk.length;
@@ -489,9 +521,13 @@ els.micToggle.addEventListener('change', () => {
   try {
     const adapter = await navigator.gpu.requestAdapter();
     if (!adapter) throw new Error('no adapter');
+    if (!adapter.features || !adapter.features.has('shader-f16'))
+      throw new Error('shader-f16');
     setStatus('', 'ready — pick a brain and go live');
-  } catch {
-    setStatus('err', 'WebGPU present but no adapter — hardware acceleration may be off.');
+  } catch (err) {
+    setStatus('err', err.message === 'shader-f16'
+      ? 'this GPU lacks shader-f16 support, which the model requires.'
+      : 'WebGPU present but no adapter — hardware acceleration may be off.');
     els.startBtn.disabled = true;
   }
 })();
