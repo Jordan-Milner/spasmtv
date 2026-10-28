@@ -18,7 +18,7 @@ import {
 } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2';
 
 // same yardstick the scorer uses (tools/score-chat.mjs imports this file too)
-import { loadOmni, omniGenerate, omniLoaded } from './omni.js';
+import { loadOmni, omniGenerate, omniLoaded, loadOmniAudio, omniTranscribe } from './omni.js';
 import { normTokens, tooSimilar, echoesScene, reactionSeed, factCandidate } from '../js/text.js';
 
 env.allowLocalModels = false;
@@ -127,7 +127,7 @@ self.onmessage = async (ev) => {
       asrModelKey = m.model;
       asr = null;
       asrPromise = null; // next utterance builds the new pipeline
-      if (m.preload) ensureAsr();
+      if (m.preload && currentKey !== 'omni') ensureAsr();
     }
   } else if (m.type === 'caption') await safeReply(m, onCaption, { text: '' });
     else if (m.type === 'chat') await safeReply(m, onChat, { messages: [] });
@@ -482,8 +482,9 @@ function toChatLines(raw, maxWords = 14, strict = false) {
 }
 
 async function onTranscribe(m) {
-  await ensureAsr();
-  const { text } = await asr(m.pcm);
+  let text;
+  if (currentKey === 'omni') text = await omniTranscribe(m.pcm);
+  else { await ensureAsr(); ({ text } = await asr(m.pcm)); }
   let fact = null;
   const clean = (text || '').trim();
   // "not everything the streamer says is a memory": the pure gate in text.js
