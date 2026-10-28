@@ -10,6 +10,7 @@
 // the float32 ones of the q4 bundle (vision_encoder_q8), prefill ≤ 1024 tokens.
 
 import * as ort from 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.1/dist/ort.webgpu.min.mjs';
+import { logMel } from './omni-audio.js';
 import { AutoTokenizer } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2';
 
 const REPO = 'LiquidAI/LFM3-Omni-2B-ONNX';
@@ -31,6 +32,8 @@ ort.env.wasm.numThreads = 1;
 let tokenizer = null;
 let dec = null;
 let vis = null;
+let aud = null;          // audio encoder, loaded lazily on the first transcribe
+let audLoading = null;
 let chain = Promise.resolve(); // one decode at a time — the KV cache is per call but the GPU is shared
 
 /* ---------------- download with Cache API + progress ---------------- */
@@ -61,6 +64,27 @@ async function fetchCached(path, onBytes) {
 }
 
 export function omniLoaded() { return !!(dec && vis && tokenizer); }
+export function omniAudioLoaded() { return !!aud; }
+
+// the float32 audio encoder (510 MB) — kept out of the first load so a session
+// that never speaks never pays for it
+export function loadOmniAudio(onProgress) {
+  if (aud) return Promise.resolve();
+  if (!audLoading) {
+    audLoading = (async () => {
+      const [g, d] = await Promise.all([
+        fetchCached('onnx/audio_encoder.onnx', (p, got, total) => onProgress?.(got / total)),
+        fetchCached('onnx/audio_encoder.onnx_data', (p, got, total) => onProgress?.(got / total)),
+      ]);
+      aud = await ort.InferenceSession.create(g, {
+        executionProviders: ['webgpu'],
+        externalData: [{ path: 'audio_encoder.onnx_data', data: d }],
+        graphOptimizationLevel: 'all',
+      });
+    })().catch((e) => { audLoading = null; throw e; });
+  }
+  return audLoading;
+}
 
 export async function loadOmni(onProgress) {
   if (omniLoaded()) return;
@@ -191,7 +215,7 @@ function initCache() {
 
 const i64 = (arr, dims) => new ort.Tensor('int64', BigInt64Array.from(arr, BigInt), dims);
 
-async function run({ prompt, image, maxNewTokens = 24, temperature = 0, topP = 1, topK = 0, repetitionPenalty = 1 }) {
+async function run({ prompt, image, audio, maxNewTokens = 24, temperature = 0, topP = 1, topK = 0, repetitionPenalty = 1 }) {
   let feats = null;
   let nTok = 0;
   let content = '';
@@ -202,13 +226,19 @@ async function run({ prompt, image, maxNewTokens = 24, temperature = 0, topP = 1
     nTok = p.tokens;
     content += `<|vision_start|>${IMAGE_TOKEN.repeat(nTok)}<|vision_end|>`;
   }
+  let afeats = null;
+  if (audio) {
+    const mel = logMel(audio);
+    const out = await aud.run({ input_features: new ort.Tensor('float32', mel.data, [1, 128, mel.frames]) });
+    afeats = out.audio_features;
+    content += `<|vision_start|>${'<|audio|>'.repeat(mel.tokens)}<|vision_end|>`;
+  }
   const text = `<|startoftext|><|im_start|>user\n${content}${prompt}<|im_end|>\n<|im_start|>assistant\n<think></think>`;
   const ids = Array.from(tokenizer.encode(text, { add_special_tokens: false }));
 
   let cache = initCache();
   const empty = {
     video_features: new ort.Tensor('float32', new Float32Array(0), [0, 2048]),
-    audio_features: new ort.Tensor('float32', new Float32Array(0), [0, 2048]),
     audio_out_codes: new ort.Tensor('int64', new BigInt64Array(0), [0, 12]),
     logits_to_keep: i64([1], [1]),
   };
@@ -225,13 +255,15 @@ async function run({ prompt, image, maxNewTokens = 24, temperature = 0, topP = 1
     for (let ci = 0; ci < chunks; ci++) {
       const part = step === 0 ? cur.slice(ci * CHUNK, (ci + 1) * CHUNK) : cur;
       const n = part.length;
-      const hasImg = feats && step === 0 && ci === 0 && chunks === 1;
-      if (feats && step === 0 && chunks > 1) throw new Error('prompt too long for single-chunk image prefill');
+      const first = step === 0 && ci === 0 && chunks === 1;
+      const hasImg = feats && first;
+      if ((feats || afeats) && step === 0 && chunks > 1) throw new Error('prompt too long for single-chunk image prefill');
       const feed = {
         input_ids: i64(part, [1, n]),
         attention_mask: i64(new Array(pos + n).fill(1), [1, pos + n]),
         position_ids: i64(Array.from({ length: n }, (_, i) => pos + i), [1, n]),
         image_features: hasImg ? feats : noImg,
+        audio_features: afeats && first ? afeats : noImg,
         ...empty,
         ...cache,
       };
@@ -257,6 +289,7 @@ async function run({ prompt, image, maxNewTokens = 24, temperature = 0, topP = 1
   }
   for (const t of Object.values(cache)) { try { t.dispose?.(); } catch { /* cpu */ } }
   feats?.dispose?.();
+  afeats?.dispose?.();
   return tokenizer.decode(generated, { skip_special_tokens: true }).replace(/\s+/g, ' ').trim();
 }
 
@@ -265,4 +298,14 @@ export function omniGenerate(opts) {
   const p = chain.then(() => run(opts));
   chain = p.catch(() => {});
   return p;
+}
+
+// speech → text with the same model (no Moonshine). pcm: Float32Array, 16 kHz mono.
+export async function omniTranscribe(pcm) {
+  await loadOmniAudio();
+  const out = await omniGenerate({
+    prompt: 'What does the speaker say? Write the full transcript. If there is no speech, reply exactly NONE.',
+    audio: pcm, maxNewTokens: 80, temperature: 0,
+  });
+  return /^none\b/i.test(out) ? '' : out;
 }

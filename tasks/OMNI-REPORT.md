@@ -23,8 +23,19 @@
 | Qwen3-VL-2B | 0.48 | yes | "keep drawing that hat" |
 | **Omni 2B** | **1.07** | **yes** | most Twitch-like: "THAT IS INSANE!", "lol mario on screen", "PEAK! MARIO IS LIVE" |
 
+## Audio-in (done) — Omni hears the video, Moonshine is not loaded for this brain
+- `workers/omni-audio.js`: JS port of the Lfm3OmniFeatureExtractor log-mel (Hann 400/hop 160, slaney 128 mel,
+  log10 floor -12, (x+4)/4). `tools/test-omni-audio.mjs`: max |diff| 3.4e-5 vs the Python reference.
+- `omni.js`: `loadOmniAudio()` (lazy, the 510 MB float32 `audio_encoder`, loaded in the background after the brain
+  is ready) and `omniTranscribe(pcm)`. Prompt matters: "Transcribe the audio." stopped after 5 words;
+  "What does the speaker say? Write the full transcript. If there is no speech, reply exactly NONE." gives the
+  full sentence, and silence returns "" (verified in-browser: 7 s of speech → 0.8 s).
+- `llm-worker.js`: `onTranscribe` routes to Omni when the brain is omni; the existing RMS gate / worklet / file
+  audio tap are unchanged. End-to-end: a mp4 with speech → `asr=4` transcripts in the log, text exact.
+- Tools: `tools/omni-test.html` + `tools/omni-test.mjs` (load/text/transcribe/silence), `browser-run.mjs --mic`.
+- Total download with hearing ≈ 2.1 GB (1.6 GB brain + 0.5 GB audio encoder), vs Qwen 1.4 GB + Moonshine 0.2 GB.
+
 ## Not done
-- Audio-in (replace Moonshine): needs the 255 MB audio encoder + 128-bin log-mel JS front end + a transcribe prompt.
 - Latency: each call re-prefills ~250 tokens; prefix-caching the static instruction and the image would cut it.
 - Phone: far too big; phone mode still forces the 256M brain.
 - License: `lfm1.0` ("other") — read before shipping anything publicly.

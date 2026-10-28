@@ -127,7 +127,7 @@ if (!flag('camera')) {
     source: "localStorage.removeItem('lurker-log');\n" +
       "addEventListener('DOMContentLoaded', () => {\n" +
       "  document.getElementById('demo-toggle').checked = true;\n" +
-      "  document.getElementById('mic-toggle').checked = false;\n" +
+      (flag('mic') ? '' : "  document.getElementById('mic-toggle').checked = false;\n") +
       "});",
   });
   await send(ws, 'Page.reload', { ignoreCache: false });
