@@ -56,7 +56,7 @@ const state = {
   stream: null,             // MediaStream (camera + mic)
   audioCtx: null,
   demoRaf: 0,
-  phoneMode: false,        // iPhone/iPad (or ?phone): q4-encoder fast brain, no ASR
+  phoneMode: false,        // iPhone/iPad (or ?phone): SmolVLM-256M brain, no ASR
   // settings (settings panel, persisted)
   settings: { detail: CAPTURE_DEFAULT, focus: true, varied: true, asr: 'base' },
   // vision
@@ -870,10 +870,10 @@ if (new URLSearchParams(location.search).has('autolive')) {
     els.startBtn.disabled = true;
     return;
   }
-  // iPhone/iPad: the stock fp16-encoder config (~800 MB) puts a phone tab
-  // over Safari's ~1–1.5 GB WebContent limit — the tab gets jetsammed at
-  // model load (uncatchable reload; a retry can wedge the tab entirely).
-  // Phone mode keeps the budget: q4 encoder, 450M brain only, no ASR.
+  // iPhone/iPad: even the 450M's lightest config (q4 encoder, ~675 MB) jetsams
+  // iOS Safari's WebContent process at model load — uncatchable reload, and a
+  // retry can wedge the tab (confirmed on a real iPhone 2026-10-28). Phones get
+  // the SmolVLM-256M brain instead: ~180 MB, dumber chat, fits the ~1 GB limit.
   // ?phone previews the mode on a desktop.
   const appleMobile = /iPad|iPhone|iPod/.test(navigator.userAgent)
     || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -881,7 +881,7 @@ if (new URLSearchParams(location.search).has('autolive')) {
   if (state.phoneMode) {
     els.modelSelect.value = 'fast';
     els.modelSelect.disabled = true;
-    els.modelSelect.title = 'phones run the fast brain only — the 2B needs a computer';
+    els.modelSelect.title = 'phones run the 256M SmolVLM brain — the 450M/2B need a computer';
     els.micToggle.checked = false;
     els.micToggle.disabled = true;
     els.micToggle.parentElement.title = 'speech recognition doesn\u2019t fit in phone memory yet';
@@ -892,7 +892,7 @@ if (new URLSearchParams(location.search).has('autolive')) {
     if (!adapter.features || !adapter.features.has('shader-f16'))
       throw new Error('shader-f16');
     setStatus('', state.phoneMode
-      ? 'phone mode — lighter brain, mic off. if the tab reloads during load, this phone can\u2019t hold it'
+      ? 'phone mode — small 256M brain, mic off'
       : 'ready — pick a brain and go live');
   } catch (err) {
     setStatus('err', err.message === 'shader-f16'

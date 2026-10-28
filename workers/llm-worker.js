@@ -29,6 +29,19 @@ const VLM = {
     dtype: { vision_encoder: 'fp16', embed_tokens: 'fp16', decoder_model_merged: 'q4f16' },
     multiFrame: true, // LFM3-VL is video-native (2fps)
   },
+  // phone brain: even the 450M's lightest config (q4 encoder, ~675 MB) jetsams
+  // iOS Safari at load — its 481 MB q4 decoder alone is held twice in RAM during
+  // the GPU upload. SmolVLM-256M q4/q8 is ~180 MB of weights (peak ~400 MB) and
+  // generates visibly dumber chat, but it fits under the ~1 GB per-tab limit.
+  phone: {
+    id: 'HuggingFaceTB/SmolVLM-256M-Instruct',
+    dtype: { vision_encoder: 'q4', embed_tokens: 'q8', decoder_model_merged: 'q4' },
+    multiFrame: false,
+    // Idefics3-family processors take (text, images); the LFM family takes
+    // (images, text). Swapped args route the prompt string into the image
+    // pipeline ("undefined is not iterable" on String.size).
+    textFirst: true,
+  },
 };
 
 const ASR_MODELS = {
@@ -45,6 +58,7 @@ const post = (m) => self.postMessage(m);
 let processor = null;
 let model = null;
 let currentKey = null;
+let textFirst = false; // processor arg order for the loaded family (VLM.phone)
 let asr = null;
 let asrPromise = null;
 
@@ -100,17 +114,11 @@ function humanizeError(err) {
 /* ---------------- load / warmup ---------------- */
 
 async function load(m) {
-  // phone mode: 450M brain only, vision encoder q4. The fp16 encoder config
-  // (~800 MB total) puts a phone tab over Safari's ~1–1.5 GB WebContent
-  // jetsam limit — q4 encoder is the lightest this repo ships (note: the
-  // _q8 files exist but transformers.js 4.3.2 has no dtype that maps to the
-  // "_q8" suffix, so they're unreachable). ~675 MB total, transient fetch
-  // copies on top; if it still jetsams, this model family can't run on phones.
-  const key = VLM[m.model] ? m.model : 'fast';
-  const cfg = m.phone
-    ? { ...VLM.fast, dtype: { ...VLM.fast.dtype, vision_encoder: 'q4' } }
-    : VLM[key];
-  const loadKey = (m.phone ? 'phone:' : '') + key;
+  // phone mode pins the SmolVLM-256M brain (see VLM.phone) — the 450M jetsammed
+  // real iPhones even with the q4 encoder, so it is desktop-only now.
+  const key = m.phone ? 'phone' : (VLM[m.model] ? m.model : 'fast');
+  const cfg = VLM[key];
+  const loadKey = key;
   if (model && currentKey === loadKey) { post({ type: 'ready' }); return; }
   filePct.clear();
   post({ type: 'progress', progress: 0 });
@@ -124,6 +132,7 @@ async function load(m) {
     }),
   ]);
   currentKey = loadKey;
+  textFirst = !!cfg.textFirst;
 
   // compile GPU pipelines before the user sees the first "live" moment
   const blank = new RawImage(new Uint8ClampedArray(64 * 64 * 4).fill(110), 64, 64, 4);
@@ -167,7 +176,11 @@ async function generate({
     add_generation_prompt: true,
     enable_thinking: false,
   });
-  const inputs = await processor(img, chatPrompt, { add_special_tokens: false });
+  // arg order is family-specific (see VLM.phone.textFirst); do_image_splitting
+  // is SmolVLM's 5-way quadrant split — off (the LFM processors ignore it)
+  const inputs = textFirst
+    ? await processor(chatPrompt, img, { do_image_splitting: false })
+    : await processor(img, chatPrompt, { add_special_tokens: false, do_image_splitting: false });
 
   const genOpts = {
     ...inputs,
