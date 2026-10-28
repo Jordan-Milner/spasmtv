@@ -5,6 +5,8 @@
 // This file never touches model APIs directly — only the message protocol.
 
 import { ChatSim } from './chat-sim.js';
+import { tune, loadTune, kindWeights, workerTune, renderTunePanel } from './tuning.js';
+import { STYLE_EXAMPLES } from './style-examples.js';
 import { loadEmotes, emoteHintFrom } from './emotes.js';
 import {
   pickKind, gateKind, nextGapMs, planBurst, templateLine, maybeBit, liveBits, maybePasta,
@@ -39,11 +41,11 @@ const CAPTURE_DEFAULT = 512;      // vision detail (settings panel: 512/640/768 
                                   // above 512 the model tiles the frame)
 const DIFF_W = 32, DIFF_H = 18;   // motion grid used for scene diff + focus crop
 const FULL_W = 960;               // working resolution frames are grabbed at
-const SCENE_CHANGE = 0.055;       // mean abs luma delta that counts as a "clip it!" moment
+// tunable now (js/tuning.js): SCENE_CHANGE = 0.055;       // mean abs luma delta that counts as a "clip it!" moment
 
-const TICK_FRAME_MS = 1500;       // frame grab cadence
-const TICK_CAPTION_MS = 8000;     // scene re-caption cadence
-const MAX_PENDING_CHAT = 2;
+// tunable now (js/tuning.js): TICK_FRAME_MS = 1500;       // frame grab cadence
+// tunable now (js/tuning.js): TICK_CAPTION_MS = 8000;     // scene re-caption cadence
+// tunable now (js/tuning.js): MAX_PENDING_CHAT = 2;
 
 const TITLES = [
   '24/7 irl — chat decides what happens',
@@ -324,7 +326,8 @@ function cultureState() {
 function viewerWeights() {
   const c = cultureState();
   const now = Date.now();
-  return (v) => (v.archetypeKey === 'troll' ? trollWeight(now, c.lastActionAt) : 1);
+  return (v) => (tune['freq_' + v.archetypeKey] ?? 1)
+    * (v.archetypeKey === 'troll' ? trollWeight(now, c.lastActionAt, tune.trollBase) : 1);
 }
 
 function logTemplate(text, viewer, kind, ctx = {}) {
@@ -375,7 +378,7 @@ function banReactionBurst(victim, action) {
       const v = sim.pickViewer(viewerWeights());
       if (!v || used.has(v.name)) return;
       used.add(v.name);
-      if (!modelUsed && state.pendingChat < MAX_PENDING_CHAT && Math.random() < 0.55) {
+      if (!modelUsed && state.pendingChat < tune.maxPending && Math.random() < tune.banModelChance / 100) {
         modelUsed = true;   // exactly one model line per burst, the rest are free
         sendChatMessage({
           viewer: v, kind: 'banreact', sceneChange: false,
@@ -411,7 +414,7 @@ function onCenter(viewer) {
   // the viewer on the spot gets one guaranteed line, persona-aware
   setTimeout(() => {
     if (state.phase !== 'live' || cultureState().centered !== viewer) return;
-    if (state.pendingChat >= MAX_PENDING_CHAT) {
+    if (state.pendingChat >= tune.maxPending) {
       logTemplate(spotLine(viewer.archetypeKey, Math.random, state.templateRecent), viewer, 'spot', { spot: viewer.name });
       return;
     }
@@ -556,7 +559,7 @@ function stopEverything() {
 
 function startLoops() {
   cancelLoops();
-  state.loops.push(setTimeout(tickFrame, TICK_FRAME_MS));
+  state.loops.push(setTimeout(tickFrame, tune.tickFrame));
   state.loops.push(setTimeout(tickCaption, 400));
   state.loops.push(setTimeout(chatLoop, 1800));
   state.loops.push(setTimeout(rotateTitle, 45000));
@@ -593,7 +596,7 @@ function tickFrame() {
     state.diffScore = motion.score;
     drawCapture(f, motion);
   }
-  scheduleNext(tickFrame, TICK_FRAME_MS);
+  scheduleNext(tickFrame, tune.tickFrame);
 }
 
 function motionScore(fullCanvas) {
@@ -626,7 +629,7 @@ function drawCapture(full, motion) {
   const S = state.settings;
   let sx = 0, sy = 0, sw = full.width, sh = full.height;
   const concentrated =
-    motion.hotFrac > 0.02 && motion.hotFrac < 0.45 && motion.score > SCENE_CHANGE * 0.4;
+    motion.hotFrac > 0.02 && motion.hotFrac < 0.45 && motion.score > tune.sceneChange * 0.4;
   if (S.focus && concentrated) {
     let cx = 0, cy = 0, wsum = 0;
     for (let y = 0; y < DIFF_H; y++) {
@@ -672,8 +675,8 @@ function drawCapture(full, motion) {
 /* scene caption */
 function tickCaption() {
   if (state.phase !== 'live') return;
-  const stale = Date.now() - state.sceneAt > TICK_CAPTION_MS;
-  const sceneChange = state.diffScore > SCENE_CHANGE && Date.now() - state.sceneAt > 4000;
+  const stale = Date.now() - state.sceneAt > tune.tickCaption;
+  const sceneChange = state.diffScore > tune.sceneChange && Date.now() - state.sceneAt > 4000;
   if ((stale || sceneChange) && els.capture.width > 0) {
     if (sceneChange) hype();
     sendCaption();
@@ -696,8 +699,8 @@ function sendCaption() {
  * stay at or under the shipped 20 lines/min and 20 generate calls/min. */
 function chatLoop() {
   if (state.phase !== 'live') return;
-  const burst = planBurst();
-  const sceneChange = state.diffScore > SCENE_CHANGE;
+  const burst = planBurst(Math.random, tune);
+  const sceneChange = state.diffScore > tune.sceneChange;
   const hype = sceneChange || Date.now() - state.hypeAt < 2500;
   // a chant = the whole burst is one emote, from three different viewers
   const chant = burst.chant ? sim.randomEmote() : null;
@@ -712,7 +715,7 @@ function chatLoop() {
     const v = sim.pickViewer(viewerWeights());
     if (v) logTemplate(deadChatLine(Math.random, state.templateRecent), v, 'mood');
   }
-  scheduleNext(chatLoop, nextGapMs() * MOOD_GAP[c.mood]);
+  scheduleNext(chatLoop, nextGapMs(Math.random, tune) * MOOD_GAP[c.mood]);
 }
 
 function fireLine({ offsetMs = 0, burstIndex = 0, hype = false, chant = null, sceneChange = false }) {
@@ -721,7 +724,7 @@ function fireLine({ offsetMs = 0, burstIndex = 0, hype = false, chant = null, sc
     const viewer = sim.pickViewer(viewerWeights());
     if (!viewer) return;
     const bits = liveBits(state.bits);
-    let kind = gateKind(chant ? 'emote' : pickKind(), viewer, {
+    let kind = gateKind(chant ? 'emote' : pickKind(Math.random, kindWeights()), viewer, {
       bits,
       recent: state.lastChatLines,
       userMsg: state.userMsgTicks > 0 ? state.userMsg : '',
@@ -739,7 +742,7 @@ function fireLine({ offsetMs = 0, burstIndex = 0, hype = false, chant = null, sc
     const pasta = maybePasta(kind, viewer.archetypeKey);
     if (pasta) { logTemplate(pasta, viewer, 'copypasta'); return; }
     // GPU busy: drop the line rather than queue it — a queued line is stale chat
-    if (state.pendingChat >= MAX_PENDING_CHAT) return;
+    if (state.pendingChat >= tune.maxPending) return;
     sendChatMessage({ viewer, kind, sceneChange, burstIndex, hype, bit: bits[0]?.text || '' });
   }, offsetMs);
 }
@@ -767,7 +770,7 @@ function personaFor(viewer, kind = '') {
   }
   if (viewer.warned) return 'a mod just yelled at you — act innocent but keep chatting anyway';
   const note = state.culture?.note || '';
-  if (note && defies(viewer.archetypeKey, note))
+  if (note && Math.random() < tune.defiance && defies(viewer.archetypeKey, note))
     return `the chat rule lately is "no ${note}" and you break it anyway, proudly`;
   return viewer.personaHint || 'a viewer — one short reaction';
 }
@@ -776,6 +779,13 @@ function personaFor(viewer, kind = '') {
 function pickRecent(excludeName) {
   const pool = state.lastChatLines.filter((l) => l.name !== excludeName);
   return pool.length ? pool[(Math.random() * pool.length) | 0] : null;
+}
+
+function pickStyleExamples(n) {
+  const pool = STYLE_EXAMPLES.slice();
+  const out = [];
+  for (let i = 0; i < n && pool.length; i++) out.push(pool.splice((Math.random() * pool.length) | 0, 1)[0]);
+  return out;
 }
 
 function trackRecent(name, text) {
@@ -812,11 +822,12 @@ function sendChatMessage({ viewer, kind, sceneChange, burstIndex = 0, hype = fal
     bit: kind === 'callback' ? bit : '',
     ban,                              // §D: 'X was just moderated — react to that'
     culture: state.culture?.note || '',
+    styleExamples: pickStyleExamples(tune.styleExamples),
   };
   const id = ++state.reqId;
   state.pendingChat += 1;
   pendingMeta.set(id, { kind, sentAt: performance.now(), context, viewer, hype, ban, spot });
-  const msg = { type: 'chat', id, context };
+  const msg = { type: 'chat', id, context, tune: workerTune() };
   // scene-change reactions see actual frames; other lines run text-only for speed
   if (sceneChange && kind !== 'emote') {
     Object.assign(msg, burstFrames(state.settings.varied, burstIndex));
@@ -1165,6 +1176,9 @@ els.setVaried.addEventListener('change', () => {
   state.settings.varied = els.setVaried.checked;
   saveSettings();
 });
+loadTune();
+renderTunePanel($('tune-root'));
+
 els.setAsr.value = state.settings.asr;
 els.setAsr.addEventListener('change', () => {
   state.settings.asr = els.setAsr.value;

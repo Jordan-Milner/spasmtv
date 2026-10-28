@@ -25,8 +25,8 @@ export function tooSimilar(line, priors, thresh = 0.75) {
 // the caption-echo disease (docs/sample-chatlog-2026-10-27.json): a line made
 // only of caption words ("green background white square") is an echo even when
 // its Jaccard vs the long caption sits under 0.5, because the line is short.
-export function echoesScene(line, scene) {
-  if (jaccard(line, scene) > 0.5) return true;
+export function echoesScene(line, scene, thresh = 0.5) {
+  if (jaccard(line, scene) > thresh) return true;
   const sceneWords = new Set(normTokens(scene).filter((w) => w.length > 2));
   const own = normTokens(line).filter((w) => w.length > 2);
   return own.length >= 2 && own.every((w) => sceneWords.has(w));
@@ -43,12 +43,12 @@ const SEED_STOP = new Set(('a an the of with and or in on at to for is are am wa
 
 // caption → up to 3 content words. "A green background with a large white
 // letter D" → "d". Deliberately useless as a description.
-export function reactionSeed(scene) {
+export function reactionSeed(scene, n = 3) {
   const all = [...new Set(normTokens(scene).filter((w) => !SEED_STOP.has(w)))];
   const words = all.filter((w) => !SEED_STOP.has(w) && w.length > 2);
   // a caption that is pure description ("…a large white letter D") still gets a
   // hook, otherwise the demo feed would give the model nothing to react to
-  return (words.length ? words : all).slice(0, 3).join(' ') || 'the stream';
+  return (words.length ? words : all).slice(0, n).join(' ') || 'the stream';
 }
 
 /* ---- fact extraction gate ------------------------------------------

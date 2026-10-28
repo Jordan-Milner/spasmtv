@@ -37,17 +37,24 @@ export function gateKind(kind, viewer, ctx = {}) {
 
 // gap until the next chat tick. Droughts (4–8 s of silence) and the short
 // recovery gap after a flurry are what make chat not read as a metronome.
-export function nextGapMs(rnd = Math.random) {
+export function nextGapMs(rnd = Math.random, opts = {}) {
+  const drought = (opts.droughtP ?? 20) / 100;
+  const scale = opts.gapScale || 1;
+  return gapRaw(rnd, drought) / scale;
+}
+
+function gapRaw(rnd, drought) {
   const p = rnd();
-  if (p < 0.20) return 4000 + rnd() * 4000;      // drought: nothing for 4–8 s
-  if (p < 0.32) return 1500 + rnd() * 1500;      // post-flurry settle
+  if (p < drought) return 4000 + rnd() * 4000;      // drought: nothing for 4–8 s
+  if (p < drought + 0.12) return 1500 + rnd() * 1500;      // post-flurry settle
   return 2700 + rnd() * 3200;                    // normal turn-taking, 2.7–5.9 s
 }
 
 // what one tick fires. A flurry is 3 lines inside 1.5 s (offsets from now);
 // `chant` means the whole burst is one emote repeated by different viewers.
-export function planBurst(rnd = Math.random) {
-  const p = rnd();
+export function planBurst(rnd = Math.random, opts = {}) {
+  const flurry = (opts.flurryP ?? 30) / 100;   // total chance of a multi-line tick
+  const p = rnd() * 0.30 / Math.max(flurry, 1e-9);   // rescale so defaults stay 10% / 20%
   if (p < 0.10) {
     const a = 380 + rnd() * 320;
     return { n: 3, offsets: [0, a, Math.min(1450, a + 380 + rnd() * 320)], chant: rnd() < 0.5 };

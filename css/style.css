@@ -502,7 +502,9 @@ main {
   top: calc(100% + 4px); /* below the topbar however tall it has wrapped */
   right: 12px;
   z-index: 60;
-  width: 300px;
+  width: 340px;
+  max-height: calc(100vh - 90px);
+  overflow-y: auto;
   background: var(--panel-2);
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -606,3 +608,17 @@ main {
   /* 16px stops iOS Safari from zooming the page when a field gains focus */
   #chat-input, #fact-input { font-size: 16px; }
 }
+
+/* chat tuning panel */
+.tune-group { border-top: 1px solid var(--line); padding: 4px 0; }
+.tune-group > summary { cursor: pointer; font-size: 12px; font-weight: 600; padding: 4px 0; }
+.tune-row { display: grid; grid-template-columns: 1fr 110px 38px; align-items: center; gap: 6px; font-size: 12px; padding: 2px 0; }
+.tune-row.tune-text { grid-template-columns: 1fr; }
+.tune-row.tune-text input { width: 100%; }
+.tune-row input[type=range] { width: 100%; }
+.tune-val { text-align: right; font-variant-numeric: tabular-nums; opacity: .8; }
+.tune-q { display: inline-block; width: 14px; height: 14px; line-height: 14px; text-align: center; font-size: 10px;
+  border: 1px solid var(--line); border-radius: 50%; cursor: help; opacity: .75; user-select: none; }
+.tune-q:hover, .tune-q:focus { opacity: 1; }
+.tune-help { grid-column: 1 / -1; font-size: 11px; opacity: .7; line-height: 1.35; padding-bottom: 2px; }
+.tune-reset { font-size: 11px; padding: 1px 6px; margin-top: 4px; }

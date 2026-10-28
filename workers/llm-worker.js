@@ -165,7 +165,7 @@ function ensureAsr() {
 
 async function generate({
   prompt, frames, image, maxNewTokens, sample = false,
-  temperature = 0.85, repetitionPenalty = 1.05, topP = 0.95,
+  temperature = 0.85, repetitionPenalty = 1.05, topP = 0.95, topK = 0,
 }) {
   // ONE image per call — this processor family treats arrays as batch, not
   // multi-image content, and it has no null-image mode: every call gets a real
@@ -191,7 +191,10 @@ async function generate({
     repetition_penalty: repetitionPenalty,
     do_sample: sample,
   };
-  if (sample) { genOpts.temperature = temperature; genOpts.top_p = topP; }
+  if (sample) {
+    genOpts.temperature = temperature; genOpts.top_p = topP;
+    if (topK > 0) genOpts.top_k = topK;
+  }
 
   const outputs = await model.generate(genOpts);
   const gen = outputs.slice(null, [inputs.input_ids.dims.at(-1), null]);
@@ -244,11 +247,11 @@ const VISUAL_KINDS = new Set(['reaction', 'question', 'backseat', 'reply', 'call
 
 const clip = (s, n) => String(s).slice(0, n);
 
-const CHAT_PROMPT_PARTS = (kind, ctx) => {
+const CHAT_PROMPT_PARTS = (kind, ctx, T = {}) => {
   const parts = [
     'You are one viewer writing a single Twitch chat message: max 12 words, lowercase, no quotes, no hashtags, no emoji faces.',
   ];
-  if (VISUAL_KINDS.has(kind) && ctx.scene) parts.push(`On screen, roughly: ${reactionSeed(ctx.scene)}`);
+  if (VISUAL_KINDS.has(kind) && ctx.scene) parts.push(`On screen, roughly: ${reactionSeed(ctx.scene, T.seedWords || 3)}`);
   if (ctx.sceneChange && VISUAL_KINDS.has(kind)) parts.push('Something on screen just changed.');
   parts.push('React like a viewer who has been here for hours. Never describe what is on screen, never mention colors, backgrounds, letters or layout — unless you are making a joke of it.');
   parts.push(KIND_PROMPT[kind]);
@@ -263,6 +266,8 @@ const CHAT_PROMPT_PARTS = (kind, ctx) => {
   if (ctx.facts) parts.push(`Things chat knows about the streamer: ${ctx.facts} — use naturally, never list.`);
   if (ctx.emotes) parts.push(`You may use one emote from: ${ctx.emotes}`);
   if (ctx.persona) parts.push(`Your vibe: ${ctx.persona}`);
+  if (T.extraDirection) parts.push(`Also: ${clip(T.extraDirection, 160)}`);
+  if (ctx.styleExamples?.length) parts.push(`Real chat lines look like this (style only — never copy): ${ctx.styleExamples.map((x) => `"${x}"`).join(' / ')}`);
   parts.push('Write only the message itself — never restate these instructions, never use hashtags.');
   return parts.join('\n');
 };
@@ -276,8 +281,8 @@ const CHAT_PROMPT_PARTS = (kind, ctx) => {
 // way so the chat leans on what's actually happening instead
 const GENDERED_RE = /\b(she|her|hers|woman|lady|gal|girl|he|him|his|man|dude|guy|bro|king)\b/i;
 
-function softGenderDamp(line) {
-  return GENDERED_RE.test(line) && Math.random() < 0.5;
+function softGenderDamp(line, p = 0.5) {
+  return GENDERED_RE.test(line) && Math.random() < p;
 }
 
 let workerRecent = [];
@@ -300,7 +305,8 @@ function blankImage() {
 async function onChat(m) {
   const ctx = m.context || {};
   const kind = KIND_PROMPT[ctx.kind] ? ctx.kind : 'reaction';
-  const prompt = CHAT_PROMPT_PARTS(kind, ctx);
+  const T = m.tune || {};
+  const prompt = CHAT_PROMPT_PARTS(kind, ctx, T);
   const priors = [...(ctx.recent || []), ...workerRecent];
   const looped = loopDetected(priors);
   // quoted source lines must not come back as the reply — that is an echo loop
@@ -312,23 +318,26 @@ async function onChat(m) {
     prompt,
     frames: seeing && !hot ? m.frames : null,
     image: seeing && !hot ? m.image : null,
-    maxNewTokens: 20,
+    maxNewTokens: T.maxNewTokens ?? 20,
     sample: true,
-    temperature: hot ? 1.25 : looped ? 1.2 : 0.85,
-    repetitionPenalty: hot ? 1.3 : looped ? 1.25 : 1.15,
+    temperature: hot ? (T.temperature ?? 0.85) + 0.4 : looped ? (T.temperature ?? 0.85) + 0.35 : (T.temperature ?? 0.85),
+    topP: T.topP ?? 0.95,
+    topK: T.topK ?? 0,
+    repetitionPenalty: hot ? (T.repPenalty ?? 1.15) + 0.15 : looped ? (T.repPenalty ?? 1.15) + 0.1 : (T.repPenalty ?? 1.15),
   });
   const keep = (lines) => lines
-    .filter((s) => !tooSimilar(s, priors))
-    .filter((s) => !(ctx.scene && echoesScene(s, ctx.scene)))
+    .filter((s) => !tooSimilar(s, priors, T.priorSim ?? 0.75))
+    .filter((s) => !(ctx.styleExamples?.length && tooSimilar(s, ctx.styleExamples, 0.8)))
+    .filter((s) => !(ctx.scene && echoesScene(s, ctx.scene, T.echoScene ?? 0.5)))
     .filter((s) => !(ctx.persona && tooSimilar(s, [ctx.persona], 0.6)))
     .filter((s) => !(quoted.length && tooSimilar(s, quoted, 0.6)))
-    .filter((s) => !keysmash(s))
+    .filter((s) => !(T.keysmash !== false && keysmash(s)))
     .filter((s) => !PROMPT_LEAK.test(s))
     .filter((s) => !META_NEG.test(s))
-    .filter((s) => !softGenderDamp(s));
+    .filter((s) => !softGenderDamp(s, (T.genderDamp ?? 50) / 100));
 
-  let lines = keep(toChatLines(await gen(false)));
-  if (!lines.length) lines = keep(toChatLines(await gen(true)));
+  let lines = keep(toChatLines(await gen(false), T.maxWords || 14, true));
+  if (!lines.length) lines = keep(toChatLines(await gen(true), T.maxWords || 14));
   workerRecent = [...workerRecent, ...lines].slice(-8);
   post({ type: 'chat', id: m.id, messages: lines, kind });
 }
@@ -353,7 +362,9 @@ const PROMPT_LEAK = /\b(react like a viewer|like a viewer who|max ?12 ?words|nev
 // "no shot" / "no way" — those survive.
 const META_NEG = /^\s*no\s+(response|reaction|answer|reply|replay|description|real|words?|emotes?|questions?|viewership|chat)\b/i;
 
-function toChatLines(raw) {
+// strict: a line over maxWords is DROPPED (real chat is short; a rambling line
+// trimmed to "…" reads as a broken sentence). The retry pass trims instead.
+function toChatLines(raw, maxWords = 14, strict = false) {
   let t = raw.replace(/^["'`\s]+|["'`\s]+$/g, '');
   // roleplay leakage: "username:", "@name:", "twitch chat:", "Viewer 2:" prefixes
   t = t.replace(/^@?[\w .-]{2,24}\s*:\s+/, '');
@@ -366,10 +377,10 @@ function toChatLines(raw) {
   t = t.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{2B00}-\u{2BFF}\u{1F1E6}-\u{1F1FF}]/gu, '');
   t = t.replace(/\s{2,}/g, ' ').trim();
   const lines = t.split(/\n+/).map((s) => s.trim()).filter(Boolean);
-  return lines.slice(0, 2).map((s) => {
+  return lines.slice(0, 2).filter((s) => !(strict && s.split(/\s+/).length > maxWords + 2)).map((s) => {
     const w = s.split(/\s+/);
     // the 450M rambles past a chat line; a trimmed line beats an essay
-    if (w.length > 14) s = w.slice(0, 14).join(' ').replace(/[,;:.-]+$/, '') + '…';
+    if (w.length > maxWords) s = w.slice(0, maxWords).join(' ').replace(/[,;:.-]+$/, '') + '…';
     return s.length > 120 ? s.slice(0, 117) + '…' : s;
   });
 }
