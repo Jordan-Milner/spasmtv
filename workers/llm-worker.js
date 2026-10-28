@@ -234,6 +234,7 @@ const KIND_PROMPT = {
   greeting: 'You just arrived in the stream. Say hi in a few words.',
   callback: 'Call back to the running joke quoted below, the way a regular would, with no explanation.',
   banreact: 'A viewer was just moderated by the mods. React to that.',
+  spot:     'The mods have YOUR profile card open on stream — you are the one being looked at. React to that.',
 };
 
 // kinds the viewer is looking at; the rest (meta, greeting, banter, banreact)
@@ -311,7 +312,7 @@ async function onChat(m) {
     prompt,
     frames: seeing && !hot ? m.frames : null,
     image: seeing && !hot ? m.image : null,
-    maxNewTokens: 30,
+    maxNewTokens: 20,
     sample: true,
     temperature: hot ? 1.25 : looped ? 1.2 : 0.85,
     repetitionPenalty: hot ? 1.3 : looped ? 1.25 : 1.15,
@@ -321,6 +322,8 @@ async function onChat(m) {
     .filter((s) => !(ctx.scene && echoesScene(s, ctx.scene)))
     .filter((s) => !(ctx.persona && tooSimilar(s, [ctx.persona], 0.6)))
     .filter((s) => !(quoted.length && tooSimilar(s, quoted, 0.6)))
+    .filter((s) => !keysmash(s))
+    .filter((s) => !PROMPT_LEAK.test(s))
     .filter((s) => !softGenderDamp(s));
 
   let lines = keep(toChatLines(await gen(false)));
@@ -329,15 +332,38 @@ async function onChat(m) {
   post({ type: 'chat', id: m.id, messages: lines, kind });
 }
 
+// the 450M sometimes degrades into keysmash ("EZERLAFUNKEBOHMTHAZAKABOBT…").
+// Shape check, no dictionary: two 4+ letter tokens with no vowel at all, or one
+// token no human word reaches — real chat is short vowel-rich words.
+function keysmash(s) {
+  const tokens = s.toLowerCase().split(/[^a-z]+/).filter((w) => w.length >= 4);
+  return tokens.filter((w) => !/[aeiouy]/.test(w)).length >= 2
+    || tokens.some((w) => w.length > 18);
+}
+
+// prompt fragments that come back as chat lines ("REACT LIKE A VIEWER WITH…",
+// "max 12 words <th_script> hey [stream_name]") — the model restating its brief
+const PROMPT_LEAK = /\b(react like a viewer|like a viewer who|max ?12 ?words|never describe|write only the message|one short chat message|your vibe|stream_name)\b/i;
+
 function toChatLines(raw) {
   let t = raw.replace(/^["'`\s]+|["'`\s]+$/g, '');
   // roleplay leakage: "username:", "@name:", "twitch chat:", "Viewer 2:" prefixes
   t = t.replace(/^@?[\w .-]{2,24}\s*:\s+/, '');
   t = t.replace(/^(?:twitch\s+)?(?:chat message|viewer ?\d*|user ?\d*|message|chat)\s*[:\-]\s*/i, '');
   // hashtag debris the 450M picks up from its Twitch priors
-  t = t.replace(/#[\w-]+/g, '').replace(/\s{2,}/g, ' ').trim();
+  t = t.replace(/#[\w-]+/g, '');
+  // template debris: "<th_script>", "[stream_name]"
+  t = t.replace(/[<\[][^>\]\n]{0,24}[>\]]/g, '');
+  // emoji faces: the prompt says no emoji faces and the model ignores it
+  t = t.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{2B00}-\u{2BFF}\u{1F1E6}-\u{1F1FF}]/gu, '');
+  t = t.replace(/\s{2,}/g, ' ').trim();
   const lines = t.split(/\n+/).map((s) => s.trim()).filter(Boolean);
-  return lines.slice(0, 2).map((s) => (s.length > 120 ? s.slice(0, 117) + '…' : s));
+  return lines.slice(0, 2).map((s) => {
+    const w = s.split(/\s+/);
+    // the 450M rambles past a chat line; a trimmed line beats an essay
+    if (w.length > 14) s = w.slice(0, 14).join(' ').replace(/[,;:.-]+$/, '') + '…';
+    return s.length > 120 ? s.slice(0, 117) + '…' : s;
+  });
 }
 
 async function onTranscribe(m) {

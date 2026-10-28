@@ -6,6 +6,13 @@
 
 import { ChatSim } from './chat-sim.js';
 import { loadEmotes, emoteHintFrom } from './emotes.js';
+import {
+  pickKind, gateKind, nextGapMs, planBurst, templateLine, maybeBit, liveBits,
+} from './cadence.js';
+import {
+  factionFor, cultureLine, patternOf, trollWeight, defies, moodOf, MOOD_GAP,
+  ONLOOKER_LINES, RELIEF_LINES, spotLine, DEAD_CHAT_LINES,
+} from './culture.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -33,7 +40,6 @@ const DIFF_W = 32, DIFF_H = 18;   // motion grid used for scene diff + focus cro
 const FULL_W = 960;               // working resolution frames are grabbed at
 const SCENE_CHANGE = 0.055;       // mean abs luma delta that counts as a "clip it!" moment
 
-const TICK_CHAT_MS = 2300;        // chat cadence
 const TICK_FRAME_MS = 1500;       // frame grab cadence
 const TICK_CAPTION_MS = 8000;     // scene re-caption cadence
 const MAX_PENDING_CHAT = 2;
@@ -69,7 +75,10 @@ const state = {
   pcm: [], pcmSamples: 0, speaking: false, silenceMs: 0,
   // chat context
   speech: '', speechAt: 0, userMsg: '', userMsgTicks: 0,
-  lastChatLines: [],
+  lastChatLines: [],        // ring of {name, text} — the window replies quote from
+  bits: [],                 // running jokes (§C), each {text, until}
+  culture: null,            // §D moderation culture state, see cultureState()
+  hypeAt: 0,
   emoteHint: '',
   titleIdx: 0,
   // per-kind round-trip latency (ms, last 10)
@@ -79,6 +88,10 @@ const state = {
 };
 
 const sim = new ChatSim();
+// §D: the crowd reacts to moderation, the model does not have to guess it
+sim.onModAction = (a) => onModAction(a);
+sim.onCenter = (v) => onCenter(v);
+sim.onUncenter = (v) => onUncenter(v);
 
 // pipeline counters; the ?autolive self-test mirrors these into document.title
 window.__lurker = { chat: 0, cap: 0, asr: 0, err: '', lastMsg: '', lastCap: '', lastAsr: '' };
@@ -172,11 +185,22 @@ function onWorkerMessage(ev) {
     (m.messages || []).forEach((text) => {
       let viewer = entry?.viewer;
       if (!viewer || (viewer.bannedUntil && viewer.bannedUntil > Date.now()))
-        viewer = sim.pickViewer();
+        viewer = sim.pickViewer(viewerWeights());
       const shown = sim.chat(text, viewer || undefined);
-      if (shown) logEvent('chat', text, { ...(entry?.context || {}), viewer: shown.name });
+      if (!shown) return;
+      // the log carries what the §F scorer measures: message kind, archetype,
+      // the rendered line (emotes and all) and, implicitly, that a model wrote it
+      logEvent('chat', text, {
+        ...(entry?.context || {}),
+        kind: m.kind || entry?.kind || 'reaction',
+        viewer: shown.name,
+        archetype: shown.archetypeKey,
+        shown: sim.lastRendered,
+        codes: sim.lastEmotes,
+      });
+      trackRecent(shown.name, text);
+      state.bits = maybeBit(state.bits, text, { hype: entry?.hype });
     });
-    state.lastChatLines = [...state.lastChatLines, ...(m.messages || [])].slice(-6);
   } else if (m.type === 'transcribe') {
     noteLatency(m.id, 'asr');
     window.__lurker.asr += 1;
@@ -269,6 +293,136 @@ function renderLatency() {
     `or the 2B brain = slower chat.</span>`;
 }
 
+/* ---------------- §D: moderation-tuned culture ----------------
+ * Who the mods ban changes what chat becomes. Every mod action is recorded with
+ * what the victim was saying, that pattern becomes a ~5 min standing rule, the
+ * crowd splits into factions about the ban, trolls get louder the longer the
+ * mods go quiet, and a purge leaves chat quieter and resentful. */
+
+function cultureState() {
+  if (!state.culture)
+    state.culture = { actions: [], note: '', noteUntil: 0, lastActionAt: Date.now(), centered: null, mood: 'calm' };
+  const c = state.culture;
+  const now = Date.now();
+  if (c.noteUntil && now > c.noteUntil) { c.note = ''; c.noteUntil = 0; }
+  c.mood = moodOf(c.actions, now);
+  return c;
+}
+
+// trolls gain ground while nobody is moderated — the community needs its mod.
+// Centering someone without acting counts as quiet: it never touches
+// lastActionAt, so the entropy feed keeps rising.
+function viewerWeights() {
+  const c = cultureState();
+  const now = Date.now();
+  return (v) => (v.archetypeKey === 'troll' ? trollWeight(now, c.lastActionAt) : 1);
+}
+
+function logTemplate(text, viewer, kind, ctx = {}) {
+  const shown = sim.chat(text, viewer);
+  if (!shown) return null;
+  logEvent('chat', text, {
+    kind, model: false, viewer: shown.name, archetype: shown.archetypeKey,
+    shown: sim.lastRendered, codes: sim.lastEmotes, ...ctx,
+  });
+  trackRecent(shown.name, text);
+  return shown;
+}
+
+function onModAction({ action, viewer }) {
+  const c = cultureState();
+  const now = Date.now();
+  c.actions.push({ t: now, action, name: viewer.name });
+  if (c.actions.length > 40) c.actions.shift();
+  c.lastActionAt = now;
+  // only real bans teach a rule; a yell is noise. Victims get 2–4 lines of
+  // chat about them, so the crowd is never just a system message.
+  if (action === 'timeout' || action === 'ban') {
+    const pattern = patternOf(viewer.msgs.slice(-3));
+    if (pattern) { c.note = pattern; c.noteUntil = now + 300e3; }
+  }
+  // the rubric measures ban-reaction latency against this event
+  logEvent('mod', action, {
+    viewer: viewer.name, archetype: viewer.archetypeKey, pattern: c.note, mood: c.mood,
+  });
+  banReactionBurst(viewer, action);
+}
+
+function banReactionBurst(victim, action) {
+  const last = victim.msgs.slice(-1)[0]?.text || '';
+  const n = 2 + ((Math.random() * 3) | 0);          // 2–4 lines
+  const used = new Set([victim.name]);
+  let modelUsed = false;
+  for (let i = 0; i < n; i++) {
+    // the rubric wants the first reaction inside 6 s, so line 0 fires fast
+    const delay = i === 0 ? 250 + Math.random() * 1200 : 400 + Math.random() * 4200;
+    setTimeout(() => {
+      if (state.phase !== 'live') return;
+      const v = sim.pickViewer(viewerWeights());
+      if (!v || used.has(v.name)) return;
+      used.add(v.name);
+      if (!modelUsed && state.pendingChat < MAX_PENDING_CHAT && Math.random() < 0.55) {
+        modelUsed = true;   // exactly one model line per burst, the rest are free
+        sendChatMessage({
+          viewer: v, kind: 'banreact', sceneChange: false,
+          ban: { name: victim.name, last, action },
+        });
+        return;
+      }
+      cultureLog(cultureLine(factionFor(v.archetypeKey), victim.name), v, victim, action);
+    }, delay);
+  }
+}
+
+function cultureLog(text, viewer, victim, action) {
+  logTemplate(text, viewer, 'banreact', { ban: { name: victim.name, action } });
+}
+
+/* centering: opening someone's card is a public event */
+function onCenter(viewer) {
+  const c = cultureState();
+  c.centered = viewer;
+  const used = new Set([viewer.name]);
+  const onlookers = 2 + ((Math.random() * 2) | 0);   // 2–3 onlooker lines
+  for (let i = 0; i < onlookers; i++) {
+    setTimeout(() => {
+      if (state.phase !== 'live' || cultureState().centered !== viewer) return;
+      const v = sim.pickViewer(viewerWeights());
+      if (!v || used.has(v.name)) return;
+      used.add(v.name);
+      const text = ONLOOKER_LINES[(Math.random() * ONLOOKER_LINES.length) | 0]
+        .replace(/\{name\}/g, viewer.name);
+      logTemplate(text, v, 'spot', { spot: viewer.name });
+    }, 300 + Math.random() * 2600);
+  }
+  // the viewer on the spot gets one guaranteed line, persona-aware
+  setTimeout(() => {
+    if (state.phase !== 'live' || cultureState().centered !== viewer) return;
+    if (state.pendingChat >= MAX_PENDING_CHAT) {
+      logTemplate(spotLine(viewer.archetypeKey), viewer, 'spot', { spot: viewer.name });
+      return;
+    }
+    sendChatMessage({ viewer, kind: 'spot', sceneChange: false, spot: true });
+  }, 900 + Math.random() * 1600);
+}
+
+function onUncenter(viewer) {
+  const c = cultureState();
+  if (!viewer || c.centered !== viewer) return;
+  c.centered = null;
+  // card closed with no action → relief beat, and the tension keeps building
+  const used = new Set([viewer?.name]);
+  for (let i = 0; i < 2; i++) {
+    setTimeout(() => {
+      if (state.phase !== 'live') return;
+      const v = sim.pickViewer(viewerWeights());
+      if (!v || used.has(v.name)) return;
+      used.add(v.name);
+      logTemplate(RELIEF_LINES[(Math.random() * RELIEF_LINES.length) | 0], v, 'relief', { spot: viewer.name });
+    }, 400 + i * 700 + Math.random() * 900);
+  }
+}
+
 /* ---------------- status / phase UI ---------------- */
 
 function setStatus(kind, text) {
@@ -342,6 +496,7 @@ async function goLiveAfterLoad() {
   rotateTitle();
 
   state.scene = ''; state.sceneAt = 0; state.speech = ''; state.lastChatLines = [];
+  state.bits = []; state.culture = null; state.hypeAt = 0;
   startLoops();
   els.loadProgress.hidden = true;
   els.loadPct.textContent = '';
@@ -379,7 +534,7 @@ function startLoops() {
   cancelLoops();
   state.loops.push(setTimeout(tickFrame, TICK_FRAME_MS));
   state.loops.push(setTimeout(tickCaption, 400));
-  state.loops.push(setTimeout(tickChat, TICK_CHAT_MS));
+  state.loops.push(setTimeout(chatLoop, 1800));
   state.loops.push(setTimeout(rotateTitle, 45000));
 }
 
@@ -509,38 +664,96 @@ function sendCaption() {
   post({ type: 'caption', id, image: img }, [img.data.buffer]);
 }
 
-/* chat generation */
-function tickChat() {
-  if (state.phase === 'live') {
-    if (state.pendingChat < MAX_PENDING_CHAT) {
-      const sceneChange = state.diffScore > SCENE_CHANGE;
-      let count = 1;
-      if (sceneChange) count += 1;
-      if (Date.now() - state.speechAt < 9000) count += 1;
-      if (state.userMsgTicks > 0) count = Math.max(count, 2);
-      count = Math.min(count, 3);
-
-      for (let i = 0; i < count; i++) {
-        sendChatMessage({ sceneChange, offsetMs: i * 450, burstIndex: i });
-      }
-      if (state.userMsgTicks > 0) state.userMsgTicks -= 1;
-    }
-    scheduleNext(tickChat, TICK_CHAT_MS + (Math.random() * 900 - 300));
+/* chat generation — §C: a kind scheduler on top of a bursty clock.
+ * The old loop was one line every 2.3 s like a metronome; real chat is droughts
+ * and pile-ons. js/cadence.js holds the pure parts (weights, gaps, bursts) so
+ * tools/test-cadence.mjs can prove the rate budget without a browser — it must
+ * stay at or under the shipped 20 lines/min and 20 generate calls/min. */
+function chatLoop() {
+  if (state.phase !== 'live') return;
+  const burst = planBurst();
+  const sceneChange = state.diffScore > SCENE_CHANGE;
+  const hype = sceneChange || Date.now() - state.hypeAt < 2500;
+  // a chant = the whole burst is one emote, from three different viewers
+  const chant = burst.chant ? sim.randomEmote() : null;
+  for (let i = 0; i < burst.n; i++) {
+    fireLine({ offsetMs: burst.offsets[i], burstIndex: i, hype, chant, sceneChange });
   }
+  if (state.userMsgTicks > 0) state.userMsgTicks -= 1;
+  const c = cultureState();
+  // a purge leaves chat quieter and resentful: wider gaps, occasional dead-chat
+  // line from a template (free — the GPU stays on the real reactions)
+  if (c.mood !== 'calm' && Math.random() < (c.mood === 'purge' ? 0.09 : 0.03)) {
+    const v = sim.pickViewer(viewerWeights());
+    if (v) logTemplate(DEAD_CHAT_LINES[(Math.random() * DEAD_CHAT_LINES.length) | 0], v, 'mood');
+  }
+  scheduleNext(chatLoop, nextGapMs() * MOOD_GAP[c.mood]);
 }
 
-const PERSONAS = [
-  'curious — ask the streamer one short question about what you see',
-  'totally hyped — short excited burst, caps allowed',
-  'confused — ask one short question about something on screen',
-  'a regular — treat something on screen like a running joke',
-  'backseat gaming — tell the streamer what to do next, unprompted',
-  'groan-worthy pun about the scene',
-  'over-invested — narrate what is happening like it is a huge deal',
-  'suspicious — claim the whole thing looks staged',
-  'curious again — ask a follow-up question about the streamer or the room',
-];
-let personaIdx = (Math.random() * PERSONAS.length) | 0;
+function fireLine({ offsetMs = 0, burstIndex = 0, hype = false, chant = null, sceneChange = false }) {
+  setTimeout(() => {
+    if (state.phase !== 'live') return;
+    const viewer = sim.pickViewer(viewerWeights());
+    if (!viewer) return;
+    const bits = liveBits(state.bits);
+    let kind = gateKind(chant ? 'emote' : pickKind(), viewer, {
+      bits,
+      recent: state.lastChatLines,
+      userMsg: state.userMsgTicks > 0 ? state.userMsg : '',
+      hype,
+    });
+    // the streamer addressed chat → the next line answers them, dice be damned
+    if (state.userMsgTicks > 0 && kind !== 'emote') kind = 'reply';
+
+    if (kind === 'emote') {
+      const text = templateLine('emote', { emote: () => sim.randomEmote(), hype, chant });
+      logTemplate(text, viewer, kind);
+      return;
+    }
+    // GPU busy: drop the line rather than queue it — a queued line is stale chat
+    if (state.pendingChat >= MAX_PENDING_CHAT) return;
+    sendChatMessage({ viewer, kind, sceneChange, burstIndex, hype, bit: bits[0]?.text || '' });
+  }, offsetMs);
+}
+
+// persona overrides on top of the viewer's archetype hint (chat-sim.js): called
+// out viewers get defensive, returning prisoners split by how long they sat out,
+// and trolls break the standing rule on purpose (§D)
+const SPOT_PERSONA = {
+  troll: 'the mod has your profile card open on stream and you double down on what you said',
+  earnest: 'the mod has your profile card open on stream — panic about it, insist you did nothing',
+  parasocial: 'the mod has your profile card open on you — plead your case to the streamer like a friend',
+  'hype-man': 'the mod has your profile card open on you — treat it as the biggest moment of the stream',
+  doomer: 'the mod has your profile card open on you — you expected this all along',
+  default: 'the mod has your profile card open on you — react to being called out',
+};
+
+function personaFor(viewer, kind = '') {
+  if (kind === 'spot')
+    return SPOT_PERSONA[viewer.archetypeKey] || SPOT_PERSONA.default;
+  if (viewer.justReturned) {
+    viewer.justReturned = false;
+    return viewer.lastBanMs >= 60e3
+      ? 'back from a long timeout — hold a grudge about it, you are not sorry'
+      : 'back from a short timeout — announce your return, dramatically unrepentant';
+  }
+  if (viewer.warned) return 'a mod just yelled at you — act innocent but keep chatting anyway';
+  const note = state.culture?.note || '';
+  if (note && defies(viewer.archetypeKey, note))
+    return `the chat rule lately is "no ${note}" and you break it anyway, proudly`;
+  return viewer.personaHint || 'a viewer — one short reaction';
+}
+
+// exactly one prior line for a reply to quote — never the window (§B)
+function pickRecent(excludeName) {
+  const pool = state.lastChatLines.filter((l) => l.name !== excludeName);
+  return pool.length ? pool[(Math.random() * pool.length) | 0] : null;
+}
+
+function trackRecent(name, text) {
+  state.lastChatLines.push({ name, text });
+  if (state.lastChatLines.length > 6) state.lastChatLines.shift();
+}
 
 /* burst frames: which single view of the stream this viewer reacts to */
 function burstFrames(varied, index) {
@@ -554,49 +767,42 @@ function burstFrames(varied, index) {
   return { image: cur };
 }
 
-function sendChatMessage({ sceneChange, offsetMs = 0, burstIndex = 0 }) {
-  setTimeout(() => {
-    if (state.phase !== 'live') return;
-    const viewer = sim.pickViewer();
-    if (!viewer) return;
-    state.pendingChat += 1;
-    // persona overrides: called-out viewers get defensive, returning prisoners announce it
-    // base persona is the viewer's archetype instruction (chat-sim.js); the old
-    // round-robin PERSONAS list is kept only as a fallback for missing archetypes
-    let persona = viewer.personaHint || PERSONAS[personaIdx++ % PERSONAS.length];
-    if (viewer.justReturned) {
-      persona = 'just back from a timeout — announce your return, dramatically unrepentant';
-      viewer.justReturned = false;
-    } else if (viewer.warned) {
-      persona = 'a mod just yelled at you — act innocent but keep chatting anyway';
-    }
-    const context = {
-      scene: state.scene || 'the stream just started; nobody has described it yet',
-      speech: state.speech || '',
-      sceneChange,
-      userMsg: state.userMsgTicks > 0 ? state.userMsg : '',
-      recent: state.lastChatLines,
-      persona,
-      emotes: state.emoteHint,
-      facts: factsForContext(),
-    };
-    const id = ++state.reqId;
-    pendingMeta.set(id, { kind: 'chat', sentAt: performance.now(), context, viewer });
-    const msg = { type: 'chat', id, context };
-    // scene-change bursts see actual frames; other lines run text-only for speed
-    if (sceneChange) {
-      Object.assign(msg, burstFrames(state.settings.varied, burstIndex));
-      const transfer = [];
-      if (msg.frames) msg.frames.forEach((fr) => transfer.push(fr.data.buffer));
-      if (msg.image) transfer.push(msg.image.data.buffer);
-      post(msg, transfer);
-      return;
-    }
-    post(msg);
-  }, offsetMs);
+function sendChatMessage({ viewer, kind, sceneChange, burstIndex = 0, hype = false, bit = '', ban = null, spot = false }) {
+  if (state.phase !== 'live') return;
+  const replySrc = kind === 'reply' && !state.userMsgTicks ? pickRecent(viewer.name) : null;
+  const context = {
+    kind,
+    scene: state.scene || 'the stream just started; nobody has described it yet',
+    speech: state.speech || '',
+    sceneChange,
+    userMsg: state.userMsgTicks > 0 ? state.userMsg : '',
+    recent: state.lastChatLines.map((l) => l.text),
+    persona: personaFor(viewer, kind),
+    emotes: state.emoteHint,
+    facts: factsForContext(),
+    replyTo: replySrc ? { name: replySrc.name, text: replySrc.text } : null,
+    bit: kind === 'callback' ? bit : '',
+    ban,                              // §D: 'X was just moderated — react to that'
+    culture: state.culture?.note || '',
+  };
+  const id = ++state.reqId;
+  state.pendingChat += 1;
+  pendingMeta.set(id, { kind, sentAt: performance.now(), context, viewer, hype, ban, spot });
+  const msg = { type: 'chat', id, context };
+  // scene-change reactions see actual frames; other lines run text-only for speed
+  if (sceneChange && kind !== 'emote') {
+    Object.assign(msg, burstFrames(state.settings.varied, burstIndex));
+    const transfer = [];
+    if (msg.frames) msg.frames.forEach((fr) => transfer.push(fr.data.buffer));
+    if (msg.image) transfer.push(msg.image.data.buffer);
+    post(msg, transfer);
+    return;
+  }
+  post(msg);
 }
 
 function hype() {
+  state.hypeAt = Date.now();
   sim.setViewerCount(sim.viewerCount + 3 + ((Math.random() * 5) | 0));
 }
 

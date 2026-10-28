@@ -26,7 +26,7 @@ const YELLS = [
 ];
 
 const ARCHETYPES = {
-  'hype-man':    { weight: 3, freq: 1.0, hint: 'you are the hype man — short all-caps bursts, !!! , pile onto anything exciting',           case: 'upper', ellipsis: false, typo: 0.02, emote: 1.3 },
+  'hype-man':    { weight: 3, freq: 1.0, hint: 'you are the hype man — a few words at maximum energy, pile onto anything exciting (your lines get shouted in caps for you)',           case: 'upper', ellipsis: false, typo: 0.02, emote: 1.3 },
   'backseat':    { weight: 2, freq: 0.9, hint: 'a backseat gamer — tell the streamer what to do next, unprompted, with timestamps',       case: 'lower', ellipsis: false, typo: 0.03, emote: 0.8 },
   'lurker':      { weight: 4, freq: 0.4, hint: 'a lurker — nearly silent, post only a single word or emote now and then',                 case: 'lower', ellipsis: true,  typo: 0.02, emote: 1.0 },
   'regular':     { weight: 3, freq: 1.3, hint: 'a regular — treat something on screen like a running joke you\u2019ve seen every stream', case: 'lower', ellipsis: true,  typo: 0.04, emote: 1.0 },
@@ -59,12 +59,13 @@ function pickArchetype() {
 }
 
 // weighted pick of an index into a pool, weighted by each viewer's archetype
-// message-frequency — regulars dominate, lurkers and newcomers rarely post
-function pickByFreq(pool) {
-  const total = pool.reduce((s, v) => s + (v.archetype.freq || 1), 0);
+// message-frequency — regulars dominate, lurkers and newcomers rarely post.
+// `mult(viewer)` lets §D raise one archetype's share (trolls when the mods are quiet)
+function pickByFreq(pool, mult = () => 1) {
+  const total = pool.reduce((s, v) => s + (v.archetype.freq || 1) * mult(v), 0);
   let r = Math.random() * total;
   for (let i = 0; i < pool.length; i++) {
-    r -= pool[i].archetype.freq;
+    r -= (pool[i].archetype.freq || 1) * mult(pool[i]);
     if (r <= 0) return i;
   }
   return pool.length - 1;
@@ -119,6 +120,7 @@ export class ChatSim {
     this.viewers = [];
     this.mvp = null;
     this.emotes = new Map();
+    this.lastEmotes = [];   // codes rendered as images in the last line
     this.emoteRe = null;
     this.lastViewer = null;
     this.viewerCount = 0;
@@ -142,6 +144,7 @@ export class ChatSim {
       archetypeKey,       // its key, e.g. "regular"
       personaHint: archetype.hint, // handed to the worker as the base persona
       q: 0, msgs: [], warned: false, bannedUntil: 0, justReturned: false,
+      lastBanMs: 0, history: [],   // §D: what the mods have done to this viewer
     };
   }
 
@@ -182,15 +185,15 @@ export class ChatSim {
     return this.viewers.filter((v) => !v.bannedUntil || v.bannedUntil < Date.now());
   }
 
-  pickViewer() {
+  pickViewer(mult = () => 1) {
     const pool = this.activeViewers();
     if (!pool.length) return null;
     // weighted by archetype frequency — regulars/posts dominate, lurkers rare
     for (let attempt = 0; attempt < 8; attempt++) {
-      const v = pool[pickByFreq(pool)];
+      const v = pool[pickByFreq(pool, mult)];
       if (v && v.name !== this.lastViewer) { this.lastViewer = v.name; return v; }
     }
-    return pool[pickByFreq(pool)];
+    return pool[pickByFreq(pool, mult)];
   }
 
   // Client-side cosmetics applied to the DISPLAYED text only: a case style,
@@ -215,7 +218,9 @@ export class ChatSim {
       t = t.split('').map((c) => (Math.random() < 0.5 ? c.toUpperCase() : c.toLowerCase())).join('');
     }
     if (viewer.archetype.ellipsis && Math.random() < 0.5 && !/[.!?…]$/.test(t)) t += '…';
-    if (viewer.archetype.emote > 1 && !/[A-Z]{2,}$/.test(t) && Math.random() < (viewer.archetype.emote - 1) * 0.2)
+    // emote affinity per archetype (§A): real chat carries an emote in about a
+    // third of lines, so the affinity multiplies a base chance, not an excess
+    if (!/[A-Z]{2,}$/.test(t) && Math.random() < (viewer.archetype.emote || 1) * 0.2)
       t += ' ' + this.randomEmote();
     return t;
   }
@@ -230,9 +235,11 @@ export class ChatSim {
 
   _formatText(text) {
     let html = escapeHtml(text);
+    this.lastEmotes = [];
     if (this.emoteRe) {
       html = html.replace(this.emoteRe, (m, ws, code) => {
         const url = this.emotes.get(code);
+        this.lastEmotes.push(code);   // what the §F emote metric measures
         return `${ws}<img class="emote-img" alt="${code}" title="${code}" src="${url}" loading="lazy"/>`;
       });
     }
@@ -257,13 +264,15 @@ export class ChatSim {
       ? '<span class="ubadge mvp">MVP</span>'
       : isQ ? '<span class="ubadge q">❓</span>' : '';
 
+    const shown = this.render(viewer, text);
+    this.lastRendered = shown;   // what the viewer actually read — the log needs it
     const el = document.createElement('div');
     el.className = 'msg';
     el.innerHTML =
       `${badge}<span class="user" style="color:${viewer.color}"></span>` +
       `<span class="sep">: </span><span class="text"></span>`;
     el.querySelector('.user').textContent = viewer.name;
-    el.querySelector('.text').innerHTML = this._formatText(this.render(viewer, text));
+    el.querySelector('.text').innerHTML = this._formatText(shown);
     this._append(el);
     return viewer;
   }
@@ -312,20 +321,34 @@ export class ChatSim {
 
   stopViewerDrift() { clearInterval(this._viewerTimer); }
 
-  /* ---------------- mod view ---------------- */
+  /* ---------------- mod view ----------------
+   * Every action records itself on the viewer (the card shows the history) and
+   * fires onModAction so main.js can run the culture loop (§D). chat-sim stays
+   * free of model logic — it reports, main.js reacts. */
+
+  _modAction(viewer, action, label) {
+    this._acting = true;
+    setTimeout(() => { this._acting = false; }, 0);
+    viewer.history.unshift({ action, label: label || '', t: Date.now() });
+    if (viewer.history.length > 6) viewer.history.pop();
+    this.onModAction?.({ action, viewer, label });
+  }
 
   yell(viewer) {
     viewer.warned = true;
     this.mod(`🛡️ @${viewer.name} — ${YELLS[(Math.random() * YELLS.length) | 0]}`);
+    this._modAction(viewer, 'yell');
   }
 
   warn(viewer) {
     viewer.warned = true;
     this.mod(`⚠️ @${viewer.name} — that's a formal warning.`);
+    this._modAction(viewer, 'warn');
   }
 
   ban(viewer, ms, label) {
     viewer.bannedUntil = Date.now() + ms;
+    viewer.lastBanMs = ms;
     if (ms > 1000) viewer.justReturned = true;
     this.system(`@${viewer.name} has been timed out (${label}) 🪓`);
     if (ms === 1000) {
@@ -335,13 +358,16 @@ export class ChatSim {
       }, 1400);
     }
     this._renderModCard(viewer);
+    this._modAction(viewer, 'timeout', label);
   }
 
   banForever(viewer) {
     viewer.bannedUntil = Infinity;
     viewer.justReturned = true;
+    viewer.lastBanMs = Infinity;
     this.system(`@${viewer.name} has been banned 🪦`);
     this._renderModCard(viewer);
+    this._modAction(viewer, 'ban');
   }
 
   unban(viewer) {
@@ -349,6 +375,7 @@ export class ChatSim {
     viewer.justReturned = true;
     this.system(`@${viewer.name} was unbanned. pray.`);
     this._renderModCard(viewer);
+    this._modAction(viewer, 'unban');
   }
 
   openModCard(viewer, x, y) {
@@ -375,14 +402,27 @@ export class ChatSim {
         window.addEventListener('pointerup', up);
       });
       document.addEventListener('click', (e) => {
-        if (!card.hidden && !card.contains(e.target) && !e.target.closest('.user')) card.hidden = true;
+        // an action button re-renders the card (innerHTML) mid-click, so by the time
+        // the click bubbles here the button is detached — _acting covers that window
+        if (card.hidden || this._acting || card.contains(e.target) || e.target.closest('.user')) return;
+        card.hidden = true;
+        this.onUncenter?.(card._viewer);
       });
     }
+    const wasCentered = card._viewer;
     card._viewer = viewer;
     card.hidden = false;
     card.style.left = Math.min(x, window.innerWidth - 300) + 'px';
     card.style.top = Math.min(y, Math.max(8, window.innerHeight - 380)) + 'px';
     this._renderModCard(viewer);
+    if (wasCentered !== viewer) this.onCenter?.(viewer);   // §D: the crowd notices
+  }
+
+  // the card's ✕ — main.js needs to know the spot was vacated with no action
+  _closeCard(card) {
+    const v = card._viewer;
+    card.hidden = true;
+    this.onUncenter?.(v);
   }
 
   _renderModCard(viewer) {
@@ -422,7 +462,7 @@ export class ChatSim {
       </div>
       <div class="mc-msgs"></div>`;
 
-    card.querySelector('.mc-close').onclick = () => { card.hidden = true; };
+    card.querySelector('.mc-close').onclick = () => this._closeCard(card);
     card.querySelector('.mc-yell').onclick = () => { this.yell(viewer); this._renderModCard(viewer); };
     card.querySelector('.mc-warn').onclick = () => { this.warn(viewer); this._renderModCard(viewer); };
     card.querySelectorAll('[data-ms]').forEach((b) => {
@@ -437,12 +477,16 @@ export class ChatSim {
 
     const box = card.querySelector('.mc-msgs');
     const recent = viewer.msgs.slice(-12);
-    box.innerHTML = recent.length
+    const history = viewer.history.length
+      ? `<div class="mc-msg history">last actions: ${viewer.history
+          .map((h) => `${h.action}${h.label ? ` (${h.label})` : ''}`).join(' · ')}</div>`
+      : '<div class="mc-msg history dim">no actions taken</div>';
+    box.innerHTML = history + (recent.length
       ? recent.map((m) =>
           `<div class="mc-msg${viewer.warned ? ' hot' : ''}">` +
           `<span style="color:${viewer.color}">${escapeHtml(viewer.name)}</span> ` +
           `${escapeHtml(m.text)}</div>`).join('')
-      : '<div class="mc-msg dim">no messages yet</div>';
+      : '<div class="mc-msg dim">no messages yet</div>');
   }
 }
 
