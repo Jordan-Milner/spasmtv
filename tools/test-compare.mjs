@@ -9,7 +9,7 @@
 // individual verdicts (not just the process exit code).
 
 import assert from 'node:assert/strict';
-import { metrics, compare, EMOTE_HINT_SET } from '../tools/score-chat.mjs';
+import { metrics, compare, EMOTE_HINT_SET, burstRatio } from '../tools/score-chat.mjs';
 
 // --- helpers to build jsonl ------------------------------------------------
 const chatLine = (t, user, text, extra = {}) =>
@@ -128,5 +128,26 @@ assert.ok(EMOTE_HINT_SET.has('kekw'), 'known emote in hint set (lower-cased keys
 
 // --- metrics() rejects a malformed / empty log -----------------------------
 assert.throws(() => metrics([]), /need at least/);
+
+// --- burstRatio: clustered changes are one window, not many ---------------
+{
+  const ev = (s) => ({ t: new Date(1000000 + s * 1000).toISOString() });
+  // 30 baseline lines over 300 s (6/min), then 6 changes 2 s apart each pulling
+  // 3 lines in the next 3 s. Counting 6×10 s of window would read ~1.1×.
+  const chat = [];
+  for (let s = 0; s < 300; s += 10) chat.push(ev(s));
+  const changes = [100, 102, 104, 106, 108, 110];
+  for (const c of changes) for (const d of [0, 1, 2]) chat.push(ev(c + d));
+  chat.sort((a, b) => new Date(a.t) - new Date(b.t));
+  const { ratio, blanketed } = burstRatio(chat, changes.map((s) => new Date(1000000 + s * 1000).getTime()));
+  assert.ok(ratio > 2, `clustered pile-on should read >2×, got ${ratio}`);
+  assert.equal(blanketed, false, '6 windows out of 300 s is not a blanket');
+  // a change every 5 s covers the whole timeline — the ratio is meaningless
+  const flat = [];
+  for (let s = 0; s < 100; s += 5) { flat.push(ev(s)); flat.push(ev(s + 1)); }
+  const b2 = burstRatio(flat, Array.from({ length: 20 }, (_, i) => new Date(1000000 + i * 5000).getTime()));
+  assert.equal(b2.blanketed, true, 'changes every 5 s blanket the span');
+  assert.equal(burstRatio([], []).ratio, null, 'no changes → n/a');
+}
 
 console.log('ok — compare: MATCH exits 0, MISS exits 1, tolerances honoured');

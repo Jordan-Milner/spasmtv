@@ -124,8 +124,8 @@ await send(ws, 'Network.setCacheDisabled', { cacheDisabled: true });
 // checkboxes). --camera opts out and uses real getUserMedia.
 if (!flag('camera')) {
   await send(ws, 'Page.addScriptToEvaluateOnNewDocument', {
-    source: "localStorage.removeItem('lurker-log');\n" +
-      "addEventListener('DOMContentLoaded', () => {\n" +
+    // the chat log lives in page memory (no ?log=1), so each load starts empty
+    source: "addEventListener('DOMContentLoaded', () => {\n" +
       "  document.getElementById('demo-toggle').checked = true;\n" +
       (flag('mic') ? '' : "  document.getElementById('mic-toggle').checked = false;\n") +
       "});",
@@ -168,7 +168,7 @@ while (Date.now() < DEADLINE) {
   if (chat >= MINUTES * 12 && (!banAt || Date.now() - banAt > 15000)) break;
 }
 
-const dump = await evaluate(ws, 'window.__lurkerDump ? __lurkerDump() : "[]"');
+const dump = await evaluate(ws, 'window.__spasmDump ? __spasmDump() : "[]"');
 const events = JSON.parse(dump);
 writeFileSync(OUT, events.map((e) => JSON.stringify(e)).join('\n') + '\n');
 console.log(`wrote ${OUT}: ${events.length} events · ${title.slice(0, 160)}`);

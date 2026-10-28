@@ -18,8 +18,15 @@ import {
 } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2';
 
 // same yardstick the scorer uses (tools/score-chat.mjs imports this file too)
-import { loadOmni, omniGenerate, omniLoaded, loadOmniAudio, omniTranscribe } from './omni.js';
-import { normTokens, tooSimilar, echoesScene, reactionSeed, factCandidate } from '../js/text.js';
+import {
+  normTokens, tooSimilar, echoesScene, reactionSeed, factCandidate,
+  unsafeLine, personaLeak, junkLine, echoesSpeech,
+} from '../js/text.js';
+
+// workers/omni.js pulls onnxruntime-web and its own tokenizer — fetched only
+// when the experimental ?brain=omni is picked, never for everyone else
+let omni = null;
+const omniModule = async () => (omni ??= await import('./omni.js'));
 
 env.allowLocalModels = false;
 
@@ -77,6 +84,7 @@ const post = (m) => self.postMessage(m);
 let processor = null;
 let model = null;
 let currentKey = null;
+let inflight = 0; // generate() calls still running — a brain switch waits for them
 // §H/U8 grammar guard — chat generation constrained to a chat-safe charset by
 // regex, so emoji faces / hashtags / template debris never get sampled (they
 // used to die in toChatLines + keep(), each death costing a retry GPU call).
@@ -164,23 +172,24 @@ async function load(m) {
   const key = m.phone ? 'phone' : (VLM[m.model] ? m.model : 'fast');
   const cfg = VLM[key];
   const loadKey = key;
-  // main.js decides whether the guard is on (off on phones, off with ?grammar=0)
+  // main.js decides whether the guard is on (on by default, off with ?grammar=0)
   const wanted = !!m.grammar && !grammarBroken;
-  if ((model || omniLoaded()) && currentKey === loadKey) {
+  if ((model || omni?.omniLoaded()) && currentKey === loadKey) {
     grammarOn = wanted && !!tokenizer && !cfg.omni;
     post({ type: 'ready' });
     return;
   }
+  await unloadBrain();
   filePct.clear();
   post({ type: 'progress', progress: 0 });
 
   if (cfg.omni) {
     grammarOn = false; // the regex guard is a transformers.js logits processor; omni has its own sampler
-    await loadOmni((p) => post({ type: 'progress', progress: p }));
+    await (await omniModule()).loadOmni((p) => post({ type: 'progress', progress: p }));
     currentKey = loadKey;
     await generate({ prompt: 'hi', maxNewTokens: 2 });
     // hearing is the same model: its audio encoder loads in the background, Moonshine never does
-    if (m.asr) loadOmniAudio().then(() => post({ type: 'asr-ready' })).catch((e) => console.error('[omni audio]', e));
+    if (m.asr) omni.loadOmniAudio().then(() => post({ type: 'asr-ready' })).catch((e) => console.error('[omni audio]', e));
     post({ type: 'ready', asr: 'omni' });
     return;
   }
@@ -215,6 +224,20 @@ async function load(m) {
   post({ type: 'ready', asr: asrModelKey, grammar: grammarOn });
 }
 
+// a brain switch hands the old brain's GPU memory back before the next one
+// loads — without this the old weights stay resident beside the new ones until
+// the tab closes. In-flight calls (a late caption or chat line from the stream
+// that just stopped) finish first; disposing under a running session is unsafe.
+async function unloadBrain() {
+  if (omni?.omniLoaded()) await omni.unloadOmni();
+  while (inflight > 0) await new Promise((r) => setTimeout(r, 25));
+  const old = model;
+  model = null; processor = null; tokenizer = null; currentKey = null;
+  if (old) {
+    try { await old.dispose(); } catch (err) { console.warn('[llm-worker] dispose failed:', err); }
+  }
+}
+
 function ensureAsr() {
   if (!asrPromise) {
     asrPromise = pipeline('automatic-speech-recognition', ASR_MODELS[asrModelKey], {
@@ -233,14 +256,19 @@ function ensureAsr() {
 
 /* ---------------- generation core ---------------- */
 
-async function generate({
+async function generate(opts) {
+  inflight += 1;
+  try { return await generateOnce(opts); } finally { inflight -= 1; }
+}
+
+async function generateOnce({
   prompt, frames, image, maxNewTokens, sample = false, priority = 0, grammar = false,
   temperature = 0.85, repetitionPenalty = 1.05, topP = 0.95, topK = 0,
 }) {
   if (currentKey === 'omni') {
     // omni takes real text-only calls — no blank-image stand-in needed
     const f = frames?.length ? frames[frames.length - 1] : image;
-    return omniGenerate({
+    return omni.omniGenerate({
       priority, prompt, image: f ? { data: f.data, width: f.width, height: f.height } : null,
       maxNewTokens, temperature: sample ? temperature : 0, topP, topK, repetitionPenalty,
     });
@@ -312,7 +340,7 @@ async function onCaption(m) {
 /* ---- prompt v3: reaction-first, anti-echo --------------------------------
  * v2 anchored the prompt on the whole caption ("The stream right now: <scene>")
  * and the 450M answered it with its describe-the-image prior: >60% of the lines
- * in docs/sample-chatlog-2026-10-27.json are near-copies of the caption. v3
+ * in the v1.1 sample log (2026-10-27) are near-copies of the caption. v3
  * hands the scene as a 3-word seed, says react-never-describe, and rejects
  * echoes after generation (echoesScene). Kinds come from main.js's scheduler;
  * a kind we don't know is treated as a plain reaction.
@@ -332,7 +360,7 @@ const KIND_PROMPT = {
 
 // kinds the viewer is looking at; the rest (meta, greeting, banter, banreact)
 // get no scene at all — and no image, so the worker uses the blank stand-in
-// (this processor has no null-image mode, see PLAN.md)
+// (this processor family has no null-image mode)
 const VISUAL_KINDS = new Set(['reaction', 'question', 'backseat', 'reply', 'callback']);
 
 const clip = (s, n) => String(s).slice(0, n);
@@ -426,8 +454,14 @@ async function onChat(m) {
     .filter((s) => !(ctx.persona && tooSimilar(s, [ctx.persona], 0.6)))
     .filter((s) => !(quoted.length && tooSimilar(s, quoted, 0.6)))
     .filter((s) => !(T.keysmash !== false && keysmash(s)))
-    .filter((s) => !PROMPT_LEAK.test(s))
     .filter((s) => !META_NEG.test(s))
+    // js/text.js: a real person is on camera and the page is public — slurs,
+    // sexual or body talk, self-harm; the archetype brief coming back as chat;
+    // invented @handles and digit/symbol junk; the streamer's words repeated back
+    .filter((s) => !unsafeLine(s))
+    .filter((s) => !personaLeak(s))
+    .filter((s) => !junkLine(s, [ctx.replyTo?.name, ctx.ban?.name]))
+    .filter((s) => ![ctx.speech, ctx.userMsg].some((said) => said && echoesSpeech(s, said)))
     .filter((s) => !softGenderDamp(s, (T.genderDamp ?? 50) / 100));
 
   let lines = keep(toChatLines(await gen(false), T.maxWords || 14, true));
@@ -447,12 +481,6 @@ function keysmash(s) {
   return tokens.filter((w) => !/[aeiouy]/.test(w)).length >= 2
     || tokens.some((w) => w.length > 18);
 }
-
-// prompt fragments that come back as chat lines ("REACT LIKE A VIEWER WITH…",
-// "max 12 words <th_script> hey [stream_name]", "No emotes allowed; keep your
-// voice") — the model restating its brief. Extended after the first §C run
-// leaked "no description any more" and "(No emotes allowed, keep your voice".
-const PROMPT_LEAK = /\b(react like a viewer|like a viewer who|max ?12 ?words|never describe|write only the message|one short chat message|your vibe|stream_name|no emotes?|no description|no quotes?|no hashtags?|keep your voice|lowercase only|one emote from)\b/i;
 
 // the 450M answers "react to that" with meta about reacting: "no reaction",
 // "no response", "no viewership humming by screensucking". Real chat says
@@ -484,7 +512,7 @@ function toChatLines(raw, maxWords = 14, strict = false) {
 
 async function onTranscribe(m) {
   let text;
-  if (currentKey === 'omni') text = await omniTranscribe(m.pcm);
+  if (currentKey === 'omni') text = await omni.omniTranscribe(m.pcm);
   else { await ensureAsr(); ({ text } = await asr(m.pcm)); }
   let fact = null;
   const clean = (text || '').trim();
@@ -509,7 +537,7 @@ async function onTranscribe(m) {
       const t = raw.trim();
       const thirdPerson = !/\b(i|me|my|we|us|our|you|your)\b/i.test(t);
       if (t && thirdPerson && !/^no\b/i.test(t) && !t.includes('?')
-          && t.split(/\s+/).length <= 16) fact = t;
+          && t.split(/\s+/).length <= 16 && !unsafeLine(t)) fact = t;
     } catch { /* classifier is best-effort; transcript still goes through */ }
   }
   post({ type: 'transcribe', id: m.id, text: text || '', fact });

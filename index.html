@@ -12,11 +12,9 @@
     <div class="brand">SpasmTV <span class="beta">your personal AI stream</span></div>
     <div id="controls">
       <select id="model-select" title="Chat brain">
-          <option value="fast" selected>Fast chat (~800 MB)</option>
-        <option value="quality">Sharper chat (2B, ~1.8 GB)</option>
-        <option value="omni">Liquid Omni 2B (experimental)</option>
-        <option value="lfm3b">Liquid 3B (experimental)</option>
-        <option value="qwen">Qwen 2B (best grounded, ~1.4 GB)</option>
+        <option value="fast" selected>Fast chat (~800 MB)</option>
+        <option value="quality">Sharper chat (2B, ~1.9 GB)</option>
+        <option value="qwen">Qwen 2B (best grounded, ~2.3 GB)</option>
       </select>
       <label class="toggle" title="Chat hears what you say (transcribed locally)">
         <input type="checkbox" id="mic-toggle" checked/> mic
@@ -65,7 +63,10 @@
       <div id="fact-list" class="fact-list"></div>
       <div class="set-row"><button id="fact-clear" class="ghost">forget everything</button></div>
       <div class="set-note">things you say as fact on stream get remembered here (kept
-        in this browser only) and the chat works with them naturally.</div>
+        in this browser only) and the chat works with them naturally. the session's
+        chat log (it includes what you said) lives in memory and is gone when you
+        close the tab. "forget everything" clears the facts, the log, the stored
+        viewer roster and the tuning panel.</div>
       <div class="set-note">detail above 512 tiles the frame — smarter reads, slower chat.
         focus crop zooms the chat into wherever motion happens.</div>
       <div id="tune-root"></div>
@@ -88,8 +89,10 @@
             <div class="offline-logo">SpasmTV</div>
             <div class="offline-line">an AI Twitch stream that watches <b>you</b></div>
             <div class="offline-line dim">your camera feed becomes the stream — the chat is a
-              vision-language model running on <b>your</b> GPU (WebGPU). nothing is uploaded.</div>
+              vision-language model running on <b>your</b> GPU (WebGPU). your camera, mic
+              and screen never leave this browser; the page only downloads models and emotes.</div>
             <div class="offline-line dim2">pick a brain, then hit <b>Go live</b> ▶</div>
+            <div class="offline-line fine">a parody — not affiliated with Twitch</div>
           </div>
         </div>
 

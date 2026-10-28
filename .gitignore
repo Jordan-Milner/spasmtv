@@ -4,3 +4,5 @@ __pycache__/
 .video_agent/
 
 videos/
+/notes/
+.pi-subagents/

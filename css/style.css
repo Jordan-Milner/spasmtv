@@ -1,4 +1,4 @@
-/* LurkerTV — Twitch-dark theme */
+/* SpasmTV — Twitch-dark theme */
 
 :root {
   --bg: #0e0e10;
@@ -171,6 +171,7 @@ main {
 .offline-line { font-size: 16px; margin: 8px 0; }
 .offline-line.dim { color: var(--text-dim); font-size: 14px; line-height: 1.5; }
 .offline-line.dim2 { color: var(--text-faint); font-size: 13px; }
+.offline-line.fine { color: var(--text-faint); font-size: 11px; margin-top: 18px; opacity: 0.8; }
 
 /* stream overlays */
 #overlay {
@@ -570,7 +571,7 @@ main {
 #fact-add { padding: 4px 10px; }
 
 @media (max-width: 760px) {
-  /* phone (e.g. opened over tailscale): stack video over chat */
+  /* phone: stack video over chat */
   main { flex-direction: column; }
   .brand .beta { display: none; }
 
@@ -583,8 +584,12 @@ main {
     padding: 8px 12px;
     row-gap: 8px;
   }
-  #controls { flex-basis: 100%; gap: 8px; min-width: 0; }
-  #model-select { flex: 1; min-width: 0; }
+  /* the brain picker takes its own full-width row; `flex: 1; min-width: 0` on a
+     shared row squeezed it to a bare chevron with no readable label */
+  #controls { flex-basis: 100%; flex-wrap: wrap; gap: 8px; min-width: 0; }
+  #model-select { flex: 1 1 calc(100% - 56px); min-width: 0; font-size: 16px; order: 0; }
+  #settings-btn { order: 1; }   /* ⚙ rides the picker's row, not a row of its own */
+  #controls > :not(#model-select):not(#settings-btn) { order: 2; }
 
   #stage { padding: 10px; flex: none; height: 56%; }
   #chat-panel {

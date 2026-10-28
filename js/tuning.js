@@ -55,7 +55,8 @@ export const TUNE_SCHEMA = [
     { key: 'defiance', label: 'rule-breaking ×', type: 'range', min: 0, max: 4, step: 0.1, def: 1, help: 'how often viewers break the standing "mods ban for it" rule' },
   ]},
   { group: 'Vision timing', items: [
-    { key: 'sceneChange', label: 'scene-change sensitivity', type: 'range', min: 0.01, max: 0.2, step: 0.005, def: 0.055, help: 'lower = more things count as "something changed"' },
+    { key: 'sceneFloor', label: 'scene-change floor', type: 'range', min: 0.005, max: 0.2, step: 0.005, def: 0.02, help: 'The smallest frame-to-frame change (average brightness shift, 0–1) that can count as "something changed". Lower = more sensitive.' },
+    { key: 'sceneSpike', label: 'scene-change spike (× recent motion)', type: 'range', min: 1.5, max: 8, step: 0.5, def: 3, help: 'A change must also jump this far above the last ~30 s of motion — so a busy game needs a real cut and a still webcam only a nudge.' },
     { key: 'tickFrame', label: 'frame grab every (ms)', type: 'range', min: 500, max: 5000, step: 100, def: 1500, help: 'How often a frame is grabbed to check for motion. Faster costs CPU, not GPU.' },
     { key: 'tickCaption', label: 're-caption every (ms)', type: 'range', min: 2000, max: 20000, step: 500, def: 8000, help: 'How often the scene is re-described by the vision model. Slower = less GPU but staler context.' },
   ]},

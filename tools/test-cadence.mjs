@@ -1,5 +1,5 @@
 // test-cadence.mjs — simulate the §C scheduler in node and assert the rate
-// budget. Today's shipped cadence (docs/sample-chatlog-2026-10-27.json) is
+// budget. The v1.1 cadence (its sample log of 2026-10-27, since replaced) was
 // 95 lines / 4.76 min = 19.9 lines/min, one generate call per line; the bursty
 // scheduler must not exceed that on either axis.
 //   node tools/test-cadence.mjs
@@ -7,7 +7,7 @@
 import assert from 'node:assert/strict';
 import {
   KIND_WEIGHTS, pickKind, gateKind, nextGapMs, planBurst, templateLine,
-  maybeBit, liveBits, ASKERS,
+  maybeBit, liveBits, ASKERS, PILE_ON_MS, pileOnBurst, pileOnGap, breatherGap, pileOnKind,
 } from '../js/cadence.js';
 
 const MINUTES = 30;
@@ -105,4 +105,42 @@ assert.equal(liveBits(bits, Date.now() + 601e3).length, 0, 'bits expire');
 assert.equal(liveBits(bits, Date.now()).length, 1);
 assert.equal(maybeBit(bits, 'x'.repeat(60), { hype: true }).length, 1, 'too long to be a bit');
 
-console.log('ok — cadence budget, kind mix, gating, templates and bits all hold');
+// pile-on: the same clock with scene changes arriving ~1.2/min (what real
+// footage measured). Chat in the 10 s after a change must run at ≥ 2× the
+// session's rate (the §F burst metric), and the GPU budget must still hold.
+{
+  const r2 = mulberry(424242);
+  let t2 = 0, nextChange = 20_000 + r2() * 60_000, changeAt = -1e9, handled = -1e9, waveOn = false;
+  const lineTimes = [], changes = [];
+  let gen2 = 0;
+  while (t2 < MINUTES * 60_000) {
+    // a change pulls the pending tick forward to the moment it is seen
+    let gap = waveOn ? null : nextGapMs(r2);
+    if (waveOn) gap = t2 - changeAt < PILE_ON_MS ? pileOnGap(r2) : breatherGap(r2);
+    if (t2 + gap > nextChange) {
+      t2 = nextChange; changeAt = t2; changes.push(t2);
+      nextChange = t2 + 20_000 + r2() * 60_000;
+    } else t2 += gap;
+    const fresh = changeAt > handled;
+    if (fresh) handled = changeAt;
+    const piling = !fresh && t2 - changeAt < PILE_ON_MS;
+    const burst = fresh ? pileOnBurst(r2) : piling ? { n: 1, offsets: [0], chant: false } : planBurst(r2);
+    for (let i = 0; i < burst.n; i++) {
+      lineTimes.push(t2 + burst.offsets[i]);
+      if (burst.chant) continue;
+      const kind = piling ? pileOnKind(r2) : pickKind(r2);
+      if (kind !== 'emote') gen2 += 1;
+    }
+    waveOn = fresh || piling;
+  }
+  const rate = lineTimes.length / MINUTES;
+  const inWave = lineTimes.filter((x) => changes.some((c) => x >= c && x - c <= 10_000)).length;
+  const waveRate = inWave / (changes.length * 10 / 60);
+  console.log(`pile-on sim: ${changes.length} changes, ${rate.toFixed(1)} lines/min, ` +
+    `${(gen2 / MINUTES).toFixed(1)} generate calls/min, ${(waveRate / rate).toFixed(2)}× in the 10 s after a change`);
+  assert.ok(waveRate / rate >= 2, `pile-on only ${(waveRate / rate).toFixed(2)}× the session rate`);
+  assert.ok(gen2 / MINUTES <= 20, `pile-ons push generate calls to ${(gen2 / MINUTES).toFixed(1)}/min`);
+  assert.ok(rate <= 30, `pile-ons push chat to ${rate.toFixed(1)} lines/min (north star: 1 per 2–3 s)`);
+}
+
+console.log('ok — cadence budget, kind mix, gating, templates, bits and pile-ons all hold');

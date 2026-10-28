@@ -4,13 +4,14 @@
 // All model inference happens in workers/llm-worker.js (transformers.js, WebGPU).
 // This file never touches model APIs directly — only the message protocol.
 
-import { ChatSim } from './chat-sim.js';
-import { tune, loadTune, kindWeights, workerTune, renderTunePanel } from './tuning.js';
+import { ChatSim, ROSTER_KEY } from './chat-sim.js';
+import { tune, loadTune, resetTune, kindWeights, workerTune, renderTunePanel } from './tuning.js';
 import { STYLE_EXAMPLES } from './style-examples.js';
 import { CANNED_POOL } from './real-lines.js';
 import { loadEmotes, emoteHintFrom } from './emotes.js';
 import {
   pickKind, gateKind, nextGapMs, planBurst, templateLine, maybeBit, liveBits, maybePasta,
+  PILE_ON_MS, pileOnBurst, pileOnGap, breatherGap, pileOnKind,
 } from './cadence.js';
 import {
   factionFor, cultureLine, patternOf, trollWeight, defies, moodOf, MOOD_GAP,
@@ -70,15 +71,20 @@ const state = {
   fileVideoIsBlob: false,
   source: 'cam',            // cam | demo | share | file
   demoRaf: 0,
-  phoneMode: false,        // iPhone/iPad (or ?phone): SmolVLM-256M brain, no ASR
-  grammar: true,           // §H/U8 regex guard on the chat path (?grammar=0, never on phones)
+  phoneMode: false,        // iPhone/iPad/Android phone (or ?phone): SmolVLM-256M brain, no ASR
+  grammar: true,           // §H/U8 regex guard on the chat path (off with ?grammar=0)
   // settings (settings panel, persisted)
   settings: { detail: CAPTURE_DEFAULT, focus: true, varied: true, asr: 'base' },
   // vision
   prevThumb: null, diffScore: 0,
   fullCanvas: null,         // working-res frame for crops + diff
   prevCapture: null,        // last tick's capture buffer — the "before" in before/after bursts
-  multiFrame: false,        // worker reported multi-image support
+  diffMax: 0, hotMax: 0,    // peak motion since the last caption (logged with it)
+  motionHist: [],           // the last ~30 s of motion scores: the baseline a change must spike over
+  sceneChangeAt: 0,         // when the frame last changed (latched — consumers check against it)
+  sceneCapHandled: 0, sceneChatHandled: 0,   // the change each consumer already acted on
+  chatTimer: 0,             // the pending chatLoop tick, so a scene change can pull it forward
+  waveOn: false,            // the last chat tick was part of a pile-on (the next gap is a breather)
   scene: '', sceneAt: 0,
   // audio gate
   pcm: [], pcmSamples: 0, speaking: false, silenceMs: 0,
@@ -104,19 +110,29 @@ sim.onCenter = (v) => onCenter(v);
 sim.onUncenter = (v) => onUncenter(v);
 
 // pipeline counters; the ?autolive self-test mirrors these into document.title
-window.__lurker = { chat: 0, cap: 0, asr: 0, err: '', lastMsg: '', lastCap: '', lastAsr: '' };
+window.__spasmtv = { chat: 0, cap: 0, asr: 0, err: '', lastMsg: '', lastCap: '', lastAsr: '' };
 
 /* ---------------- chat log (local only) ----------------
  * Every generated message is stored with the context that produced it, so chat
- * quality can be reviewed/tuned after a session. In-memory ring (2000) with a
- * best-effort localStorage mirror. Dump from the console:
- *   __lurkerDump()               → JSON string
- *   __lurkerDownload()           → saves lurker-chatlog-<date>.jsonl */
+ * quality can be reviewed/tuned after a session. The log carries what the
+ * streamer said (transcripts) and typed, so it lives in memory and dies with
+ * the tab; ?log=1 opts into a localStorage mirror that survives reloads.
+ * Dump from the console:
+ *   __spasmDump()               → JSON string
+ *   __spasmDownload()           → saves spasmtv-chatlog-<date>.jsonl */
 
+const LOG_KEY = 'spasmtv-log';
+const LOG_PERSIST = new URLSearchParams(location.search).get('log') === '1';
 const chatLog = [];
-try { // restore the tail of the previous session's log so reloads keep history
-  const prev = JSON.parse(localStorage.getItem('lurker-log') || '[]');
-  if (Array.isArray(prev)) chatLog.push(...prev);
+try {
+  // builds before 2026-10-28 mirrored every transcript here without asking
+  localStorage.removeItem('lurker-log');
+  if (LOG_PERSIST) {
+    const prev = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
+    if (Array.isArray(prev)) chatLog.push(...prev);
+  } else {
+    localStorage.removeItem(LOG_KEY);
+  }
 } catch {}
 
 const pendingMeta = new Map(); // reqId → {kind, sentAt, context, viewer} for latency + attribution
@@ -124,15 +140,20 @@ const pendingMeta = new Map(); // reqId → {kind, sentAt, context, viewer} for 
 function logEvent(kind, text, ctx) {
   chatLog.push({ t: new Date().toISOString(), kind, text, ...(ctx ? { ctx } : {}) });
   if (chatLog.length > 2000) chatLog.splice(0, chatLog.length - 2000);
-  try { localStorage.setItem('lurker-log', JSON.stringify(chatLog.slice(-400))); } catch {}
+  if (LOG_PERSIST) try { localStorage.setItem(LOG_KEY, JSON.stringify(chatLog.slice(-400))); } catch {}
 }
 
-window.__lurkerDump = () => JSON.stringify(chatLog, null, 1);
-window.__lurkerDownload = () => {
+function forgetLog() {
+  chatLog.length = 0;
+  try { localStorage.removeItem(LOG_KEY); localStorage.removeItem('lurker-log'); } catch {}
+}
+
+window.__spasmDump = () => JSON.stringify(chatLog, null, 1);
+window.__spasmDownload = () => {
   const blob = new Blob([chatLog.map((e) => JSON.stringify(e)).join('\n')], { type: 'application/jsonl' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `lurker-chatlog-${new Date().toISOString().slice(0, 10)}.jsonl`;
+  a.download = `spasmtv-chatlog-${new Date().toISOString().slice(0, 10)}.jsonl`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 };
@@ -144,7 +165,7 @@ function ensureWorker() {
   const w = new Worker(new URL('../workers/llm-worker.js', import.meta.url), { type: 'module' });
   w.onmessage = onWorkerMessage;
   w.onerror = (e) => {
-    window.__lurker.err = e.message || 'worker error';
+    window.__spasmtv.err = e.message || 'worker error';
     setStatus('err', `worker error: ${e.message || 'unknown'}`);
   };
   state.worker = w;
@@ -155,7 +176,7 @@ function post(msg, transfer = []) { ensureWorker().postMessage(msg, transfer); }
 
 function onWorkerMessage(ev) {
   const m = ev.data;
-  if (m.jerr) window.__lurker.err = 'job: ' + m.jerr; // surfaces in the autolive title
+  if (m.jerr) window.__spasmtv.err = 'job: ' + m.jerr; // surfaces in the autolive title
   if (m.type === 'progress') {
     const pct = Math.round((m.progress || 0) * 100);
     if (state.phase === 'live') {
@@ -171,31 +192,36 @@ function onWorkerMessage(ev) {
     logEvent('guard', 'off', { error: m.error });
   } else if (m.type === 'ready') {
     if (m.grammar !== undefined) logEvent('guard', m.grammar ? 'on' : 'off');
-    state.multiFrame = !!m.multiFrame;
     els.loadProgress.hidden = true; els.loadPct.textContent = '';
     goLiveAfterLoad();
   } else if (m.type === 'error') {
-    window.__lurker.err = m.message || 'unknown';
+    window.__spasmtv.err = m.message || 'unknown';
     setStatus('err', m.message);
     els.loadProgress.hidden = true;
     resetToIdle();
   } else if (m.type === 'asr-ready') {
     if (state.phase === 'live') setStatus('ok', 'live — the chat can see you and hear you');
   } else if (m.type === 'dbg') {
-    window.__lurker.dbg = m.shapes;
+    window.__spasmtv.dbg = m.shapes;
   } else if (m.type === 'caption') {
     noteLatency(m.id, 'cap');
-    window.__lurker.cap += 1;
-    window.__lurker.lastCap = m.text || '';
-    logEvent('caption', m.text || '');
+    window.__spasmtv.cap += 1;
+    window.__spasmtv.lastCap = m.text || '';
+    // the motion peak since the previous caption rides along, so a log shows
+    // how close real footage came to the scene-change threshold
+    logEvent('caption', m.text || '', {
+      diffMax: +state.diffMax.toFixed(4), hotMax: +state.hotMax.toFixed(3),
+    });
+    state.diffMax = 0; state.hotMax = 0;
     state.scene = m.text; state.sceneAt = Date.now();
   } else if (m.type === 'chat') {
     noteLatency(m.id, 'chat');
     state.pendingChat = Math.max(0, state.pendingChat - 1);
-    window.__lurker.chat += (m.messages || []).length;
-    if (m.messages?.length) window.__lurker.lastMsg = m.messages[m.messages.length - 1];
+    window.__spasmtv.chat += (m.messages || []).length;
+    if (m.messages?.length) window.__spasmtv.lastMsg = m.messages[m.messages.length - 1];
     const entry = pendingMeta.get(m.id);
     pendingMeta.delete(m.id);
+    if (state.phase !== 'live') return;   // a reply that lands after "End stream"
     (m.messages || []).forEach((text) => {
       let viewer = entry?.viewer;
       if (!viewer || (viewer.bannedUntil && viewer.bannedUntil > Date.now()))
@@ -209,6 +235,7 @@ function onWorkerMessage(ev) {
       // the rendered line (emotes and all) and, implicitly, that a model wrote it
       logEvent('chat', finalText, {
         ...(entry?.context || {}),
+        ...(finalText !== text ? { model: false } : {}),   // swapped for a template
         kind: m.kind || entry?.kind || 'reaction',
         calls: m.calls, drops: m.drops,
         viewer: shown.name,
@@ -221,8 +248,8 @@ function onWorkerMessage(ev) {
     });
   } else if (m.type === 'transcribe') {
     noteLatency(m.id, 'asr');
-    window.__lurker.asr += 1;
-    window.__lurker.lastAsr = (m.text || '').slice(0, 80);
+    window.__spasmtv.asr += 1;
+    window.__spasmtv.lastAsr = (m.text || '').slice(0, 80);
     logEvent('asr', m.text || '');
     if (m.fact) addFact(m.fact);
     onTranscript(m.text);
@@ -530,6 +557,10 @@ async function goLiveAfterLoad() {
   rotateTitle();
 
   state.scene = ''; state.sceneAt = 0; state.speech = ''; state.lastChatLines = [];
+  // replies still in flight from a previous stream must not hold GPU slots
+  state.pendingChat = 0; pendingMeta.clear(); state.diffMax = 0; state.hotMax = 0;
+  state.motionHist = []; state.prevThumb = null;
+  state.sceneChangeAt = 0; state.sceneCapHandled = 0; state.sceneChatHandled = 0; state.waveOn = false;
   state.bits = []; state.culture = null; state.hypeAt = 0; state.templateRecent = [];
   startLoops();
   els.loadProgress.hidden = true;
@@ -569,18 +600,22 @@ function startLoops() {
   cancelLoops();
   state.loops.push(setTimeout(tickFrame, tune.tickFrame));
   state.loops.push(setTimeout(tickCaption, 400));
-  state.loops.push(setTimeout(chatLoop, 1800));
+  state.chatTimer = setTimeout(chatLoop, 1800);
+  state.loops.push(state.chatTimer);
   state.loops.push(setTimeout(rotateTitle, 45000));
 }
 
 function cancelLoops() {
+  state.chatTimer = 0;
   state.loops.forEach(id => { clearTimeout(id); clearInterval(id); cancelAnimationFrame(id); });
   state.loops = [];
   if (state.demoRaf) { cancelAnimationFrame(state.demoRaf); state.demoRaf = 0; }
 }
 
 function scheduleNext(fn, ms) {
-  state.loops.push(setTimeout(fn, ms));
+  const id = setTimeout(fn, ms);
+  state.loops.push(id);
+  return id;
 }
 
 function activeSource() {
@@ -592,19 +627,47 @@ function activeSource() {
 function tickFrame() {
   if (state.phase !== 'live') return;
   const src = activeSource();
-  if (src && (src.readyState === undefined || src.readyState >= 2)) {
-    const sw = src.videoWidth || src.width || 1280;
-    const sh = src.videoHeight || src.height || 720;
-    if (!state.fullCanvas) state.fullCanvas = document.createElement('canvas');
-    const f = state.fullCanvas;
-    const fw = FULL_W, fh = Math.round(FULL_W * sh / sw);
-    if (f.width !== fw || f.height !== fh) { f.width = fw; f.height = fh; }
-    f.getContext('2d', { willReadFrequently: true }).drawImage(src, 0, 0, fw, fh);
-    const motion = motionScore(f);
-    state.diffScore = motion.score;
-    drawCapture(f, motion);
+  // a throw here (e.g. a source that taints the canvas) must not end the loop
+  try {
+    if (src && (src.readyState === undefined || src.readyState >= 2)) {
+      const sw = src.videoWidth || src.width || 1280;
+      const sh = src.videoHeight || src.height || 720;
+      if (!state.fullCanvas) state.fullCanvas = document.createElement('canvas');
+      const f = state.fullCanvas;
+      const fw = FULL_W, fh = Math.round(FULL_W * sh / sw);
+      if (f.width !== fw || f.height !== fh) { f.width = fw; f.height = fh; }
+      f.getContext('2d', { willReadFrequently: true }).drawImage(src, 0, 0, fw, fh);
+      const motion = motionScore(f);
+      state.diffScore = motion.score;
+      state.diffMax = Math.max(state.diffMax, motion.score);
+      state.hotMax = Math.max(state.hotMax, motion.hotFrac);
+      drawCapture(f, motion);
+      noteMotion(motion.score);
+    }
+  } catch (err) {
+    window.__spasmtv.err = 'frame: ' + (err?.message || err);
+    setStatus('err', `can't read frames from this source: ${err?.message || err}`);
   }
   scheduleNext(tickFrame, tune.tickFrame);
+}
+
+// A scene change is a SPIKE over the last ~30 s of motion, not a fixed level.
+// Measured on 10 min of each test video: a drawing-stream VOD peaked at 0.054
+// and never crossed the old fixed 0.055, while an edited video sat above it on
+// every tick (median 0.09). Floor 0.02 × 3 over the median fires ~1.2/min on both.
+function noteMotion(score) {
+  const hist = state.motionHist;
+  const sorted = [...hist].sort((a, b) => a - b);
+  const base = hist.length >= 4 ? sorted[sorted.length >> 1] : 0;
+  hist.push(score);
+  if (hist.length > 20) hist.shift();
+  if (score <= tune.sceneFloor || score <= tune.sceneSpike * base) return;
+  if (Date.now() - state.sceneChangeAt < 4000) return;
+  state.sceneChangeAt = Date.now();
+  logEvent('scene', '', { score: +score.toFixed(4), base: +base.toFixed(4) });
+  // chat reacts now, not whenever the next tick happens to land: pull the
+  // pending chatLoop forward (one chain — it reschedules itself)
+  if (state.chatTimer) { clearTimeout(state.chatTimer); state.chatTimer = 0; chatLoop(); }
 }
 
 function motionScore(fullCanvas) {
@@ -637,7 +700,7 @@ function drawCapture(full, motion) {
   const S = state.settings;
   let sx = 0, sy = 0, sw = full.width, sh = full.height;
   const concentrated =
-    motion.hotFrac > 0.02 && motion.hotFrac < 0.45 && motion.score > tune.sceneChange * 0.4;
+    motion.hotFrac > 0.02 && motion.hotFrac < 0.45 && motion.score > tune.sceneFloor * 0.4;
   if (S.focus && concentrated) {
     let cx = 0, cy = 0, wsum = 0;
     for (let y = 0; y < DIFF_H; y++) {
@@ -684,9 +747,9 @@ function drawCapture(full, motion) {
 function tickCaption() {
   if (state.phase !== 'live') return;
   const stale = Date.now() - state.sceneAt > tune.tickCaption;
-  const sceneChange = state.diffScore > tune.sceneChange && Date.now() - state.sceneAt > 4000;
+  const sceneChange = state.sceneChangeAt > state.sceneCapHandled && Date.now() - state.sceneAt > 4000;
   if ((stale || sceneChange) && els.capture.width > 0) {
-    if (sceneChange) hype();
+    if (sceneChange) { state.sceneCapHandled = state.sceneChangeAt; hype(); }
     sendCaption();
   }
   scheduleNext(tickCaption, 1000);
@@ -707,13 +770,20 @@ function sendCaption() {
  * stay at or under the shipped 20 lines/min and 20 generate calls/min. */
 function chatLoop() {
   if (state.phase !== 'live') return;
-  const burst = planBurst(Math.random, tune);
-  const sceneChange = state.diffScore > tune.sceneChange;
+  state.chatTimer = 0;
+  // the first burst after the frame changed looks at it — consumed once, so one
+  // cut is one reaction burst rather than every tick for the next few seconds
+  const sceneChange = state.sceneChangeAt > state.sceneChatHandled && Date.now() - state.sceneChangeAt < 8000;
+  if (sceneChange) state.sceneChatHandled = state.sceneChangeAt;
+  // …and the ticks after it are the pile-on (js/cadence.js): one quick line each
+  const piling = !sceneChange && state.sceneChangeAt > 0 && Date.now() - state.sceneChangeAt < PILE_ON_MS;
+  const burst = sceneChange ? pileOnBurst() : piling ? { n: 1, offsets: [0], chant: false } : planBurst(Math.random, tune);
+  // (piling alone isn't hype: hype turns a third of emote lines into keysmash)
   const hype = sceneChange || Date.now() - state.hypeAt < 2500;
   // a chant = the whole burst is one emote, from three different viewers
   const chant = burst.chant ? sim.randomEmote() : null;
   for (let i = 0; i < burst.n; i++) {
-    fireLine({ offsetMs: burst.offsets[i], burstIndex: i, hype, chant, sceneChange });
+    fireLine({ offsetMs: burst.offsets[i], burstIndex: i, hype, chant, sceneChange, piling });
   }
   if (state.userMsgTicks > 0) state.userMsgTicks -= 1;
   const c = cultureState();
@@ -723,18 +793,21 @@ function chatLoop() {
     const v = sim.pickViewer(viewerWeights());
     if (v) logTemplate(deadChatLine(Math.random, state.templateRecent), v, 'mood');
   }
-  scheduleNext(chatLoop, nextGapMs(Math.random, tune) * MOOD_GAP[c.mood]);
+  const waveOn = sceneChange || piling;
+  const gap = waveOn ? pileOnGap() : state.waveOn ? breatherGap() : nextGapMs(Math.random, tune) * MOOD_GAP[c.mood];
+  state.waveOn = waveOn;
+  state.chatTimer = scheduleNext(chatLoop, gap);
 }
 
 const CANNABLE = new Set(['reaction', 'banter', 'backseat', 'meta', 'greeting']);
 
-function fireLine({ offsetMs = 0, burstIndex = 0, hype = false, chant = null, sceneChange = false }) {
+function fireLine({ offsetMs = 0, burstIndex = 0, hype = false, chant = null, sceneChange = false, piling = false }) {
   setTimeout(() => {
     if (state.phase !== 'live') return;
     const viewer = sim.pickViewer(viewerWeights());
     if (!viewer) return;
     const bits = liveBits(state.bits);
-    let kind = gateKind(chant ? 'emote' : pickKind(Math.random, kindWeights()), viewer, {
+    let kind = gateKind(chant ? 'emote' : piling ? pileOnKind() : pickKind(Math.random, kindWeights()), viewer, {
       bits,
       recent: state.lastChatLines,
       userMsg: state.userMsgTicks > 0 ? state.userMsg : '',
@@ -1168,6 +1241,17 @@ const SETTINGS_KEY = 'spasmtv-settings';
 function saveSettings() {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings)); } catch {}
 }
+// field by field, so a stale or hand-edited blob can't put a bad value in state
+function loadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {};
+    if ([512, 640, 768].includes(s.detail)) state.settings.detail = s.detail;
+    if (typeof s.focus === 'boolean') state.settings.focus = s.focus;
+    if (typeof s.varied === 'boolean') state.settings.varied = s.varied;
+    if (s.asr === 'tiny' || s.asr === 'base') state.settings.asr = s.asr;
+  } catch { /* storage blocked — defaults */ }
+}
+loadSettings();
 
 els.settingsBtn.addEventListener('click', () => {
   els.settings.hidden = !els.settings.hidden;
@@ -1214,10 +1298,17 @@ els.factAdd.addEventListener('click', (e) => {
 els.factInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); addFact(els.factInput.value); els.factInput.value = ''; }
 });
+// everything the app kept from this person's sessions: facts, the chat log (it
+// holds transcripts of what they said), the stored viewer roster (a new crowd
+// next visit — this stream keeps its viewers) and the tuning panel
 els.factClear.addEventListener('click', () => {
   state.facts = [];
   saveFacts();
   renderFacts();
+  forgetLog();
+  try { localStorage.removeItem(ROSTER_KEY); } catch {}
+  resetTune();
+  renderTunePanel($('tune-root'));
 });
 
 /* ---------------- self-test hook (?autolive) ----------------
@@ -1225,17 +1316,26 @@ els.factClear.addEventListener('click', () => {
  * so an externally driven browser (fake media flags) can be polled from a shell. */
 
 {
-  // ?video=<served-path>: play a file through the whole pipeline (pair with &autolive)
+  // ?video=<served-path>: play a file through the whole pipeline (pair with &autolive).
+  // Same-origin only: a cross-origin video taints the capture canvas, and a
+  // shared link must not make this page fetch somebody else's URL.
   const vp = new URLSearchParams(location.search).get('video');
-  if (vp) { state.fileVideoUrl = vp; state.fileVideoIsBlob = false; els.shareToggle.checked = false; }
+  let url = null;
+  try { url = vp ? new URL(vp, location.href) : null; } catch {}
+  if (url && url.origin === location.origin) {
+    state.fileVideoUrl = url.pathname + url.search; state.fileVideoIsBlob = false; els.shareToggle.checked = false;
+  }
 }
 
 if (new URLSearchParams(location.search).has('autolive')) {
-  setInterval(() => {
-    const L = window.__lurker;
+  // the status title is for the harness; on the public site a shared
+  // ?autolive link just goes live and keeps the real title
+  const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+  if (local) setInterval(() => {
+    const L = window.__spasmtv;
     document.title =
-      `LURKER phase=${state.phase} chat=${L.chat} cap=${L.cap} asr=${L.asr} ` +
-      `mf=${state.multiFrame ? 1 : 0} lat=${fmtLatency('chat') || '-'} err=${L.err.slice(0, 40)} ` +
+      `SPASMTV phase=${state.phase} chat=${L.chat} cap=${L.cap} asr=${L.asr} ` +
+      `lat=${fmtLatency('chat') || '-'} err=${L.err.slice(0, 40)} ` +
       `| cap:"${L.lastCap.slice(0, 50)}" | msg:"${L.lastMsg.slice(0, 50)}" | asr:"${L.lastAsr.slice(0, 30)}"`;
   }, 1500);
   setTimeout(() => els.startBtn.click(), 800);
@@ -1258,18 +1358,31 @@ if (new URLSearchParams(location.search).has('autolive')) {
   // iOS Safari's WebContent process at model load — uncatchable reload, and a
   // retry can wedge the tab (confirmed on a real iPhone 2026-10-28). Phones get
   // the SmolVLM-256M brain instead: ~180 MB, dumber chat, fits the ~1 GB limit.
-  // ?phone previews the mode on a desktop.
+  // Android phones get the same mode: Chrome ships WebGPU there, but a phone's
+  // per-tab memory is the same story (tablets — "Android" without "Mobile" —
+  // keep the computer brains). ?phone previews the mode on a desktop.
+  const params = new URLSearchParams(location.search);
   const appleMobile = /iPad|iPhone|iPod/.test(navigator.userAgent)
     || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const androidPhone = navigator.userAgentData?.mobile === true || /Android.+Mobile/i.test(navigator.userAgent);
   {
-    const b = new URLSearchParams(location.search).get('brain');
+    // experimental brains stay out of the public picker; ?brain= adds them
+    const EXPERIMENTAL = { omni: 'Liquid Omni 2B (experimental)', lfm3b: 'Liquid 3B (experimental)' };
+    const b = params.get('brain');
+    if (b && EXPERIMENTAL[b] && ![...els.modelSelect.options].some((o) => o.value === b))
+      els.modelSelect.add(new Option(EXPERIMENTAL[b], b));
     if (b && [...els.modelSelect.options].some((o) => o.value === b)) els.modelSelect.value = b;
   }
-  state.phoneMode = appleMobile || new URLSearchParams(location.search).has('phone');
-  // §H/U8: guard is a desktop extra — one less moving part on phones
-  state.grammar = !state.phoneMode && new URLSearchParams(location.search).get('grammar') !== '0';
+  state.phoneMode = appleMobile || androidPhone || params.has('phone');
+  // §H/U8: the guard runs on phones too — the 256M brain is the one that most
+  // needs `@handles`, `*`-roleplay and digit spam made unsampleable
+  state.grammar = params.get('grammar') !== '0';
   if (state.phoneMode) {
-    els.modelSelect.value = 'fast';
+    // name the brain that actually loads (the worker pins VLM.phone whenever
+    // phone:true) instead of leaving "Fast chat (~800 MB)" on a dead picker
+    const opt = new Option('Phone chat (256M, ~180 MB)', 'phone', true, true);
+    els.modelSelect.prepend(opt);
+    els.modelSelect.value = 'phone';
     els.modelSelect.disabled = true;
     els.modelSelect.title = 'phones run the 256M SmolVLM brain — the 450M/2B need a computer';
     els.micToggle.checked = false;

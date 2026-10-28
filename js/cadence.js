@@ -3,6 +3,8 @@
 // tiny on purpose so tools/test-cadence.mjs can simulate ten minutes of chat in
 // node and assert the rate budget (≤ today's 20 lines/min) without a browser.
 
+import { pickFresh } from './culture.js';
+
 // §C weights. "emote" is the only kind that never costs a generate call.
 export const KIND_WEIGHTS = {
   reaction: 39, emote: 13, question: 21, backseat: 8,
@@ -63,9 +65,32 @@ export function planBurst(rnd = Math.random, opts = {}) {
   return { n: 1, offsets: [0], chant: false };
 }
 
+/* ---- pile-on: chat answers a change on screen with a wave ----
+ * Measured 2026-10-28: once the change detector fired on real footage, chat in
+ * the 10 s after a change still ran at 0.84× its normal rate — a change bought
+ * one burst, then the usual gaps resumed. Real chat floods after a moment: a
+ * flurry at once, quick follow-ups, then a breather that hands the time back.
+ * Follow-ups lean on free emote lines so the wave costs little GPU. */
+export const PILE_ON_MS = 10000;
+
+// the tick a change pulls forward: always three lines, sometimes one chant
+export function pileOnBurst(rnd = Math.random) {
+  const a = 250 + rnd() * 350;
+  return { n: 3, offsets: [0, a, a + 300 + rnd() * 450], chant: rnd() < 0.35 };
+}
+// one line per follow-up tick, every 0.9–1.6 s while the wave lasts
+export const pileOnGap = (rnd = Math.random) => 900 + rnd() * 700;
+// the first gap after the wave: chat catches its breath
+export const breatherGap = (rnd = Math.random) => 6000 + rnd() * 4000;
+// a follow-up is mostly an emote (free); the rest are real reactions
+export const pileOnKind = (rnd = Math.random) => (rnd() < 0.6 ? 'emote' : 'reaction');
+
 // template lines — real chat is full of these and they cost no GPU
-const SMASH = ['asdfghjkl', 'ajskdlfj', 'sdkfjlsd', 'kdjfslkd', 'aksjdlkf'];
-const FILLS = ['F', 'f', 'F in the chat', 'KEKW', 'LUL', 'docL', 'WeirdChamp'];
+export const SMASH = ['asdfghjkl', 'ajskdlfj', 'sdkfjlsd', 'kdjfslkd', 'aksjdlkf'];
+// plain-text fills, never emote codes: a code here that the loaded sets lack
+// renders as a stray word ("WeirdChamp" in the 2026-10-28 phone run). Codes
+// come from emote(), which only hands out loaded ones.
+export const TEXT_FILLS = ['F', 'f', 'F in the chat', 'gg', 'o7'];
 const QUESTIONS = [
   'what game is this?', 'what are you playing?', 'how long have you been streaming?',
   'where are you from?', 'what happened last stream?', 'can you play what i said?',
@@ -88,14 +113,16 @@ export function maybePasta(kind, viewerKey, rnd = Math.random) {
     : null;
 }
 
-export function templateLine(kind, { emote = () => 'KEKW', hype = false, chant = null } = {}) {
+// `recent` is main.js's freshness ring: a canned question or fill the crowd
+// just heard is skipped (chants repeat on purpose; emotes come from emote())
+export function templateLine(kind, { emote = () => 'KEKW', hype = false, chant = null, recent = [] } = {}) {
   if (chant) return chant;
-  if (kind === 'question') return QUESTIONS[(Math.random() * QUESTIONS.length) | 0];
+  if (kind === 'question') return pickFresh(QUESTIONS, recent);
   if (kind !== 'emote') return null;
   const r = Math.random();
   if (hype && r < 0.35) return SMASH[(Math.random() * SMASH.length) | 0];
   if (r < 0.75) return emote();
-  return FILLS[(Math.random() * FILLS.length) | 0];
+  return pickFresh(TEXT_FILLS, recent);
 }
 
 /* ---- bits: a line that lands during a hype peak becomes a running joke ----

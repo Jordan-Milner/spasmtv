@@ -1,10 +1,12 @@
 // omni.js — LiquidAI/LFM3-Omni-2B on raw onnxruntime-web (WebGPU). Not a
 // transformers.js model class (custom_code), so this file is the whole engine:
 // image preprocessing, prompt layout, the KV-cache decode loop and sampling.
-// Validated against a Python onnxruntime reference first (see tasks/OMNI-REPORT.md).
+// Validated against a Python onnxruntime reference first; tools/test-omni-audio.mjs
+// checks the log-mel front end against that reference's features.
 //
-// Text + vision in, text out. The audio encoder/codec/depth graphs are not
-// loaded (speech OUT is not wanted; speech IN is the next step).
+// Text + vision in, text out; speech in through the audio encoder, loaded on
+// the first transcribe. The codec/depth graphs (speech OUT) are never loaded.
+// The worker imports this file only when ?brain=omni is picked.
 //
 // Per the model card, on WebGPU the decoder is q4f16 and the side graphs are
 // the float32 ones of the q4 bundle (vision_encoder_q8), prefill ≤ 1024 tokens.
@@ -34,6 +36,7 @@ let dec = null;
 let vis = null;
 let aud = null;          // audio encoder, loaded lazily on the first transcribe
 let audLoading = null;
+let epoch = 0;           // bumped by unloadOmni: a load still in flight then discards its session
 export const stats = { visMs: 0, prefillMs: 0, decodeMs: 0, steps: 0, promptTokens: 0 };
 
 /* ---------------- download with Cache API + progress ---------------- */
@@ -71,16 +74,19 @@ export function omniAudioLoaded() { return !!aud; }
 export function loadOmniAudio(onProgress) {
   if (aud) return Promise.resolve();
   if (!audLoading) {
+    const born = epoch;
     audLoading = (async () => {
       const [g, d] = await Promise.all([
         fetchCached('onnx/audio_encoder.onnx', (p, got, total) => onProgress?.(got / total)),
         fetchCached('onnx/audio_encoder.onnx_data', (p, got, total) => onProgress?.(got / total)),
       ]);
-      aud = await ort.InferenceSession.create(g, {
+      const s = await ort.InferenceSession.create(g, {
         executionProviders: ['webgpu'],
         externalData: [{ path: 'audio_encoder.onnx_data', data: d }],
         graphOptimizationLevel: 'all',
       });
+      if (born !== epoch) { await s.release(); throw new Error('omni unloaded'); }
+      aud = s;
     })().catch((e) => { audLoading = null; throw e; });
   }
   return audLoading;
@@ -121,6 +127,17 @@ export async function loadOmni(onProgress) {
     externalData: [{ path: 'vision_encoder_q8.onnx_data', data: visData }],
     graphOptimizationLevel: 'all',
   });
+}
+
+// a brain switch away from omni: queued jobs are dropped, the running one
+// finishes, then every session hands its GPU memory back
+export async function unloadOmni() {
+  epoch += 1;
+  for (const job of waiting.splice(0)) job.reject(new Error('omni unloaded'));
+  while (busy) await new Promise((r) => setTimeout(r, 25));
+  const sessions = [dec, vis, aud].filter(Boolean);
+  dec = vis = aud = null; tokenizer = null; audLoading = null;
+  await Promise.all(sessions.map((s) => s.release().catch(() => {})));
 }
 
 /* ---------------- image preprocessing (mirrors Lfm3VlImageProcessor) ---------------- */

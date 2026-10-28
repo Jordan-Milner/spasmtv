@@ -2,6 +2,8 @@
 // ❓/MVP badges, and the mod view (per-viewer card, yell, timeouts).
 // No model logic lives here; generation context is main.js's job.
 
+import { safeEmote } from './text.js';
+
 const COLORS = [
   '#ff4f4f', '#faaf19', '#00c78b', '#4f7dff', '#b22222', '#ff69b4',
   '#9147ff', '#00ad03', '#d2691e', '#5f9ea0', '#1e90ff', '#ff4500',
@@ -33,9 +35,9 @@ const ARCHETYPES = {
   'lurker':      { weight: 4, freq: 0.4, hint: 'a lurker — nearly silent, post only a single word or emote now and then',                 case: 'lower', ellipsis: true,  typo: 0.02, emote: 1.0 },
   'regular':     { weight: 3, freq: 1.3, hint: 'a regular — treat something on screen like a running joke you\u2019ve seen every stream', case: 'lower', ellipsis: true,  typo: 0.04, emote: 1.0 },
   'earnest':     { weight: 2, freq: 0.8, hint: 'earnest — ask one genuine short question about the streamer or the room',                case: 'lower', ellipsis: true,  typo: 0.03, emote: 0.7 },
-  'doomer':      { weight: 2, freq: 0.7, hint: 'a doomer — ironic defeatist, \\"this is who i am now\\" energy',                        case: 'lower', ellipsis: true,  typo: 0.05, emote: 0.8 },
-  'parasocial':  { weight: 2, freq: 0.8, hint: 'parasocial — talk to the streamer like a close friend, bring up things you \\"remember\\"', case: 'lower', ellipsis: true,  typo: 0.04, emote: 1.0 },
-  'troll':       { weight: 2, freq: 0.7, hint: 'a troll — skate the line, say something just barely dumb enough to draw a mod',          case: 'lower', ellipsis: false, typo: 0.03, emote: 1.0 },
+  'doomer':      { weight: 2, freq: 0.7, hint: 'a doomer — ironic defeatist, "this is who i am now" energy',                        case: 'lower', ellipsis: true,  typo: 0.05, emote: 0.8 },
+  'parasocial':  { weight: 2, freq: 0.8, hint: 'parasocial — talk to the streamer like a close friend, bring up things you "remember"', case: 'lower', ellipsis: true,  typo: 0.04, emote: 1.0 },
+  'troll':       { weight: 2, freq: 0.7, hint: 'a troll — bait and dumb hot takes about the game or the stream, annoying enough to draw a mod, never about how anyone looks',          case: 'lower', ellipsis: false, typo: 0.03, emote: 1.0 },
   'newcomer':    { weight: 1, freq: 0.5, hint: 'a newcomer — first time here, ask what\u2019s going on',                                  case: 'lower', ellipsis: true,  typo: 0.03, emote: 0.6 },
   'copypasta':   { weight: 1, freq: 0.3, hint: 'a copypasta lurker — occasionally paste a classic wall of text verbatim',                case: 'mixed', ellipsis: false, typo: 0.00, emote: 0.5 },
 };
@@ -130,10 +132,10 @@ export class ChatSim {
   }
 
   setEmotes(map) {
-    this.emotes = map;
-    const codes = [...map.keys()].sort((a, b) => b.length - a.length).map(escapeRe);
+    this.emotes = new Map([...map].filter(([code]) => safeEmote(code)));
+    const codes = [...this.emotes.keys()].sort((a, b) => b.length - a.length).map(escapeRe);
     this.emoteRe = codes.length
-      ? new RegExp('(^|\\s)(' + codes.join('|') + ')(?=\\s|$)', 'g')
+      ? new RegExp('(^|\\s)(' + codes.join('|') + ')(?=[\\s.,!?…]|$)', 'g')
       : null;
   }
 
@@ -201,28 +203,35 @@ export class ChatSim {
   // Client-side cosmetics applied to the DISPLAYED text only: a case style,
   // an occasional trailing ellipsis, a subtle typo, and (for high-emote
   // archetypes) a chance to tack on a real emote. The raw model text is what
-  // gets logged, so the scorer never sees cosmetic noise.
+  // gets logged, so the scorer never sees cosmetic noise. Emote codes are left
+  // byte-for-byte alone: "LuL" upper-cased to "LUL" or typo'd to "LLu" stops
+  // being an emote and renders as a stray word.
   render(viewer, text) {
-    let t = text;
-    if (t.length > 4 && Math.random() < viewer.archetype.typo) {
-      const words = t.split(' ');
-      const wi = (Math.random() * words.length) | 0;
-      const w = words[wi];
-      if (w.length > 3) {
+    const words = text.split(' ');
+    const isCode = (w) => this.emotes.has(w.replace(/[.,!?…]+$/, ''));
+    if (text.length > 4 && Math.random() < viewer.archetype.typo) {
+      const plain = words.map((w, i) => i).filter((i) => words[i].length > 3 && !isCode(words[i]));
+      if (plain.length) {
+        const wi = plain[(Math.random() * plain.length) | 0];
+        const w = words[wi];
         const p = 1 + ((Math.random() * (w.length - 2)) | 0);
         if (w[p] !== w[p - 1])
           words[wi] = w.slice(0, p - 1) + w[p] + w[p - 1] + w.slice(p + 1);
       }
-      t = words.join(' ');
     }
-    if (viewer.archetype.case === 'upper') t = t.toLowerCase().toUpperCase();
-    else if (viewer.archetype.case === 'mixed' && Math.random() < 0.3) {
-      t = t.split('').map((c) => (Math.random() < 0.5 ? c.toUpperCase() : c.toLowerCase())).join('');
-    }
-    if (viewer.archetype.ellipsis && Math.random() < 0.5 && !/[.!?…]$/.test(t)) t += '…';
+    const recase = viewer.archetype.case === 'upper' ? (w) => w.toUpperCase()
+      : viewer.archetype.case === 'mixed' && Math.random() < 0.3
+        ? (w) => w.split('').map((c) => (Math.random() < 0.5 ? c.toUpperCase() : c.toLowerCase())).join('')
+        : null;
+    if (recase) for (let i = 0; i < words.length; i++) if (!isCode(words[i])) words[i] = recase(words[i]);
+    let t = words.join(' ');
+    const endsInCode = isCode(words[words.length - 1] || '');
+    if (viewer.archetype.ellipsis && !endsInCode && Math.random() < 0.5 && !/[.!?…]$/.test(t)) t += '…';
     // emote affinity per archetype (§A): real chat carries an emote in about a
-    // third of lines, so the affinity multiplies a base chance, not an excess
-    if (!/[A-Z]{2,}$/.test(t) && Math.random() < (viewer.archetype.emote || 1) * 0.32)
+    // third of lines. Emote-only lines and chants already make up about a
+    // quarter of chat (2026-10-28 run: 21 of 81), so this tops the rest up
+    // rather than adding a third on top (that run measured 52 %, over the band)
+    if (!endsInCode && Math.random() < (viewer.archetype.emote || 1) * 0.16)
       t += ' ' + this.randomEmote();
     return t;
   }
@@ -306,9 +315,11 @@ export class ChatSim {
   }
 
   randomEmote() {
-    if (!this.emotes.size) return 'KEKW';
-    const codes = [...this.emotes.keys()].filter((k) => k.length <= 10);
-    return (codes.length ? codes : [...this.emotes.keys()])[(Math.random() * (codes.length || this.emotes.size)) | 0];
+    // the map is already safeEmote-filtered (setEmotes); prefer short codes
+    const all = [...this.emotes.keys()];
+    const short = all.filter((k) => k.length <= 10);
+    const pool = short.length ? short : all;
+    return pool.length ? pool[(Math.random() * pool.length) | 0] : 'KEKW';
   }
 
   setViewerCount(n) {

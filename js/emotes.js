@@ -2,12 +2,15 @@
 // No auth, no backend: the page fetches the public set lists and hotlinks the
 // CDN images directly. If every fetch fails we fall back to styled text codes.
 
+import { safeEmote } from './text.js';
+
 export async function loadEmotes() {
   const map = new Map(); // code → url
   const add = (code, url) => {
     if (!code || !url) return;
     code = String(code).trim();
-    if (!code || code.length > 20 || map.has(code)) return;
+    // safeEmote: no FFZ modifier effects, no codes that read as a slur on camera
+    if (!code || code.length > 20 || map.has(code) || !safeEmote(code)) return;
     map.set(code, url);
   };
 
@@ -35,7 +38,7 @@ export async function loadEmotes() {
 // short, chat-shaped codes the model can plausibly be steered toward
 export function emoteHintFrom(map, max = 26) {
   return [...map.keys()]
-    .filter((k) => /^[A-Za-z]\w{1,11}$/.test(k))
+    .filter((k) => /^[A-Za-z]\w{1,11}$/.test(k) && safeEmote(k))
     .sort((a, b) => a.length - b.length)
     .slice(0, max);
 }

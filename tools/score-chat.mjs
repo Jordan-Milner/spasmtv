@@ -1,19 +1,22 @@
 // score-chat.mjs — §F, the rubric. Score a chat log the way the tuning loop
-// needs it scored: six numbers, pass/fail, non-zero exit when any available
+// needs it scored: a dozen numbers, pass/fail, non-zero exit when any available
 // metric fails. Stdlib only.
 //
 //   node tools/score-chat.mjs /tmp/run.jsonl
 //   cat log.jsonl | node tools/score-chat.mjs -
 //
-// Input is a `__lurkerDump()`/`__lurkerDownload()` jsonl: one event per line,
-// {t, kind:'chat'|'caption'|'mod'|'asr'|'fact', text, ctx}. Chat ctx carries
+// Input is a `__spasmDownload()` jsonl (or the `__spasmDump()` array): one event,
+// {t, kind:'chat'|'caption'|'scene'|'mod'|'asr'|'fact', text, ctx}. Chat ctx carries
 // what v2 logs: kind, archetype, shown (rendered, emote codes visible),
 // codes (emote codes actually rendered), scene, sceneChange, model:false for
 // template lines. Older logs lack some fields — the metrics that need them are
 // reported as unavailable instead of failing.
 
 import { readFileSync } from 'node:fs';
-import { jaccard, normTokens, echoesScene } from '../js/text.js';
+import {
+  jaccard, normTokens, echoesScene, unsafeLine, personaLeak, junkLine, echoesSpeech,
+} from '../js/text.js';
+import { SMASH, TEXT_FILLS } from '../js/cadence.js';
 
 // emote hint set — used both to recognise an emote in a sim line
 // (a rendered code that is one of these) and, as the spec's "approximation",
@@ -28,12 +31,20 @@ export const EMOTE_HINT_SET = new Set([
 
 const RUBRIC = {
   captionEcho: { max: 0.10, label: 'caption-echo rate (Jaccard > 0.5 vs the caption)' },
-  question: { min: 0.10, max: 0.25, label: 'question rate' },
+  // the real-chat corpus: 4.4 % (vod-fnf-work) and 3.0 % (vod-phantom)
+  question: { min: 0.02, max: 0.10, label: 'question rate' },
   emote: { min: 0.25, max: 0.50, label: 'emote rate (line renders a real code)' },
   bigram: { min: 0.60, label: 'unique bigram ratio' },
   burst: { min: 2.0, label: 'burst correlation (lines/min in the 10 s after a scene change ÷ baseline)' },
   banLatency: { max: 6000, label: 'ban-reaction latency (ms to the first chat line after a mod action)' },
   templateRepeat: { max: 0.15, label: 'template repeat rate (culture/spot/relief/mood lines already heard)' },
+  // what reading the transcripts caught and the six numbers above missed:
+  // slurs, the archetype brief as chat, @handle junk, mangled emotes, echo
+  unsafe: { max: 0, label: 'unsafe lines (slurs, sexual or body talk, self-harm)' },
+  personaLeak: { max: 0.03, label: 'persona-leak rate (model lines narrating the archetype or brief)' },
+  junk: { max: 0.05, label: 'junk rate (model lines with made-up @handles, digit runs, symbols)' },
+  emoteRender: { max: 0.05, label: 'emote-render failure (lines whose emote code shows as plain text)' },
+  speechEcho: { max: 0.10, label: 'speech-echo rate (speech-context model lines repeating the streamer)' },
 };
 
 
@@ -130,6 +141,38 @@ export function compare(realEvents, simEvents, label = '') {
   return { rows, exit: failed ? 1 : 0, failed, label };
 }
 
+// a log arrives as JSONL (__spasmDownload(), the harness) or as the JSON array
+// __spasmDump() returns — both shapes are the same events
+/* burst correlation: lines/min in the 10 s after a scene change ÷ the overall
+ * rate. The window is the UNION of the 10 s spans — changes come in clusters,
+ * and counting n×10 s read a real pile-up as 1.81× when those lines ran at
+ * 2.46× baseline. `blanketed` says the changes cover the whole timeline, so the
+ * ratio cannot mean anything. */
+export function burstRatio(chat, changeAt, ts = (e) => new Date(e.t).getTime()) {
+  if (!chat.length || !changeAt.length) return { ratio: null, blanketed: false };
+  const first = ts(chat[0]), last = ts(chat.at(-1)), span = last - first;
+  if (span <= 0) return { ratio: null, blanketed: false };
+  const inWindow = chat.filter((e) => changeAt.some((c) => ts(e) >= c && ts(e) - c <= 10000)).length;
+  const ivs = changeAt
+    .map((c) => [Math.max(c, first), Math.min(c + 10000, last)])
+    .filter((x) => x[1] > x[0]).sort((a, b) => a[0] - b[0]);
+  let covered = 0, cur = null;
+  for (const [a, b] of ivs) {
+    if (cur && a <= cur[1]) cur[1] = Math.max(cur[1], b);
+    else { if (cur) covered += cur[1] - cur[0]; cur = [a, b]; }
+  }
+  if (cur) covered += cur[1] - cur[0];
+  if (!covered) return { ratio: null, blanketed: false };
+  const baseRate = chat.length / (span / 1000);
+  return { ratio: (inWindow / (covered / 1000)) / baseRate, blanketed: covered > 0.7 * span };
+}
+
+export function parseLog(txt) {
+  const t = String(txt || '').trim();
+  if (t.startsWith('[')) return JSON.parse(t);
+  return t.split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l));
+}
+
 const isMain = process.argv[1] && process.argv[1].endsWith('score-chat.mjs');
 if (isMain) {
   if (process.argv[2] === '--compare') {
@@ -139,8 +182,7 @@ if (isMain) {
       process.exit(2);
     }
     const read = (f) => f === '-' ? readFileSync(0, 'utf8') : readFileSync(f, 'utf8');
-    const parse = (txt) => txt.split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l));
-    const res = compare(parse(read(realPath)), parse(read(simPath)), realPath);
+    const res = compare(parseLog(read(realPath)), parseLog(read(simPath)), realPath);
     console.log(`compare ${res.label} — ${res.rows.length} metrics, ${res.failed} OFF\n`);
     for (const r of res.rows) {
       const sim = typeof r.sim === 'number' ? (r.sim >= 100 ? r.sim.toFixed(1) : String(Math.round(r.sim * 10) / 10)) : r.sim;
@@ -152,7 +194,7 @@ if (isMain) {
   const src = process.argv[2] === '-' || !process.argv[2]
     ? readFileSync(0, 'utf8')
     : readFileSync(process.argv[2], 'utf8');
-  const events = src.split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l));
+  const events = parseLog(src);
   const chat = events.filter((e) => e.kind === 'chat');
   const caps = events.filter((e) => e.kind === 'caption');
   const mods = events.filter((e) => e.kind === 'mod');
@@ -208,18 +250,11 @@ if (isMain) {
   const bigramRatio = bigrams.length ? new Set(bigrams).size / bigrams.length : 0;
 
   // 5. burst correlation — chat must visibly speed up when the frame changes.
-  // If scene changes blanket the timeline the ratio is meaningless, so say so.
-  const changeAt = chat.filter((e) => e.ctx?.sceneChange).map(ts);
-  let burst = null, blanketed = false;
-  if (changeAt.length) {
-    const span = ts(chat.at(-1)) - ts(chat[0]);
-    const covered = changeAt.reduce((acc, t) => acc + Math.min(10000, Math.max(0, ts(chat.at(-1)) - t)), 0);
-    blanketed = covered > 0.7 * span;
-    const inWindow = chat.filter((e) => changeAt.some((c) => ts(e) >= c && ts(e) - c <= 10000)).length;
-    const windowSecs = Math.min(span, changeAt.length * 10000) / 1000;
-    const baseRate = chat.length / (span / 1000);
-    burst = (inWindow / Math.max(1, windowSecs)) / baseRate;
-  }
+  // Change times come from the 'scene' events main.js logs at detection; older
+  // logs only have the sceneChange flag on the chat lines that reacted.
+  const sceneEv = events.filter((e) => e.kind === 'scene').map(ts);
+  const changeAt = sceneEv.length ? sceneEv : chat.filter((e) => e.ctx?.sceneChange).map(ts);
+  const { ratio: burst, blanketed } = burstRatio(chat, changeAt, ts);
 
   // 6b. template repeats — the freshness-ring metric. Culture beats (banreact,
   // spot, relief, mood) pull from pools; hearing the same one twice is the
@@ -235,6 +270,38 @@ if (isMain) {
     if (seenTemplates.has(key)) tmplRepeat++;
     else seenTemplates.add(key);
   }
+
+  // 7. output safety, persona leak, junk — the reject list the worker applies,
+  // measured so a regression (or a brain with no worker filter) shows up here.
+  // An @mention is fine when it names someone who is actually in the room.
+  const model = chat.filter(isModel);
+  const raw = (e) => String(e.text || '').trim();
+  const room = [...new Set(chat.map((e) => e.ctx?.viewer).filter(Boolean))];
+  const unsafeN = chat.filter((e) => unsafeLine(raw(e)) || unsafeLine(line(e))).length;
+  const leakN = model.filter((e) => personaLeak(raw(e))).length;
+  const junkN = model.filter((e) => junkLine(raw(e), room)).length;
+
+  // 8. emote-render failure — a code the line carries that did not become an
+  // image (cosmetics mangled it: "TwaT…", "POLEDOGE"), or an emote-kind line
+  // that rendered nothing. Keysmash and the text fills ("F", "o7") are text by design.
+  const known = new Set(chat.flatMap((e) => e.ctx?.codes || []));
+  const TEXT_ONLY = new Set([...TEXT_FILLS, ...SMASH]);
+  const bare = (w) => w.replace(/[.,!?…]+$/, '');
+  const emoteLines = !hasCodes ? [] : chat.filter((e) => {
+    const toks = raw(e).split(/\s+/).map(bare).filter(Boolean);
+    if (toks.some((w) => known.has(w))) return true;
+    return e.ctx?.kind === 'emote' && toks.length === 1 && !TEXT_ONLY.has(raw(e));
+  });
+  const renderFail = emoteLines.filter((e) => {
+    const toks = raw(e).split(/\s+/).map(bare).filter(Boolean);
+    const shown = new Set(e.ctx?.codes || []);
+    if (toks.length === 1 && e.ctx?.kind === 'emote') return !shown.has(toks[0]);
+    return toks.some((w) => known.has(w) && !shown.has(w));
+  }).length;
+
+  // 9. speech echo — only lines generated while the streamer had just spoken
+  const heard = model.filter((e) => e.ctx?.speech);
+  const speechEchoN = heard.filter((e) => echoesSpeech(raw(e), e.ctx.speech)).length;
 
   // 6. ban latency — first chat line after each mod action
   const latencies = mods.map((m) => {
@@ -254,7 +321,7 @@ if (isMain) {
       unavailable: !hasCodes && !codeSet.size ? 'log has no emote codes' : '' },
     { key: 'bigram', value: bigrams.length ? bigramRatio : null,
       detail: `${new Set(bigrams).size}/${bigrams.length} bigrams`, kind: 'min' },
-    { key: 'burst', value: burst, detail: burst === null ? 'no sceneChange flags in the log'
+    { key: 'burst', value: burst, detail: burst === null ? 'no scene changes in the log'
       : `${burst.toFixed(2)}× baseline`, kind: 'min',
       unavailable: burst !== null && blanketed ? 'captions change continuously — not measurable here' : '' },
     { key: 'banLatency', value: banMs, detail: banMs === null ? `${mods.length} mod actions logged` : `${banMs}ms`,
@@ -262,6 +329,17 @@ if (isMain) {
     { key: 'templateRepeat', value: tmplN >= 6 ? tmplRepeat / tmplN : null,
       detail: `${tmplRepeat}/${tmplN} template lines`, kind: 'max',
       unavailable: tmplN < 6 ? `only ${tmplN} culture/spot/relief/mood lines — not enough to judge` : '' },
+    { key: 'unsafe', value: unsafeN / chat.length, detail: `${unsafeN}/${chat.length} lines`, kind: 'max' },
+    { key: 'personaLeak', value: model.length ? leakN / model.length : null,
+      detail: `${leakN}/${model.length} model lines`, kind: 'max' },
+    { key: 'junk', value: model.length ? junkN / model.length : null,
+      detail: `${junkN}/${model.length} model lines`, kind: 'max' },
+    { key: 'emoteRender', value: emoteLines.length ? renderFail / emoteLines.length : null,
+      detail: `${renderFail}/${emoteLines.length} emote lines`, kind: 'max',
+      unavailable: !hasCodes ? 'log has no rendered emote codes' : emoteLines.length ? '' : 'no emote lines' },
+    { key: 'speechEcho', value: heard.length >= 5 ? speechEchoN / heard.length : null,
+      detail: `${speechEchoN}/${heard.length} speech-context lines`, kind: 'max',
+      unavailable: heard.length < 5 ? `only ${heard.length} lines written after the streamer spoke` : '' },
   ];
 
   console.log(`chat ${chat.length} · captions ${caps.length} · mod actions ${mods.length} · `
@@ -279,7 +357,7 @@ if (isMain) {
       : r.value >= spec.min && r.value <= spec.max;
     if (!ok) failed++;
     const shown = r.key === 'banLatency' ? `${Math.round(r.value)}ms` : pct(r.value);
-    const bound = r.kind === 'max' ? `< ${spec.max}` : r.kind === 'min' ? `> ${spec.min}` : `${spec.min}–${spec.max}`;
+    const bound = r.kind === 'max' ? `≤ ${spec.max}` : r.kind === 'min' ? `> ${spec.min}` : `${spec.min}–${spec.max}`;
     console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${spec.label.padEnd(70)} ${shown} (want ${bound}) ${r.detail}`);
   }
   console.log(`\n${failed === 0 ? 'rubric green' : `${failed} metric(s) failing`} · ${skipped} unavailable`);

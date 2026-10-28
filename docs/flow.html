@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SpasmTV — how it works</title>
+<style>
+  :root{
+    --bg:#0d0f14; --panel:#151922; --ink:#e8eaf0; --dim:#8b93a7; --line:#2a3040;
+    --cap:#3ecf8e; --vis:#f5a623; --sch:#5aa2ff; --lang:#c58cff; --fil:#ff5f6d; --mem:#f2e14c; --aud:#39d3c3;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.5 ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif;padding:28px 20px 80px}
+  h1{font-size:22px;margin:0 0 4px;letter-spacing:.02em}
+  h1 span{color:var(--dim);font-weight:400}
+  .sub{color:var(--dim);margin:0 0 22px;max-width:78ch}
+  .lane{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:14px 16px 16px;margin:0 0 6px}
+  .lane h2{font-size:12px;text-transform:uppercase;letter-spacing:.14em;margin:0 0 12px;display:flex;gap:8px;align-items:center}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch}
+  .box{flex:1 1 200px;min-width:190px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#11151d}
+  .box b{display:block;font-size:13.5px;margin-bottom:3px}
+  .box code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;color:var(--dim);
+    background:#0b0e13;border-radius:4px;padding:1px 4px}
+  .box small{display:block;color:var(--dim);font-size:12px;margin-top:5px}
+  .down{text-align:center;color:var(--dim);font-size:16px;line-height:1;margin:2px 0 6px}
+  .tag{font-size:11px;color:var(--dim)}
+  .side{border-left:3px solid var(--aud)}
+  .filters{border:1px solid #4a2530;border-radius:10px;background:#1a1216;padding:14px 16px;margin-top:18px}
+  .filters h2{color:var(--fil)}
+  ol{margin:8px 0 0;padding-left:20px}
+  li{margin:5px 0}
+  .why{border:1px solid #4a3f1c;border-radius:10px;background:#1a1710;padding:14px 16px;margin-top:14px}
+  .why h2{color:var(--mem)}
+  table{border-collapse:collapse;width:100%;margin-top:8px;font-size:13.5px}
+  th,td{border-bottom:1px solid var(--line);text-align:left;padding:7px 8px;vertical-align:top}
+  th{color:var(--dim);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.1em}
+  td code{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#ffd9a0}
+  .k{color:var(--lang)} .r{color:var(--fil)} .g{color:var(--cap)}
+  footer{color:var(--dim);font-size:12.5px;margin-top:26px;border-top:1px solid var(--line);padding-top:14px}
+</style>
+</head>
+<body>
+
+<h1>SpasmTV — the whole loop <span>· one page, no network</span></h1>
+<p class="sub">A fake Twitch chat that watches a real video source. Everything runs in this tab:
+the vision model, the chat model, the speech model. The only network traffic is a one-time model
+download plus the CDN and emote-set requests listed in the README. This is the map of
+<span class="k">js/main.js</span>, <span class="k">workers/llm-worker.js</span> and
+<span class="k">js/chat-sim.js</span>.</p>
+
+<!-- ============================== 1 CAPTURE -->
+<div class="lane">
+  <h2><i class="dot" style="background:var(--cap)"></i>1 · capture — what the chat is looking at</h2>
+  <div class="row">
+    <div class="box"><b>source</b><small>camera · <code>?video=</code> file · screen share · built-in demo canvas. <code>activeSource()</code> picks whichever is visible.</small></div>
+    <div class="down">→</div>
+    <div class="box"><b>tickFrame()</b><small>every <code>tickFrame</code> ms: draw source to a 320-px working canvas. A throw here must never kill the loop.</small></div>
+    <div class="down">→</div>
+    <div class="box"><b>motionScore()</b><small>32×18 luma thumb vs the previous one → <code>score</code> (mean diff) + <code>hotFrac</code> (cells that moved a lot).</small></div>
+    <div class="down">→</div>
+    <div class="box"><b>drawCapture()</b><small>the framed preview: optional focus crop, the same pixels the model sees. Kept as <code>prevCapture</code> for before/after bursts.</small></div>
+  </div>
+  <div class="down">↓</div>
+  <div class="row">
+    <div class="box"><b>noteMotion() — scene change</b><small>a change is a <em>spike</em>, not a level: <code>score &gt; sceneFloor (0.02)</code> and <code>&gt; sceneSpike (3×) the rolling median</code> of the last ~20 ticks, ≥4 s apart. Logs a <code>scene</code> event and yanks the chat loop forward.</small><span class="tag">why: a fixed 0.055 never fired on a real drawing VOD (peak 0.054) and fired constantly on edited video.</span></div>
+    <div class="box"><b>state</b><small><code>diffScore</code> · <code>diffMax</code> · <code>hotMax</code> · <code>sceneChangeAt</code> — all in the log, so the scorer can check burst correlation.</small></div>
+  </div>
+</div>
+
+<div class="down">↓</div>
+
+<!-- ============================== 2 VISION -->
+<div class="lane">
+  <h2><i class="dot" style="background:var(--vis)"></i>2 · vision — the frame becomes a sentence</h2>
+  <div class="row">
+    <div class="box"><b>tickCaption() → sendCaption()</b><small>throttled; skipped while a wave is running. Posts the capture to the worker.</small></div>
+    <div class="down">→</div>
+    <div class="box"><b>worker: caption brain</b><small>the same VLM as chat (or Omni). Caption prompt, not the chat prompt — no grammar guard, so it can describe.</small></div>
+    <div class="down">→</div>
+    <div class="box"><b>reactionSeed(caption, 3)</b><small>chat never gets the caption. It gets ~3 content words from it — the seed it must react to instead of restating.</small></div>
+    <div class="down">→</div>
+    <div class="box"><b>state.caption → <code>ctx.scene</code></b><small>plus <code>extractFacts()</code> → the fact ledger, so chat can remember what the streamer is.</small></div>
+  </div>
+</div>
+
+<div class="down">↓</div>
+
+<!-- ============================== 3 SCHEDULER -->
+<div class="lane">
+  <h2><i class="dot" style="background:var(--sch)"></i>3 · cadence — when chat talks, and as whom</h2>
+  <div class="row">
+    <div class="box"><b>chatLoop()</b><small>decides the shape of this beat: <code>pileOnBurst()</code> right after a change (3 lines + sometimes a chant), a single line for the rest of the pile-on window, else <code>planBurst()</code>.</small></div>
+    <div class="down">→</div>
+    <div class="box"><b>gap</b><small><code>pileOnGap()</code> 0.9–1.6 s during a wave → <code>breatherGap()</code> right after → <code>nextGapMs()</code> × <code>MOOD_GAP[mood]</code> normally (a purge quiets the room).</small></div>
+    <div class="down">→</div>
+    <div class="box"><b>fireLine()</b><small>pick a viewer by weight → pick a <b>kind</b> (<code>gateKind</code>: reaction, banter, backseat, meta, question, greeting, reply, callback, emote, copypasta, banreact, spot) → free line or GPU line.</small></div>
+  </div>
+  <div class="down">↓ free — no GPU call ↓</div>
+  <div class="row">
+    <div class="box"><b>templates</b><small>emote fills, chants, copypastas, canned lines from a real VOD corpus, dead-chat mood lines. <code>templateRecent</code> keeps them from repeating.</small></div>
+    <div class="box"><b>GPU budget</b><small>if <code>pendingChat ≥ maxPending</code> the line is <em>dropped</em>, not queued — a queued line is stale chat.</small></div>
+    <div class="box"><b>personaFor(viewer, kind)</b><small>this viewer's vibe for this line: the archetype hint, or a spot/timeout override. Goes into the prompt as <code>ctx.persona</code>.</small></div>
+    <div class="box"><b>ctx</b><small>scene · sceneChange · speech · userMsg · facts · emotes · ban · culture · bit · replyTo · styleExamples · recent. This object <em>is</em> the prompt's inputs.</small></div>
+  </div>
+</div>
+
+<div class="down">↓</div>
+
+<!-- ============================== 4 LANGUAGE -->
+<div class="lane">
+  <h2><i class="dot" style="background:var(--lang)"></i>4 · language — one chat line out of the model</h2>
+  <div class="row">
+    <div class="box"><b>CHAT_PROMPT_PARTS()</b><small>fixed order: role + length → scene seed → <em>changed</em> flag → react-don't-describe → kind instruction → the one quoted line (reply/ban/bit/culture/speech/facts/emotes/persona/style) → "write only the message".</small><span class="tag r">every label here is vocabulary the model can copy back — see the leak table below.</span></div>
+    <div class="down">→</div>
+    <div class="box"><b>generate()</b><small>grammar guard on (phones always): a logits processor makes <code>@ * – “ ”</code> unsampleable. Temperature / rep-penalty bumped when the recent ring looks looped or the pass is a retry. Image only on a change.</small></div>
+    <div class="down">→</div>
+    <div class="box"><b>toChatLines()</b><small>strip role prefixes, quotes, bullet junk; cap at <code>maxWords</code>.</small></div>
+    <div class="down">→</div>
+    <div class="box"><b>keep()</b><small>the reject list — 12 filters, below. First pass empty → one retry at higher temperature; if that dies too the line is simply lost.</small></div>
+  </div>
+</div>
+
+<div class="down">↓</div>
+
+<!-- ============================== 5 RENDER -->
+<div class="lane">
+  <h2><i class="dot" style="background:var(--cap)"></i>5 · render — the line becomes chat</h2>
+  <div class="row">
+    <div class="box"><b>onWorkerMessage</b><small>phase-checked (no chat after End stream); releases the pending slot; resolves the request id.</small></div>
+    <div class="down">→</div>
+    <div class="box"><b>ChatSim.render()</b><small>cosmetics on the <em>displayed</em> text only — caps, typos, the ellipsis — applied to non-emote words so a code still matches.</small></div>
+    <div class="down">→</div>
+    <div class="box"><b>_formatText()</b><small>codes → BTTV/FFZ/7TV images; @mentions of people in the room highlighted; the "in the spotlight" card.</small></div>
+    <div class="down">→</div>
+    <div class="box"><b>logEvent()</b><small>the in-memory ring; <code>?log=1</code> persists it, <code>__spasmtv.dump()</code> writes the JSONL the scorer reads. <em>Never</em> the model's raw prompt.</small></div>
+  </div>
+</div>
+
+<div class="down">↓</div>
+
+<!-- ============================== 6 MEMORY -->
+<div class="lane">
+  <h2><i class="dot" style="background:var(--mem)"></i>6 · state that survives a reload</h2>
+  <div class="row">
+    <div class="box"><b>spasmtv-settings</b><small>detail, brain, ASR size, focus, phone mode — restored on load, so the UI matches what will load.</small></div>
+    <div class="box"><b>spasmtv-facts</b><small>what chat "knows" about the streamer.</small></div>
+    <div class="box"><b>lurker-log</b><small>only with <code>?log=1</code>: transcripts, captions, typed messages. Off by default.</small></div>
+    <div class="box"><b>roster + tuning</b><small>viewers, archetypes, weights, and the live tuning panel.</small></div>
+    <div class="box"><b>forget everything</b><small>clears all four: facts, log, roster, tuning. The only "delete my data" button, and it is honest.</small></div>
+  </div>
+  <div class="down">↕ alongside the chat loop ↕</div>
+  <div class="row">
+    <div class="box side"><b>audio in</b><small>mic or the source's own audio → RMS VAD (<code>RMS_ON</code>/<code>RMS_OFF</code>, silence hangover) → one utterance → resample to 16 kHz → transferable <code>Float32Array</code>.</small></div>
+    <div class="down">→</div>
+    <div class="box side"><b>Moonshine ASR</b><small>tiny / base in the worker (510 MB fp32 audio encoder loads lazily with Omni). The raw PCM never leaves the tab.</small></div>
+    <div class="down">→</div>
+    <div class="box side"><b><code>ctx.speech</code></b><small>the streamer's last sentence → feeds the prompt, the fact ledger, and <code>echoesSpeech()</code> so chat doesn't just repeat it back.</small></div>
+    <div class="box side"><b>mods</b><small>ban / timeout / warn → <code>banReactionBurst()</code>, the culture ledger, mood, and the <code>banreact</code>/<code>spot</code> kinds. Chat remembers purges.</small></div>
+  </div>
+</div>
+
+<!-- ============================== FILTERS -->
+<div class="filters">
+  <h2>keep() — the reject list, in order</h2>
+  <ol>
+    <li><b>tooSimilar vs the recent ring</b> — the anti-echo-loop gate (0.75).</li>
+    <li><b>tooSimilar vs the style examples</b> — don't paste a real VOD line back verbatim (0.8).</li>
+    <li><b>echoesScene</b> — the caption paraphrased back is not chat.</li>
+    <li><b>tooSimilar vs the persona</b> — the vibe description is not a message.</li>
+    <li><b>tooSimilar vs the quoted line</b> — a reply must not be the thing it replies to.</li>
+    <li><b>keysmash</b> — vowel-shape test, the 450M's degeneration mode.</li>
+    <li><b>META_NEG</b> — "I can't help you with that" style refusals.</li>
+    <li><b>unsafeLine</b> — slurs, sexual or body talk, self-harm, plus jab-emotes (<code>EMOTE_BLOCK</code>). A real person is on camera.</li>
+    <li><b>personaLeak</b> — the archetype brief or the prompt coming back as chat.</li>
+    <li><b>junkLine</b> — invented <code>@handles</code> (they may be real people), digit runs, symbol soup.</li>
+    <li><b>echoesSpeech</b> — the streamer's words repeated back.</li>
+    <li><b>softGenderDamp</b> — half of the strong gendered guesses about whoever is on camera get dropped.</li>
+  </ol>
+</div>
+
+<!-- ============================== WHY -->
+<div class="why">
+  <h2>The filters are a net, not a fix — what the prompt is feeding back</h2>
+  <p>Measured on the 2026-10-28 fast-brain run: <b>122 generate() calls for 48 kept lines</b> —
+  44 first passes died in <code>keep()</code>. Every death is a second GPU call for one line,
+  and the shapes it kills are almost all <em>echoes of the prompt's own wording</em>:</p>
+  <table>
+    <tr><th>prompt line</th><th>what the model said</th></tr>
+    <tr><td><code>On screen, roughly: …</code></td><td class="r">"on screen random thing coming up" · "onscreen hugs"</td></tr>
+    <tr><td><code>Something on screen just changed.</code></td><td class="r">"on screen just changed…" · "just changed something"</td></tr>
+    <tr><td><code>Your vibe: the hype man</code></td><td class="r">"HYPEMAN" · "reacts like a regular…" · "troll replay in cartoon cap draw"</td></tr>
+    <tr><td><code>React like a viewer who has been here for hours</code></td><td class="r">"Reaction like a troll says nothing."</td></tr>
+    <tr><td><code>never more than 12 words</code></td><td class="r">"max 12 words hey"</td></tr>
+    <tr><td><code>no quotes, no hashtags, no emoji faces</code></td><td class="r">"No emotes allowed, keep your voice"</td></tr>
+    <tr><td><code>never restate these instructions</code></td><td class="r">restating the instructions</td></tr>
+  </table>
+  <p>Small instruction-tuned models copy the words nearest the output and ignore negations
+  ("never mention colors" supplies the word <em>colors</em>). So the fix is upstream: fewer
+  words, positive phrasing only, no plain-English labels on the data lines, and the persona
+  described as behaviour rather than a nameable noun. <code>keep()</code> stays as the net —
+  a prompt can be changed by a tuning slider, the net can't be talked out of the job.</p>
+</div>
+
+<footer>
+Open this file directly — <code>file:///Users/jordan/Projects/twitch-sim/docs/flow.html</code>.
+Metrics for every claim here: <code>node tools/score-chat.mjs &lt;run&gt;.jsonl</code>
+(<code>npm run score</code>).
+</footer>
+
+</body>
+</html>

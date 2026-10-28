@@ -123,20 +123,20 @@ Corpora that exist today:
   invariant governs the *deployed site* only — training happens offline,
   weights ship via HF CDN like today's.
 
-Gate: license-clean base model (Qwen3-VL-2B, Apache-2.0 — another reason
-for U7), plus Jordan's go on training time. Decision parked in
-PLAN-CHAT-V2 §H Needs Jordan.
+Gate: a license-clean base model (Qwen3-VL-2B, Apache-2.0 — another reason
+for U7) and the training time to spend on it. Parked.
 
 ## 6. Ranked plan (what got queued)
 
 1. **U7 — A/B Qwen3-VL-2B as the quality brain** (cheap, likely the
-   biggest instant lift, unlocks the fine-tune path). → tasks/U7.
+   biggest instant lift, unlocks the fine-tune path). Shipped: the `qwen` brain.
 2. **U8 — regex grammar guard on chat generation** (kills failure classes
-   at the logits level, cuts retry GPU calls). → tasks/U8.
+   at the logits level, cuts retry GPU calls). Shipped: `CHAT_REGEX` in
+   `workers/llm-worker.js`.
 3. **Exemplar bank**: few-shot style exemplars mined from real chat corpora
    (fixed bank, NOT the recent window — the v1.1 echo-loop lesson), gated on
    §G corpus arriving.
-4. **Split-brain** (§3) and **SFT/LoRA** (§5) — parked for Jordan.
+4. **Split-brain** (§3) and **SFT/LoRA** (§5) — parked.
 5. Phone-tier q1/q2 encoders — only if iOS load needs it.
 
 ## Sources
