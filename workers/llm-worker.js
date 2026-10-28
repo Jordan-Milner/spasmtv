@@ -17,6 +17,7 @@ import {
 } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2';
 
 // same yardstick the scorer uses (tools/score-chat.mjs imports this file too)
+import { loadOmni, omniGenerate, omniLoaded } from './omni.js';
 import { normTokens, tooSimilar, echoesScene, reactionSeed, factCandidate } from '../js/text.js';
 
 env.allowLocalModels = false;
@@ -32,6 +33,8 @@ const VLM = {
     dtype: { vision_encoder: 'fp16', embed_tokens: 'fp16', decoder_model_merged: 'q4f16' },
     multiFrame: true, // LFM3-VL is video-native (2fps)
   },
+  // LFM3-Omni-2B on raw onnxruntime-web (workers/omni.js): its own engine, not transformers.js
+  omni: { omni: true },
   // A/B candidates (select via the brain dropdown or ?brain=lfm3b|qwen)
   lfm3b: {
     id: 'LiquidAI/LFM2.5-VL-3B-ONNX',
@@ -134,9 +137,18 @@ async function load(m) {
   const key = m.phone ? 'phone' : (VLM[m.model] ? m.model : 'fast');
   const cfg = VLM[key];
   const loadKey = key;
-  if (model && currentKey === loadKey) { post({ type: 'ready' }); return; }
+  if ((model || omniLoaded()) && currentKey === loadKey) { post({ type: 'ready' }); return; }
   filePct.clear();
   post({ type: 'progress', progress: 0 });
+
+  if (cfg.omni) {
+    await loadOmni((p) => post({ type: 'progress', progress: p }));
+    currentKey = loadKey;
+    await generate({ prompt: 'hi', maxNewTokens: 2 });
+    if (m.asr) ensureAsr();
+    post({ type: 'ready', asr: asrModelKey });
+    return;
+  }
 
   [processor, model] = await Promise.all([
     AutoProcessor.from_pretrained(cfg.id, { progress_callback: onProg }),
@@ -179,6 +191,14 @@ async function generate({
   prompt, frames, image, maxNewTokens, sample = false,
   temperature = 0.85, repetitionPenalty = 1.05, topP = 0.95, topK = 0,
 }) {
+  if (currentKey === 'omni') {
+    // omni takes real text-only calls — no blank-image stand-in needed
+    const f = frames?.length ? frames[frames.length - 1] : image;
+    return omniGenerate({
+      prompt, image: f ? { data: f.data, width: f.width, height: f.height } : null,
+      maxNewTokens, temperature: sample ? temperature : 0, topP, topK, repetitionPenalty,
+    });
+  }
   // ONE image per call — this processor family treats arrays as batch, not
   // multi-image content, and it has no null-image mode: every call gets a real
   // frame or a blank stand-in (with its matching <image> template slot).
