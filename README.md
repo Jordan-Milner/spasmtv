@@ -33,6 +33,15 @@ tailnet, `tailscale funnel 8619` makes it public-HTTPS — deliberate choice.
   that phone can't hold the 450M brain at all — open it on a computer.
   `?phone` previews phone mode on a desktop.
 - No camera? Check **demo** — the chat reacts to a generated fake stream.
+- **share** — feed the chat a tab or your whole screen (`getDisplayMedia`),
+  audio included, so it reacts to what you're actually watching.
+- **+** (or drag a file onto the stage) — play a **video file** as the stream: it
+  goes through the same frame-diff/scene-change path, and its audio track into
+  the same speech gate, so the chat watches and hears a VOD the way it watches
+  your camera. Nothing uploads or copies — it is a `<video>` element and a canvas.
+- URL params: `?video=PATH&autolive` (autoplay a file through the whole pipeline
+  — what the headless harness uses), `?brain=qwen|lfm3b|quality`, `?grammar=0`,
+  `?phone`, `?autolive=1`.
 - Talk into your mic — the chat hears you (transcribed locally) and answers
   within a couple of seconds.
 - You can also type into the chat box: you're the streamer, talk to your chat.
@@ -64,6 +73,44 @@ __lurkerDownload()  // saves lurker-chatlog-<date>.jsonl
 ```
 
 A sample log from a fake-camera session is in `docs/sample-chatlog-2026-10-27.json`.
+
+### Scoring the corpus
+
+The log *is* the tuning corpus: every change is measured, not vibed.
+
+    node tools/browser-run.mjs --out /tmp/run.jsonl --minutes 4 \
+      --url-params "video=videos/vod-fnf-work.mp4&autolive=1"   # headless Chrome over CDP
+    node tools/score-chat.mjs /tmp/run.jsonl                    # the rubric; exits non-zero on a FAIL
+
+`score-chat.mjs` is model-independent — it reads the log only — and gates
+caption-echo rate (<10%), question rate (10–25%), emote rate (25–50%), unique
+bigram ratio (>0.60), burst correlation after a scene change (≥2×), ban-reaction
+latency (<6 s) and template-repeat rate. `browser-run.mjs` runs **one Chrome at a
+time**: two headless WebGPU Chromes deadlock the second at "checking WebGPU".
+The current pass is green except burst correlation, which needs real motion — the
+demo canvas never crosses the scene-change threshold, so measure it against a
+video file.
+
+**Guarding the charset** (§H/U8): chat generation is constrained by a regex
+(`[A-Za-z0-9 ,.!?']{1,90}`) through `StructuredOutputProcessor` as a
+`logits_processor`, so emoji faces, curly quotes, hashtags and template debris
+become unsampleable instead of post-filtered — measured 1.19 vs 1.29 GPU calls
+per kept line, 0/48 model lines outside the charset, no score regression.
+Caption and ASR prompts stay unconstrained; `?grammar=0` turns it off and phones
+never load it. Gotcha: the package's bare jsDelivr URL is CJS, see
+`tasks/U8-REPORT.md`.
+
+### Real chat, for comparison (§G)
+
+`videos/` (gitignored) holds VODs whose burned-in chat can be OCR'd back out:
+
+    node tools/extract-real-chat.mjs videos/vod-fnf-work.mp4 --region 300:500:980:220
+
+That writes `videos/vod-fnf-work.realchat.jsonl` — the target distribution the
+sim's log is read against (`--compare`; `tasks/D1-REPORT.md` has the region that
+works per clip). Those lines also seed the sim's canned pool and few-shot style
+examples.
+
 Tuning findings so far (encoded in the worker): the 450M echoes persona hints
 verbatim unless they're phrased as instructions; pasting recent chat into the
 prompt anchors degeneration loops ("A. hair? cringe me!" ×20), so dedupe now
@@ -91,11 +138,19 @@ browser, Twitch energy not chatbot energy) and `PLAN.md` for the ledger.
 
 ## Model notes
 
-- **Vision/chat:** `LiquidAI/LFM2.5-VL-450M-ONNX` — the same weights and load
-  config (WebGPU, fp16 vision+embed, q4 decoder; ~800 MB as currently
-  exported) as LiquidAI's own
-  [WebGPU demo](https://huggingface.co/spaces/LiquidAI/LFM2.5-VL-450M-WebGPU).
-  "Sharper" option: `onnx-community/LFM3-VL-2B-ONNX` q4f16 (~1.8 GB).
+- **Vision/chat** — four brains in the dropdown, one loader (each is a `VLM`
+  entry in `workers/llm-worker.js`):
+
+  | brain | model | size | measured |
+  |---|---|---|---|
+  | Fast chat | `LiquidAI/LFM2.5-VL-450M-ONNX` fp16+q4 | ~800 MB | default; same load config as LiquidAI's own [WebGPU demo](https://huggingface.co/spaces/LiquidAI/LFM2.5-VL-450M-WebGPU) |
+  | Sharper chat | `onnx-community/LFM3-VL-2B-ONNX` q4f16 | ~1.8 GB | 0.28 s/line — fastest of the big three |
+  | Liquid 3B (experimental) | LFM2.5-VL-3B class | ~2 GB | 1.45 s/line for Qwen-ish quality — not worth it |
+  | Qwen 2B (best grounded) | `onnx-community/Qwen3-VL-2B-Instruct-ONNX` q4f16, Apache-2.0 | ~1.4 GB | 0.48 s/line, least hallucinating |
+
+  A/B was 2026-10-28 on `videos/vod-fnf-work.mp4`, 1.5 min per brain; pick one
+  with the dropdown or `?brain=qwen|lfm3b|quality`. Phones are pinned to
+  `HuggingFaceTB/SmolVLM-256M-Instruct` (see the iPhone note above).
 - **Speech-to-text:** `onnx-community/moonshine-tiny-ONNX` (~75 MB, MIT) —
   built for short streaming utterances; encoder fp32 / merged decoder q4 on
   WebGPU. Whisper-tiny.en would be the drop-in fallback.
@@ -116,5 +171,8 @@ text to the VLM is the sane way to make chat "hear" you, so that's what this doe
   flaky). iPhone/iPad Safari is the one mobile exception — phone mode (q8
   fast brain, no ASR), everything else needs a computer.
 - First message after model load can lag a few seconds while the GPU warms up.
-- The 350–450M "fast" brain writes dumb chat. That's the point. The 1.6B
-  "sharp" option is there when you want cleverness over speed.
+- The 350–450M "fast" brain writes dumb chat. That's the point. Qwen 2B is there
+  when you want cleverness over speed.
+- The grammar guard forbids `-`, `~`, `*` and curly quotes in sampled text, so
+  `straight-eye-open` comes out `straight eye open`. Widen `CHAT_REGEX` in
+  `workers/llm-worker.js` if you disagree; `?grammar=0` if you really disagree.

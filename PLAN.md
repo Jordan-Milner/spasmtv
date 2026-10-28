@@ -116,3 +116,13 @@ serve.sh              named static server (ps: twitch-sim-server) — needed onl
   lines added); min_p confirmed NOT in the pinned bundle; split-brain
   (Qwen3-1.7B text writer) + SFT/LoRA on Twitch corpora parked for Jordan
   (§H Needs Jordan, incl. seeding the two Hub cards).
+- 2026-10-28: §E–§H landed. Video sources (share / file drop / `?video=`) feed
+  the existing frame-capture + RMS path; `tools/score-chat.mjs` is the rubric and
+  `tools/browser-run.mjs` the harness (**one** headless WebGPU Chrome at a time —
+  a second deadlocks at "checking WebGPU"); `tools/extract-real-chat.mjs` +
+  `videos/` produce paired real-chat corpora (`tasks/D1-REPORT.md`: 4 805 FNF +
+  28 758 phantom lines). Brains: Qwen3-VL-2B is the best-grounded at 0.48 s/line
+  (§H/U7 done), and the §H/U8 regex grammar guard ships ON by default on desktop
+  (`?grammar=0`, `tasks/U8-REPORT.md`). README now documents the sources, the
+  tuning corpus and the brain table; what's left is the eyeball vibe check, the
+  two Hub cards, and the fine-tune go/no-go.
