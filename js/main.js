@@ -230,6 +230,8 @@ async function goLiveAfterLoad() {
 
   state.scene = ''; state.sceneAt = 0; state.speech = ''; state.lastChatLines = [];
   startLoops();
+  els.loadProgress.hidden = true;
+  els.loadPct.textContent = '';
   setStatus('ok', 'live — the chat can see you' + (state.audioCtx ? ' and hear you' : ''));
 }
 

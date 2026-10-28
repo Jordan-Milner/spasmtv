@@ -17,12 +17,49 @@ WebGPU requires a secure context, so serve it over localhost:
 
 Open http://localhost:8619 in Chrome/Edge 113+, pick a brain, **Go live**.
 
-- First load downloads the model(s) (~300 MB fast / ~1 GB sharp) into the
+Tailnet: **https://jordans-maxbook.tail38dbd0.ts.net/** (via `tailscale serve`,
+valid HTTPS cert → WebGPU works on other devices signed into the tailnet,
+including phones; the layout stacks for phone screens). To share beyond the
+tailnet, `tailscale funnel 8619` makes it public-HTTPS — deliberate choice.
+
+- First load downloads the model(s) (~560 MB fast / ~1.8 GB sharp) into the
   browser cache — reloads after that are instant.
 - No camera? Check **demo** — the chat reacts to a generated fake stream.
 - Talk into your mic — the chat hears you (transcribed locally) and answers
   within a couple of seconds.
 - You can also type into the chat box: you're the streamer, talk to your chat.
+
+## The chat sim
+
+- **Click any username → mod view**: their recent messages in one box, a
+  **Yell** button (they turn defensive and keep talking), and timeouts of
+  1 sec / 1 hour / 1 day / 1 week / custom minutes, plus unban. Returning
+  prisoners announce themselves.
+- Viewers who ask questions get a **❓** chip; the top question-asker is crowned
+  **chat MVP** (golden badge) until someone out-questions them.
+- Real emote images (global BTTV/FFZ/7TV sets, hotlinked from their CDNs);
+  the model is steered toward real codes so its emotes render as images.
+- Motion is noticed: a frame-diff detector runs every 1.5 s; a hard scene
+  change bumps the viewer count and sends the chat the *actual frame* with
+  "something just changed — react to it". The model itself sees still frames
+  (no temporal memory) — the burst + fresh frame is how "bounce" becomes chat.
+
+## Chat logs (tuning corpus)
+
+Every generated message is logged **with the context that produced it** (scene
+caption at generation time, transcribed speech, persona, recent-chat window,
+viewer name). Local only — in-memory ring + localStorage mirror. In the console:
+
+```js
+__lurkerDump()      // JSON of the whole session log
+__lurkerDownload()  // saves lurker-chatlog-<date>.jsonl
+```
+
+A sample log from a fake-camera session is in `docs/sample-chatlog-2026-10-27.json`.
+Tuning findings so far (encoded in the worker): the 450M echoes persona hints
+verbatim unless they're phrased as instructions; pasting recent chat into the
+prompt anchors degeneration loops ("A. hair? cringe me!" ×20), so dedupe now
+happens post-generation with a hotter retry instead.
 
 ## How it works
 

@@ -59,5 +59,17 @@ serve.sh              named static server (ps: twitch-sim-server) — needed onl
 
 - 2026-10-27: scaffolded; research A+B returned; worker built on verified IDs
   (LFM2.5-VL-450M-ONNX fast / LFM3-VL-2B-ONNX sharp; moonshine-tiny ASR;
-  transformers.js 4.3.2). Next: browser verification (fake media), then
-  manifest row + proj check.
+  transformers.js 4.3.2). End-to-end verified in a fake-media Chrome: model
+  load, captions, chat generation, ASR round-trips all green.
+- Live bugfixes from verification: `[hidden]` CSS override left the offline
+  cover over the video; ASR progress bar race after going live; persona-echo
+  + degeneration loops (Jordan's live session was the evidence) → v1.1 worker
+  (instruction-style personas, no recent-echo in prompt, Jaccard dedupe, hotter
+  retry), question/MVP badges, mod view (yell + timeouts), real emotes
+  (BTTV/FFZ/7TV), widescreen/mobile layout, chat log with generation context
+  (`docs/sample-chatlog-2026-10-27.json`).
+- Serving: localhost :8619 (named `twitch-sim-server`) + tailnet
+  https://jordans-maxbook.tail38dbd0.ts.net/ via `tailscale serve --bg 8619`.
+- Open / next candidates: Funnel if Alaina is off-tailnet; LFM3-VL-2B multiframe
+  (native 2fps video) as a "true motion" upgrade; InterruptableStoppingCriteria
+  for stale caption jobs; per-viewer model personas (model writes the username).

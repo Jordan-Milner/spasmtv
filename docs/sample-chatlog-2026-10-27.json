@@ -1,0 +1,2395 @@
+[
+ {
+  "t": "2026-10-28T03:22:47.974Z",
+  "kind": "caption",
+  "text": "A black background with a white square in the center."
+ },
+ {
+  "t": "2026-10-28T03:22:48.470Z",
+  "kind": "caption",
+  "text": "A black background with a white square in the center."
+ },
+ {
+  "t": "2026-10-28T03:22:48.559Z",
+  "kind": "chat",
+  "text": "black background white square",
+  "ctx": {
+   "scene": "A black background with a white square in the center.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [],
+   "persona": "curious again — ask a follow-up question about the streamer or the room",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "lilbeetle"
+  }
+ },
+ {
+  "t": "2026-10-28T03:22:55.317Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:22:55.360Z",
+  "kind": "chat",
+  "text": "lilZ",
+  "ctx": {
+   "scene": "A black background with a white square in the center.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "black background white square"
+   ],
+   "persona": "confused — ask one short question about something on screen",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "xghost_irl"
+  }
+ },
+ {
+  "t": "2026-10-28T03:22:58.160Z",
+  "kind": "caption",
+  "text": "A green square with a large lime green letter G in the center, surrounded by two smaller green squares at each corner."
+ },
+ {
+  "t": "2026-10-28T03:22:58.388Z",
+  "kind": "chat",
+  "text": "A black background with a white square in the center",
+  "ctx": {
+   "scene": "A black background with a white square in the center.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "black background white square",
+    "lilZ"
+   ],
+   "persona": "a regular — treat something on screen like a running joke",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "ttv_beetle"
+  }
+ },
+ {
+  "t": "2026-10-28T03:22:58.510Z",
+  "kind": "caption",
+  "text": "A green background with a large white letter D and some numbers at the top left corner."
+ },
+ {
+  "t": "2026-10-28T03:23:00.253Z",
+  "kind": "chat",
+  "text": "Dreaming big!",
+  "ctx": {
+   "scene": "A green background with a large white letter D and some numbers at the top left corner.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "black background white square",
+    "lilZ",
+    "A black background with a white square in the center"
+   ],
+   "persona": "backseat gaming — tell the streamer what to do next, unprompted",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "lilmoth99"
+  }
+ },
+ {
+  "t": "2026-10-28T03:23:02.374Z",
+  "kind": "chat",
+  "text": "aGEEEEcN (eyes glazed) aD...",
+  "ctx": {
+   "scene": "A green background with a large white letter D and some numbers at the top left corner.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "black background white square",
+    "lilZ",
+    "A black background with a white square in the center",
+    "Dreaming big!"
+   ],
+   "persona": "groan-worthy pun about the scene",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "ttv_beetle"
+  }
+ },
+ {
+  "t": "2026-10-28T03:23:04.543Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:23:05.060Z",
+  "kind": "chat",
+  "text": "Green theme + .",
+  "ctx": {
+   "scene": "A green background with a large white letter D and some numbers at the top left corner.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "black background white square",
+    "lilZ",
+    "A black background with a white square in the center",
+    "Dreaming big!",
+    "aGEEEEcN (eyes glazed) aD..."
+   ],
+   "persona": "over-invested — narrate what is happening like it is a huge deal",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "ttv_gremlin42"
+  }
+ },
+ {
+  "t": "2026-10-28T03:23:07.482Z",
+  "kind": "chat",
+  "text": "greendlettering",
+  "ctx": {
+   "scene": "A green background with a large white letter D and some numbers at the top left corner.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "black background white square",
+    "lilZ",
+    "A black background with a white square in the center",
+    "Dreaming big!",
+    "aGEEEEcN (eyes glazed) aD...",
+    "Green theme + ."
+   ],
+   "persona": "suspicious — claim the whole thing looks staged",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "imbeetle01"
+  }
+ },
+ {
+  "t": "2026-10-28T03:23:07.593Z",
+  "kind": "caption",
+  "text": "A green square with a curved shape and a number 0 at the top left corner."
+ },
+ {
+  "t": "2026-10-28T03:23:09.504Z",
+  "kind": "chat",
+  "text": "green square with curved shape and number 0",
+  "ctx": {
+   "scene": "A green square with a curved shape and a number 0 at the top left corner.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "lilZ",
+    "A black background with a white square in the center",
+    "Dreaming big!",
+    "aGEEEEcN (eyes glazed) aD...",
+    "Green theme + .",
+    "greendlettering"
+   ],
+   "persona": "curious again — ask a follow-up question about the streamer or the room",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "bigwispx"
+  }
+ },
+ {
+  "t": "2026-10-28T03:23:12.330Z",
+  "kind": "chat",
+  "text": "Cannot identify anything in the screen",
+  "ctx": {
+   "scene": "A green square with a curved shape and a number 0 at the top left corner.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "A black background with a white square in the center",
+    "Dreaming big!",
+    "aGEEEEcN (eyes glazed) aD...",
+    "Green theme + .",
+    "greendlettering",
+    "green square with curved shape and number 0"
+   ],
+   "persona": "curious — ask the streamer one short question about what you see",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "mothx"
+  }
+ },
+ {
+  "t": "2026-10-28T03:23:13.994Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:23:15.317Z",
+  "kind": "chat",
+  "text": "green square with curve",
+  "ctx": {
+   "scene": "A green square with a curved shape and a number 0 at the top left corner.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "Dreaming big!",
+    "aGEEEEcN (eyes glazed) aD...",
+    "Green theme + .",
+    "greendlettering",
+    "green square with curved shape and number 0",
+    "Cannot identify anything in the screen"
+   ],
+   "persona": "totally hyped — short excited burst, caps allowed",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "bigwispx"
+  }
+ },
+ {
+  "t": "2026-10-28T03:23:16.418Z",
+  "kind": "caption",
+  "text": "A green background with a large white letter D and some numbers at the top."
+ },
+ {
+  "t": "2026-10-28T03:23:17.613Z",
+  "kind": "chat",
+  "text": "A D with numbers at top",
+  "ctx": {
+   "scene": "A green background with a large white letter D and some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "aGEEEEcN (eyes glazed) aD...",
+    "Green theme + .",
+    "greendlettering",
+    "green square with curved shape and number 0",
+    "Cannot identify anything in the screen",
+    "green square with curve"
+   ],
+   "persona": "confused — ask one short question about something on screen",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "lilbeetle"
+  }
+ },
+ {
+  "t": "2026-10-28T03:23:20.303Z",
+  "kind": "chat",
+  "text": "white letter d 2s numbers in green",
+  "ctx": {
+   "scene": "A green background with a large white letter D and some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "Green theme + .",
+    "greendlettering",
+    "green square with curved shape and number 0",
+    "Cannot identify anything in the screen",
+    "green square with curve",
+    "A D with numbers at top"
+   ],
+   "persona": "a regular — treat something on screen like a running joke",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "noodle"
+  }
+ },
+ {
+  "t": "2026-10-28T03:23:23.107Z",
+  "kind": "chat",
+  "text": "Green background. D in center. Numbers on top. Static game.",
+  "ctx": {
+   "scene": "A green background with a large white letter D and some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "greendlettering",
+    "green square with curved shape and number 0",
+    "Cannot identify anything in the screen",
+    "green square with curve",
+    "A D with numbers at top",
+    "white letter d 2s numbers in green"
+   ],
+   "persona": "backseat gaming — tell the streamer what to do next, unprompted",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "mothx"
+  }
+ },
+ {
+  "t": "2026-10-28T03:23:23.215Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:23:25.920Z",
+  "kind": "caption",
+  "text": "A green background with a half-circle shape and some numbers at the top."
+ },
+ {
+  "t": "2026-10-28T03:23:25.966Z",
+  "kind": "chat",
+  "text": "D sx n c b w",
+  "ctx": {
+   "scene": "A green background with a large white letter D and some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green square with curved shape and number 0",
+    "Cannot identify anything in the screen",
+    "green square with curve",
+    "A D with numbers at top",
+    "white letter d 2s numbers in green",
+    "Green background. D in center. Numbers on top. Static game."
+   ],
+   "persona": "groan-worthy pun about the scene",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "imsock_live"
+  }
+ },
+ {
+  "t": "2026-10-28T03:23:27.983Z",
+  "kind": "chat",
+  "text": "green background with half circle and numbers",
+  "ctx": {
+   "scene": "A green background with a half-circle shape and some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "Cannot identify anything in the screen",
+    "green square with curve",
+    "A D with numbers at top",
+    "white letter d 2s numbers in green",
+    "Green background. D in center. Numbers on top. Static game.",
+    "D sx n c b w"
+   ],
+   "persona": "over-invested — narrate what is happening like it is a huge deal",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "ttv_blitz_live"
+  }
+ },
+ {
+  "t": "2026-10-28T03:23:32.558Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:23:34.477Z",
+  "kind": "caption",
+  "text": "A green background with a half-circle shape and some numbers at the top left and bottom right corners."
+ },
+ {
+  "t": "2026-10-28T03:23:36.249Z",
+  "kind": "chat",
+  "text": "I see an empty space at the top left corner. Is it part of the green circle or separate?",
+  "ctx": {
+   "scene": "A green background with a half-circle shape and some numbers at the top left and bottom right corners.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green square with curve",
+    "A D with numbers at top",
+    "white letter d 2s numbers in green",
+    "Green background. D in center. Numbers on top. Static game.",
+    "D sx n c b w",
+    "green background with half circle and numbers"
+   ],
+   "persona": "curious — ask the streamer one short question about what you see",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "mothx"
+  }
+ },
+ {
+  "t": "2026-10-28T03:23:38.409Z",
+  "kind": "chat",
+  "text": "green backdrop with halved circle & numbers",
+  "ctx": {
+   "scene": "A green background with a half-circle shape and some numbers at the top left and bottom right corners.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "A D with numbers at top",
+    "white letter d 2s numbers in green",
+    "Green background. D in center. Numbers on top. Static game.",
+    "D sx n c b w",
+    "green background with half circle and numbers",
+    "I see an empty space at the top left corner. Is it part of the green circle or separate?"
+   ],
+   "persona": "totally hyped — short excited burst, caps allowed",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "notferret2000"
+  }
+ },
+ {
+  "t": "2026-10-28T03:23:41.066Z",
+  "kind": "chat",
+  "text": "green circle with numbers",
+  "ctx": {
+   "scene": "A green background with a half-circle shape and some numbers at the top left and bottom right corners.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "white letter d 2s numbers in green",
+    "Green background. D in center. Numbers on top. Static game.",
+    "D sx n c b w",
+    "green background with half circle and numbers",
+    "I see an empty space at the top left corner. Is it part of the green circle or separate?",
+    "green backdrop with halved circle & numbers"
+   ],
+   "persona": "confused — ask one short question about something on screen",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "cactustv"
+  }
+ },
+ {
+  "t": "2026-10-28T03:23:42.055Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:23:43.486Z",
+  "kind": "caption",
+  "text": "A green background with a large white letter D and two small green squares at the top left and right corners."
+ },
+ {
+  "t": "2026-10-28T03:23:44.073Z",
+  "kind": "chat",
+  "text": "green wall with d and squares",
+  "ctx": {
+   "scene": "A green background with a large white letter D and two small green squares at the top left and right corners.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "Green background. D in center. Numbers on top. Static game.",
+    "D sx n c b w",
+    "green background with half circle and numbers",
+    "I see an empty space at the top left corner. Is it part of the green circle or separate?",
+    "green backdrop with halved circle & numbers",
+    "green circle with numbers"
+   ],
+   "persona": "a regular — treat something on screen like a running joke",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "wisp99"
+  }
+ },
+ {
+  "t": "2026-10-28T03:23:46.307Z",
+  "kind": "chat",
+  "text": "green background with white letter D and two green squares",
+  "ctx": {
+   "scene": "A green background with a large white letter D and two small green squares at the top left and right corners.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "D sx n c b w",
+    "green background with half circle and numbers",
+    "I see an empty space at the top left corner. Is it part of the green circle or separate?",
+    "green backdrop with halved circle & numbers",
+    "green circle with numbers",
+    "green wall with d and squares"
+   ],
+   "persona": "backseat gaming — tell the streamer what to do next, unprompted",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "imbeetle01"
+  }
+ },
+ {
+  "t": "2026-10-28T03:23:48.305Z",
+  "kind": "chat",
+  "text": "Green D & green squares on wall",
+  "ctx": {
+   "scene": "A green background with a large white letter D and two small green squares at the top left and right corners.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green background with half circle and numbers",
+    "I see an empty space at the top left corner. Is it part of the green circle or separate?",
+    "green backdrop with halved circle & numbers",
+    "green circle with numbers",
+    "green wall with d and squares",
+    "green background with white letter D and two green squares"
+   ],
+   "persona": "groan-worthy pun about the scene",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "thecactus"
+  }
+ },
+ {
+  "t": "2026-10-28T03:23:51.372Z",
+  "kind": "chat",
+  "text": "green d at top left & right corners all green clicked",
+  "ctx": {
+   "scene": "A green background with a large white letter D and two small green squares at the top left and right corners.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "I see an empty space at the top left corner. Is it part of the green circle or separate?",
+    "green backdrop with halved circle & numbers",
+    "green circle with numbers",
+    "green wall with d and squares",
+    "green background with white letter D and two green squares",
+    "Green D & green squares on wall"
+   ],
+   "persona": "over-invested — narrate what is happening like it is a huge deal",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "itsmoth"
+  }
+ },
+ {
+  "t": "2026-10-28T03:23:51.502Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:23:52.521Z",
+  "kind": "caption",
+  "text": "A green square with a half-circle shape in the center and some numbers at the top left and bottom right corners."
+ },
+ {
+  "t": "2026-10-28T03:23:53.976Z",
+  "kind": "chat",
+  "text": "green square with half-circle shape near top left & bottom right corner",
+  "ctx": {
+   "scene": "A green square with a half-circle shape in the center and some numbers at the top left and bottom right corners.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green backdrop with halved circle & numbers",
+    "green circle with numbers",
+    "green wall with d and squares",
+    "green background with white letter D and two green squares",
+    "Green D & green squares on wall",
+    "green d at top left & right corners all green clicked"
+   ],
+   "persona": "suspicious — claim the whole thing looks staged",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "ttv_blitz_live"
+  }
+ },
+ {
+  "t": "2026-10-28T03:23:56.175Z",
+  "kind": "chat",
+  "text": "green square with half-circle in center and numbers",
+  "ctx": {
+   "scene": "A green square with a half-circle shape in the center and some numbers at the top left and bottom right corners.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green circle with numbers",
+    "green wall with d and squares",
+    "green background with white letter D and two green squares",
+    "Green D & green squares on wall",
+    "green d at top left & right corners all green clicked",
+    "green square with half-circle shape near top left & bottom right corner"
+   ],
+   "persona": "curious again — ask a follow-up question about the streamer or the room",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "imtoasterx"
+  }
+ },
+ {
+  "t": "2026-10-28T03:23:59.185Z",
+  "kind": "chat",
+  "text": "the green square is a half-circle shape with some numbers at the top left and bottom right corners",
+  "ctx": {
+   "scene": "A green square with a half-circle shape in the center and some numbers at the top left and bottom right corners.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green wall with d and squares",
+    "green background with white letter D and two green squares",
+    "Green D & green squares on wall",
+    "green d at top left & right corners all green clicked",
+    "green square with half-circle shape near top left & bottom right corner",
+    "green square with half-circle in center and numbers"
+   ],
+   "persona": "curious — ask the streamer one short question about what you see",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "imwaffletv"
+  }
+ },
+ {
+  "t": "2026-10-28T03:24:00.750Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:24:01.594Z",
+  "kind": "chat",
+  "text": "hyped",
+  "ctx": {
+   "scene": "A green square with a half-circle shape in the center and some numbers at the top left and bottom right corners.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green background with white letter D and two green squares",
+    "Green D & green squares on wall",
+    "green d at top left & right corners all green clicked",
+    "green square with half-circle shape near top left & bottom right corner",
+    "green square with half-circle in center and numbers",
+    "the green square is a half-circle shape with some numbers at the top left and bottom right corners"
+   ],
+   "persona": "totally hyped — short excited burst, caps allowed",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "thecactus"
+  }
+ },
+ {
+  "t": "2026-10-28T03:24:01.694Z",
+  "kind": "caption",
+  "text": "A green background with a large white letter D and some numbers at the top."
+ },
+ {
+  "t": "2026-10-28T03:24:04.261Z",
+  "kind": "chat",
+  "text": "D",
+  "ctx": {
+   "scene": "A green background with a large white letter D and some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "Green D & green squares on wall",
+    "green d at top left & right corners all green clicked",
+    "green square with half-circle shape near top left & bottom right corner",
+    "green square with half-circle in center and numbers",
+    "the green square is a half-circle shape with some numbers at the top left and bottom right corners",
+    "hyped"
+   ],
+   "persona": "confused — ask one short question about something on screen",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "xmoth"
+  }
+ },
+ {
+  "t": "2026-10-28T03:24:06.577Z",
+  "kind": "chat",
+  "text": "Dude, lol, that blue thing looks weird. maybe it's an error?",
+  "ctx": {
+   "scene": "A green background with a large white letter D and some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green d at top left & right corners all green clicked",
+    "green square with half-circle shape near top left & bottom right corner",
+    "green square with half-circle in center and numbers",
+    "the green square is a half-circle shape with some numbers at the top left and bottom right corners",
+    "hyped",
+    "D"
+   ],
+   "persona": "a regular — treat something on screen like a running joke",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "thecactus"
+  }
+ },
+ {
+  "t": "2026-10-28T03:24:09.316Z",
+  "kind": "chat",
+  "text": "Go for the D!",
+  "ctx": {
+   "scene": "A green background with a large white letter D and some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green square with half-circle shape near top left & bottom right corner",
+    "green square with half-circle in center and numbers",
+    "the green square is a half-circle shape with some numbers at the top left and bottom right corners",
+    "hyped",
+    "D",
+    "Dude, lol, that blue thing looks weird. maybe it's an error?"
+   ],
+   "persona": "backseat gaming — tell the streamer what to do next, unprompted",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "mothx"
+  }
+ },
+ {
+  "t": "2026-10-28T03:24:10.064Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:24:10.480Z",
+  "kind": "caption",
+  "text": "A green background with a half-circle shape and some numbers at the top."
+ },
+ {
+  "t": "2026-10-28T03:24:11.215Z",
+  "kind": "chat",
+  "text": "green circle with numbers",
+  "ctx": {
+   "scene": "A green background with a half-circle shape and some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green square with half-circle in center and numbers",
+    "the green square is a half-circle shape with some numbers at the top left and bottom right corners",
+    "hyped",
+    "D",
+    "Dude, lol, that blue thing looks weird. maybe it's an error?",
+    "Go for the D!"
+   ],
+   "persona": "groan-worthy pun about the scene",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "lilbeetle"
+  }
+ },
+ {
+  "t": "2026-10-28T03:24:14.337Z",
+  "kind": "chat",
+  "text": "bubblegum green wall with a half-circle shape and math numbers",
+  "ctx": {
+   "scene": "A green background with a half-circle shape and some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "the green square is a half-circle shape with some numbers at the top left and bottom right corners",
+    "hyped",
+    "D",
+    "Dude, lol, that blue thing looks weird. maybe it's an error?",
+    "Go for the D!",
+    "green circle with numbers"
+   ],
+   "persona": "over-invested — narrate what is happening like it is a huge deal",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "notwaffle"
+  }
+ },
+ {
+  "t": "2026-10-28T03:24:16.654Z",
+  "kind": "chat",
+  "text": "green halo with numbers",
+  "ctx": {
+   "scene": "A green background with a half-circle shape and some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "hyped",
+    "D",
+    "Dude, lol, that blue thing looks weird. maybe it's an error?",
+    "Go for the D!",
+    "green circle with numbers",
+    "bubblegum green wall with a half-circle shape and math numbers"
+   ],
+   "persona": "suspicious — claim the whole thing looks staged",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "itsnewt_live"
+  }
+ },
+ {
+  "t": "2026-10-28T03:24:18.901Z",
+  "kind": "chat",
+  "text": "green background with half-circle shape and numbers",
+  "ctx": {
+   "scene": "A green background with a half-circle shape and some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "D",
+    "Dude, lol, that blue thing looks weird. maybe it's an error?",
+    "Go for the D!",
+    "green circle with numbers",
+    "bubblegum green wall with a half-circle shape and math numbers",
+    "green halo with numbers"
+   ],
+   "persona": "curious again — ask a follow-up question about the streamer or the room",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "imbeetle01"
+  }
+ },
+ {
+  "t": "2026-10-28T03:24:19.467Z",
+  "kind": "caption",
+  "text": "A green background with a white shape and some numbers at the top."
+ },
+ {
+  "t": "2026-10-28T03:24:19.534Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:24:21.377Z",
+  "kind": "chat",
+  "text": "wow... this looks like an image or something",
+  "ctx": {
+   "scene": "A green background with a white shape and some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "Dude, lol, that blue thing looks weird. maybe it's an error?",
+    "Go for the D!",
+    "green circle with numbers",
+    "bubblegum green wall with a half-circle shape and math numbers",
+    "green halo with numbers",
+    "green background with half-circle shape and numbers"
+   ],
+   "persona": "curious — ask the streamer one short question about what you see",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "gremlin"
+  }
+ },
+ {
+  "t": "2026-10-28T03:24:23.456Z",
+  "kind": "chat",
+  "text": "white shape with numbers @1 2 3",
+  "ctx": {
+   "scene": "A green background with a white shape and some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "Go for the D!",
+    "green circle with numbers",
+    "bubblegum green wall with a half-circle shape and math numbers",
+    "green halo with numbers",
+    "green background with half-circle shape and numbers",
+    "wow... this looks like an image or something"
+   ],
+   "persona": "totally hyped — short excited burst, caps allowed",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "noodle"
+  }
+ },
+ {
+  "t": "2026-10-28T03:24:25.971Z",
+  "kind": "chat",
+  "text": "green logo with 1 number",
+  "ctx": {
+   "scene": "A green background with a white shape and some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green circle with numbers",
+    "bubblegum green wall with a half-circle shape and math numbers",
+    "green halo with numbers",
+    "green background with half-circle shape and numbers",
+    "wow... this looks like an image or something",
+    "white shape with numbers @1 2 3"
+   ],
+   "persona": "confused — ask one short question about something on screen",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "wisp99"
+  }
+ },
+ {
+  "t": "2026-10-28T03:24:28.721Z",
+  "kind": "caption",
+  "text": "A green background with a semi-circle shape and some numbers at the top."
+ },
+ {
+  "t": "2026-10-28T03:24:28.818Z",
+  "kind": "chat",
+  "text": "green background with white shape & numbers",
+  "ctx": {
+   "scene": "A green background with a white shape and some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "bubblegum green wall with a half-circle shape and math numbers",
+    "green halo with numbers",
+    "green background with half-circle shape and numbers",
+    "wow... this looks like an image or something",
+    "white shape with numbers @1 2 3",
+    "green logo with 1 number"
+   ],
+   "persona": "a regular — treat something on screen like a running joke",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "imrattv"
+  }
+ },
+ {
+  "t": "2026-10-28T03:24:28.999Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:24:33.593Z",
+  "kind": "chat",
+  "text": "green background! pawls",
+  "ctx": {
+   "scene": "A green background with a semi-circle shape and some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green halo with numbers",
+    "green background with half-circle shape and numbers",
+    "wow... this looks like an image or something",
+    "white shape with numbers @1 2 3",
+    "green logo with 1 number",
+    "green background with white shape & numbers"
+   ],
+   "persona": "groan-worthy pun about the scene",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "pixel2000"
+  }
+ },
+ {
+  "t": "2026-10-28T03:24:36.219Z",
+  "kind": "chat",
+  "text": "Green background + semi-circle with numbers",
+  "ctx": {
+   "scene": "A green background with a semi-circle shape and some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green background with half-circle shape and numbers",
+    "wow... this looks like an image or something",
+    "white shape with numbers @1 2 3",
+    "green logo with 1 number",
+    "green background with white shape & numbers",
+    "green background! pawls"
+   ],
+   "persona": "over-invested — narrate what is happening like it is a huge deal",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "thecactus"
+  }
+ },
+ {
+  "t": "2026-10-28T03:24:37.604Z",
+  "kind": "caption",
+  "text": "A green square with a half-moon shape in the center and some numbers at the top left and bottom right corners."
+ },
+ {
+  "t": "2026-10-28T03:24:38.252Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:24:38.612Z",
+  "kind": "chat",
+  "text": "EZ",
+  "ctx": {
+   "scene": "A green square with a half-moon shape in the center and some numbers at the top left and bottom right corners.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "wow... this looks like an image or something",
+    "white shape with numbers @1 2 3",
+    "green logo with 1 number",
+    "green background with white shape & numbers",
+    "green background! pawls",
+    "Green background + semi-circle with numbers"
+   ],
+   "persona": "suspicious — claim the whole thing looks staged",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "lilbeetle"
+  }
+ },
+ {
+  "t": "2026-10-28T03:24:41.380Z",
+  "kind": "chat",
+  "text": "green square w/ half-moon & numbers",
+  "ctx": {
+   "scene": "A green square with a half-moon shape in the center and some numbers at the top left and bottom right corners.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "white shape with numbers @1 2 3",
+    "green logo with 1 number",
+    "green background with white shape & numbers",
+    "green background! pawls",
+    "Green background + semi-circle with numbers",
+    "EZ"
+   ],
+   "persona": "curious again — ask a follow-up question about the streamer or the room",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "xmoth"
+  }
+ },
+ {
+  "t": "2026-10-28T03:24:44.153Z",
+  "kind": "chat",
+  "text": "green square with half-moon in bottom right corner",
+  "ctx": {
+   "scene": "A green square with a half-moon shape in the center and some numbers at the top left and bottom right corners.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green logo with 1 number",
+    "green background with white shape & numbers",
+    "green background! pawls",
+    "Green background + semi-circle with numbers",
+    "EZ",
+    "green square w/ half-moon & numbers"
+   ],
+   "persona": "curious — ask the streamer one short question about what you see",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "notwaffle"
+  }
+ },
+ {
+  "t": "2026-10-28T03:24:46.104Z",
+  "kind": "chat",
+  "text": "green square with half-moon & numbers",
+  "ctx": {
+   "scene": "A green square with a half-moon shape in the center and some numbers at the top left and bottom right corners.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green background with white shape & numbers",
+    "green background! pawls",
+    "Green background + semi-circle with numbers",
+    "EZ",
+    "green square w/ half-moon & numbers",
+    "green square with half-moon in bottom right corner"
+   ],
+   "persona": "totally hyped — short excited burst, caps allowed",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "lilghost42"
+  }
+ },
+ {
+  "t": "2026-10-28T03:24:46.503Z",
+  "kind": "caption",
+  "text": "A green background with a semi-circle shape and some numbers at the top."
+ },
+ {
+  "t": "2026-10-28T03:24:47.436Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:24:53.194Z",
+  "kind": "chat",
+  "text": "Green screen on game",
+  "ctx": {
+   "scene": "A green background with a semi-circle shape and some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green background! pawls",
+    "Green background + semi-circle with numbers",
+    "EZ",
+    "green square w/ half-moon & numbers",
+    "green square with half-moon in bottom right corner",
+    "green square with half-moon & numbers"
+   ],
+   "persona": "backseat gaming — tell the streamer what to do next, unprompted",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "imbeetle01"
+  }
+ },
+ {
+  "t": "2026-10-28T03:24:56.083Z",
+  "kind": "caption",
+  "text": "A green background with a half-circle shape and some numbers at the top."
+ },
+ {
+  "t": "2026-10-28T03:24:57.039Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:24:58.642Z",
+  "kind": "chat",
+  "text": "A green background w/ half-circle & numbers snapped mid-stream",
+  "ctx": {
+   "scene": "A green background with a half-circle shape and some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "Green background + semi-circle with numbers",
+    "EZ",
+    "green square w/ half-moon & numbers",
+    "green square with half-moon in bottom right corner",
+    "green square with half-moon & numbers",
+    "Green screen on game"
+   ],
+   "persona": "over-invested — narrate what is happening like it is a huge deal",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "ttv_waffle"
+  }
+ },
+ {
+  "t": "2026-10-28T03:25:01.230Z",
+  "kind": "chat",
+  "text": "green background, half circle, numbers at top",
+  "ctx": {
+   "scene": "A green background with a half-circle shape and some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "EZ",
+    "green square w/ half-moon & numbers",
+    "green square with half-moon in bottom right corner",
+    "green square with half-moon & numbers",
+    "Green screen on game",
+    "A green background w/ half-circle & numbers snapped mid-stream"
+   ],
+   "persona": "suspicious — claim the whole thing looks staged",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "ttv_lemurx"
+  }
+ },
+ {
+  "t": "2026-10-28T03:25:03.225Z",
+  "kind": "chat",
+  "text": "green background with half-circle shape and numbers",
+  "ctx": {
+   "scene": "A green background with a half-circle shape and some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green square w/ half-moon & numbers",
+    "green square with half-moon in bottom right corner",
+    "green square with half-moon & numbers",
+    "Green screen on game",
+    "A green background w/ half-circle & numbers snapped mid-stream",
+    "green background, half circle, numbers at top"
+   ],
+   "persona": "curious again — ask a follow-up question about the streamer or the room",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "itsnewt_live"
+  }
+ },
+ {
+  "t": "2026-10-28T03:25:04.552Z",
+  "kind": "caption",
+  "text": "A green triangle is on a green background with some numbers at the top."
+ },
+ {
+  "t": "2026-10-28T03:25:05.567Z",
+  "kind": "chat",
+  "text": "green triangle on green background with numbers at top",
+  "ctx": {
+   "scene": "A green triangle is on a green background with some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green square with half-moon in bottom right corner",
+    "green square with half-moon & numbers",
+    "Green screen on game",
+    "A green background w/ half-circle & numbers snapped mid-stream",
+    "green background, half circle, numbers at top",
+    "green background with half-circle shape and numbers"
+   ],
+   "persona": "curious — ask the streamer one short question about what you see",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "mothx"
+  }
+ },
+ {
+  "t": "2026-10-28T03:25:06.529Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:25:08.012Z",
+  "kind": "chat",
+  "text": "glorygreenat3withnumbershitted",
+  "ctx": {
+   "scene": "A green triangle is on a green background with some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green square with half-moon & numbers",
+    "Green screen on game",
+    "A green background w/ half-circle & numbers snapped mid-stream",
+    "green background, half circle, numbers at top",
+    "green background with half-circle shape and numbers",
+    "green triangle on green background with numbers at top"
+   ],
+   "persona": "totally hyped — short excited burst, caps allowed",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "notferret2000"
+  }
+ },
+ {
+  "t": "2026-10-28T03:25:10.818Z",
+  "kind": "chat",
+  "text": "green triangle + green background = white number?",
+  "ctx": {
+   "scene": "A green triangle is on a green background with some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "Green screen on game",
+    "A green background w/ half-circle & numbers snapped mid-stream",
+    "green background, half circle, numbers at top",
+    "green background with half-circle shape and numbers",
+    "green triangle on green background with numbers at top",
+    "glorygreenat3withnumbershitted"
+   ],
+   "persona": "confused — ask one short question about something on screen",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "squid"
+  }
+ },
+ {
+  "t": "2026-10-28T03:25:13.547Z",
+  "kind": "caption",
+  "text": "A green triangle is on a dark green background with some numbers at the top."
+ },
+ {
+  "t": "2026-10-28T03:25:15.221Z",
+  "kind": "chat",
+  "text": "give it a shot",
+  "ctx": {
+   "scene": "A green triangle is on a dark green background with some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "A green background w/ half-circle & numbers snapped mid-stream",
+    "green background, half circle, numbers at top",
+    "green background with half-circle shape and numbers",
+    "green triangle on green background with numbers at top",
+    "glorygreenat3withnumbershitted",
+    "green triangle + green background = white number?"
+   ],
+   "persona": "backseat gaming — tell the streamer what to do next, unprompted",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "ttv_blitz_live"
+  }
+ },
+ {
+  "t": "2026-10-28T03:25:15.764Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:25:17.474Z",
+  "kind": "chat",
+  "text": "green triangle on black background with numbers",
+  "ctx": {
+   "scene": "A green triangle is on a dark green background with some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green background, half circle, numbers at top",
+    "green background with half-circle shape and numbers",
+    "green triangle on green background with numbers at top",
+    "glorygreenat3withnumbershitted",
+    "green triangle + green background = white number?",
+    "give it a shot"
+   ],
+   "persona": "groan-worthy pun about the scene",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "ttv_gremlin"
+  }
+ },
+ {
+  "t": "2026-10-28T03:25:20.498Z",
+  "kind": "chat",
+  "text": "Ugh, this green triangle? No way! I'm over-invested and need more to buy. Heh",
+  "ctx": {
+   "scene": "A green triangle is on a dark green background with some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green background with half-circle shape and numbers",
+    "green triangle on green background with numbers at top",
+    "glorygreenat3withnumbershitted",
+    "green triangle + green background = white number?",
+    "give it a shot",
+    "green triangle on black background with numbers"
+   ],
+   "persona": "over-invested — narrate what is happening like it is a huge deal",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "imsock_live"
+  }
+ },
+ {
+  "t": "2026-10-28T03:25:22.517Z",
+  "kind": "caption",
+  "text": "A green triangle is on a dark green background."
+ },
+ {
+  "t": "2026-10-28T03:25:23.295Z",
+  "kind": "chat",
+  "text": "the green triangle is fake - it's just a color",
+  "ctx": {
+   "scene": "A green triangle is on a dark green background.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green triangle on green background with numbers at top",
+    "glorygreenat3withnumbershitted",
+    "green triangle + green background = white number?",
+    "give it a shot",
+    "green triangle on black background with numbers",
+    "Ugh, this green triangle? No way! I'm over-invested and need more to buy. Heh"
+   ],
+   "persona": "suspicious — claim the whole thing looks staged",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "itsnewt_live"
+  }
+ },
+ {
+  "t": "2026-10-28T03:25:25.142Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:25:25.187Z",
+  "kind": "chat",
+  "text": "green triangle on dark green",
+  "ctx": {
+   "scene": "A green triangle is on a dark green background.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "glorygreenat3withnumbershitted",
+    "green triangle + green background = white number?",
+    "give it a shot",
+    "green triangle on black background with numbers",
+    "Ugh, this green triangle? No way! I'm over-invested and need more to buy. Heh",
+    "the green triangle is fake - it's just a color"
+   ],
+   "persona": "curious again — ask a follow-up question about the streamer or the room",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "imsock_live"
+  }
+ },
+ {
+  "t": "2026-10-28T03:25:29.534Z",
+  "kind": "chat",
+  "text": "bright",
+  "ctx": {
+   "scene": "A green triangle is on a dark green background.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green triangle + green background = white number?",
+    "give it a shot",
+    "green triangle on black background with numbers",
+    "Ugh, this green triangle? No way! I'm over-invested and need more to buy. Heh",
+    "the green triangle is fake - it's just a color",
+    "green triangle on dark green"
+   ],
+   "persona": "totally hyped — short excited burst, caps allowed",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "gremlin"
+  }
+ },
+ {
+  "t": "2026-10-28T03:25:31.561Z",
+  "kind": "caption",
+  "text": "A green triangle is on a green background with some numbers at the top."
+ },
+ {
+  "t": "2026-10-28T03:25:32.368Z",
+  "kind": "chat",
+  "text": "are the numbers next to the triangle small?",
+  "ctx": {
+   "scene": "A green triangle is on a green background with some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "give it a shot",
+    "green triangle on black background with numbers",
+    "Ugh, this green triangle? No way! I'm over-invested and need more to buy. Heh",
+    "the green triangle is fake - it's just a color",
+    "green triangle on dark green",
+    "bright"
+   ],
+   "persona": "confused — ask one short question about something on screen",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "wisp99"
+  }
+ },
+ {
+  "t": "2026-10-28T03:25:34.375Z",
+  "kind": "chat",
+  "text": "green triangle on green background with numbers...running joke.",
+  "ctx": {
+   "scene": "A green triangle is on a green background with some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green triangle on black background with numbers",
+    "Ugh, this green triangle? No way! I'm over-invested and need more to buy. Heh",
+    "the green triangle is fake - it's just a color",
+    "green triangle on dark green",
+    "bright",
+    "are the numbers next to the triangle small?"
+   ],
+   "persona": "a regular — treat something on screen like a running joke",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "imwaffletv"
+  }
+ },
+ {
+  "t": "2026-10-28T03:25:34.544Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:25:39.658Z",
+  "kind": "chat",
+  "text": "green triangle on green with numbers",
+  "ctx": {
+   "scene": "A green triangle is on a green background with some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "Ugh, this green triangle? No way! I'm over-invested and need more to buy. Heh",
+    "the green triangle is fake - it's just a color",
+    "green triangle on dark green",
+    "bright",
+    "are the numbers next to the triangle small?",
+    "green triangle on green background with numbers...running joke."
+   ],
+   "persona": "groan-worthy pun about the scene",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "thecactus"
+  }
+ },
+ {
+  "t": "2026-10-28T03:25:40.576Z",
+  "kind": "caption",
+  "text": "A green triangle is on a green background with some numbers at the top."
+ },
+ {
+  "t": "2026-10-28T03:25:42.062Z",
+  "kind": "chat",
+  "text": "Green triangle on green background | Number at top",
+  "ctx": {
+   "scene": "A green triangle is on a green background with some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "the green triangle is fake - it's just a color",
+    "green triangle on dark green",
+    "bright",
+    "are the numbers next to the triangle small?",
+    "green triangle on green background with numbers...running joke.",
+    "green triangle on green with numbers"
+   ],
+   "persona": "over-invested — narrate what is happening like it is a huge deal",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "notwaffle"
+  }
+ },
+ {
+  "t": "2026-10-28T03:25:44.187Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:25:46.292Z",
+  "kind": "chat",
+  "text": "green triangle on green background",
+  "ctx": {
+   "scene": "A green triangle is on a green background with some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green triangle on dark green",
+    "bright",
+    "are the numbers next to the triangle small?",
+    "green triangle on green background with numbers...running joke.",
+    "green triangle on green with numbers",
+    "Green triangle on green background | Number at top"
+   ],
+   "persona": "curious again — ask a follow-up question about the streamer or the room",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "imtoasterx"
+  }
+ },
+ {
+  "t": "2026-10-28T03:25:49.656Z",
+  "kind": "caption",
+  "text": "A green triangle is on a green background with some numbers at the top."
+ },
+ {
+  "t": "2026-10-28T03:25:53.232Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:25:57.061Z",
+  "kind": "chat",
+  "text": "greentriangleongreen",
+  "ctx": {
+   "scene": "A green triangle is on a green background with some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "bright",
+    "are the numbers next to the triangle small?",
+    "green triangle on green background with numbers...running joke.",
+    "green triangle on green with numbers",
+    "Green triangle on green background | Number at top",
+    "green triangle on green background"
+   ],
+   "persona": "a regular — treat something on screen like a running joke",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "itsmoth"
+  }
+ },
+ {
+  "t": "2026-10-28T03:25:58.601Z",
+  "kind": "caption",
+  "text": "A green triangle is on a green background with some numbers at the top."
+ },
+ {
+  "t": "2026-10-28T03:25:59.312Z",
+  "kind": "chat",
+  "text": "noon",
+  "ctx": {
+   "scene": "A green triangle is on a green background with some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "are the numbers next to the triangle small?",
+    "green triangle on green background with numbers...running joke.",
+    "green triangle on green with numbers",
+    "Green triangle on green background | Number at top",
+    "green triangle on green background",
+    "greentriangleongreen"
+   ],
+   "persona": "backseat gaming — tell the streamer what to do next, unprompted",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "noodle"
+  }
+ },
+ {
+  "t": "2026-10-28T03:26:02.445Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:26:07.613Z",
+  "kind": "caption",
+  "text": "The image shows a green background with a small green triangle and some text at the top."
+ },
+ {
+  "t": "2026-10-28T03:26:09.372Z",
+  "kind": "chat",
+  "text": "green background | small green triangle | tease",
+  "ctx": {
+   "scene": "The image shows a green background with a small green triangle and some text at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green triangle on green background with numbers...running joke.",
+    "green triangle on green with numbers",
+    "Green triangle on green background | Number at top",
+    "green triangle on green background",
+    "greentriangleongreen",
+    "noon"
+   ],
+   "persona": "curious again — ask a follow-up question about the streamer or the room",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "notwaffle"
+  }
+ },
+ {
+  "t": "2026-10-28T03:26:12.058Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:26:12.093Z",
+  "kind": "chat",
+  "text": "green triangle at top is large",
+  "ctx": {
+   "scene": "The image shows a green background with a small green triangle and some text at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green triangle on green with numbers",
+    "Green triangle on green background | Number at top",
+    "green triangle on green background",
+    "greentriangleongreen",
+    "noon",
+    "green background | small green triangle | tease"
+   ],
+   "persona": "curious — ask the streamer one short question about what you see",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "itsnewt_live"
+  }
+ },
+ {
+  "t": "2026-10-28T03:26:14.626Z",
+  "kind": "chat",
+  "text": "thrilled",
+  "ctx": {
+   "scene": "The image shows a green background with a small green triangle and some text at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "Green triangle on green background | Number at top",
+    "green triangle on green background",
+    "greentriangleongreen",
+    "noon",
+    "green background | small green triangle | tease",
+    "green triangle at top is large"
+   ],
+   "persona": "totally hyped — short excited burst, caps allowed",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "mothx"
+  }
+ },
+ {
+  "t": "2026-10-28T03:26:16.620Z",
+  "kind": "caption",
+  "text": "A green triangle is on a green background with some numbers at the top."
+ },
+ {
+  "t": "2026-10-28T03:26:17.241Z",
+  "kind": "chat",
+  "text": "What is the number/letter associated with the green triangle?",
+  "ctx": {
+   "scene": "A green triangle is on a green background with some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green triangle on green background",
+    "greentriangleongreen",
+    "noon",
+    "green background | small green triangle | tease",
+    "green triangle at top is large",
+    "thrilled"
+   ],
+   "persona": "confused — ask one short question about something on screen",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "notferret2000"
+  }
+ },
+ {
+  "t": "2026-10-28T03:26:19.390Z",
+  "kind": "chat",
+  "text": "green triangle on green background in white",
+  "ctx": {
+   "scene": "A green triangle is on a green background with some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "greentriangleongreen",
+    "noon",
+    "green background | small green triangle | tease",
+    "green triangle at top is large",
+    "thrilled",
+    "What is the number/letter associated with the green triangle?"
+   ],
+   "persona": "a regular — treat something on screen like a running joke",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "cactustv"
+  }
+ },
+ {
+  "t": "2026-10-28T03:26:21.433Z",
+  "kind": "chat",
+  "text": "backseat gaming",
+  "ctx": {
+   "scene": "A green triangle is on a green background with some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "noon",
+    "green background | small green triangle | tease",
+    "green triangle at top is large",
+    "thrilled",
+    "What is the number/letter associated with the green triangle?",
+    "green triangle on green background in white"
+   ],
+   "persona": "backseat gaming — tell the streamer what to do next, unprompted",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "ttv_gremlin"
+  }
+ },
+ {
+  "t": "2026-10-28T03:26:21.511Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:26:24.298Z",
+  "kind": "chat",
+  "text": "green triangle on green with numbers",
+  "ctx": {
+   "scene": "A green triangle is on a green background with some numbers at the top.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green background | small green triangle | tease",
+    "green triangle at top is large",
+    "thrilled",
+    "What is the number/letter associated with the green triangle?",
+    "green triangle on green background in white",
+    "backseat gaming"
+   ],
+   "persona": "groan-worthy pun about the scene",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "moth7"
+  }
+ },
+ {
+  "t": "2026-10-28T03:26:25.917Z",
+  "kind": "caption",
+  "text": "A green triangle is on a green background with numbers at the top and bottom."
+ },
+ {
+  "t": "2026-10-28T03:26:26.903Z",
+  "kind": "chat",
+  "text": "green triangle | numbers | VIBE: OVER INVESTED",
+  "ctx": {
+   "scene": "A green triangle is on a green background with numbers at the top and bottom.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green triangle at top is large",
+    "thrilled",
+    "What is the number/letter associated with the green triangle?",
+    "green triangle on green background in white",
+    "backseat gaming",
+    "green triangle on green with numbers"
+   ],
+   "persona": "over-invested — narrate what is happening like it is a huge deal",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "notwaffle"
+  }
+ },
+ {
+  "t": "2026-10-28T03:26:29.285Z",
+  "kind": "chat",
+  "text": "\"a green triangle on a green background with numbers at the top and bottom looks staged",
+  "ctx": {
+   "scene": "A green triangle is on a green background with numbers at the top and bottom.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "thrilled",
+    "What is the number/letter associated with the green triangle?",
+    "green triangle on green background in white",
+    "backseat gaming",
+    "green triangle on green with numbers",
+    "green triangle | numbers | VIBE: OVER INVESTED"
+   ],
+   "persona": "suspicious — claim the whole thing looks staged",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "ttv_lemurx"
+  }
+ },
+ {
+  "t": "2026-10-28T03:26:31.002Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:26:32.051Z",
+  "kind": "chat",
+  "text": "green triangle on green background",
+  "ctx": {
+   "scene": "A green triangle is on a green background with numbers at the top and bottom.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "What is the number/letter associated with the green triangle?",
+    "green triangle on green background in white",
+    "backseat gaming",
+    "green triangle on green with numbers",
+    "green triangle | numbers | VIBE: OVER INVESTED",
+    "\"a green triangle on a green background with numbers at the top and bottom looks staged"
+   ],
+   "persona": "curious again — ask a follow-up question about the streamer or the room",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "xghost_irl"
+  }
+ },
+ {
+  "t": "2026-10-28T03:26:35.759Z",
+  "kind": "caption",
+  "text": "A green triangle is on a dark green background with numbers at the top left corner."
+ },
+ {
+  "t": "2026-10-28T03:26:35.939Z",
+  "kind": "caption",
+  "text": "A green background with a light green shape and some numbers."
+ },
+ {
+  "t": "2026-10-28T03:26:37.138Z",
+  "kind": "chat",
+  "text": "green background with light green shape and numbers",
+  "ctx": {
+   "scene": "A green background with a light green shape and some numbers.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green triangle on green background in white",
+    "backseat gaming",
+    "green triangle on green with numbers",
+    "green triangle | numbers | VIBE: OVER INVESTED",
+    "\"a green triangle on a green background with numbers at the top and bottom looks staged",
+    "green triangle on green background"
+   ],
+   "persona": "totally hyped — short excited burst, caps allowed",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "wisp99"
+  }
+ },
+ {
+  "t": "2026-10-28T03:26:38.954Z",
+  "kind": "chat",
+  "text": "lilZ",
+  "ctx": {
+   "scene": "A green background with a light green shape and some numbers.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "backseat gaming",
+    "green triangle on green with numbers",
+    "green triangle | numbers | VIBE: OVER INVESTED",
+    "\"a green triangle on a green background with numbers at the top and bottom looks staged",
+    "green triangle on green background",
+    "green background with light green shape and numbers"
+   ],
+   "persona": "confused — ask one short question about something on screen",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "noodle"
+  }
+ },
+ {
+  "t": "2026-10-28T03:26:40.212Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:26:41.097Z",
+  "kind": "chat",
+  "text": "a green backdrop with a light green shape and numbers",
+  "ctx": {
+   "scene": "A green background with a light green shape and some numbers.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green triangle on green with numbers",
+    "green triangle | numbers | VIBE: OVER INVESTED",
+    "\"a green triangle on a green background with numbers at the top and bottom looks staged",
+    "green triangle on green background",
+    "green background with light green shape and numbers",
+    "lilZ"
+   ],
+   "persona": "a regular — treat something on screen like a running joke",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "waffle7"
+  }
+ },
+ {
+  "t": "2026-10-28T03:26:44.642Z",
+  "kind": "caption",
+  "text": "A green logo with a leaf shape and numbers on it."
+ },
+ {
+  "t": "2026-10-28T03:26:45.989Z",
+  "kind": "chat",
+  "text": "green logo w/ leaf & math",
+  "ctx": {
+   "scene": "A green logo with a leaf shape and numbers on it.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green triangle | numbers | VIBE: OVER INVESTED",
+    "\"a green triangle on a green background with numbers at the top and bottom looks staged",
+    "green triangle on green background",
+    "green background with light green shape and numbers",
+    "lilZ",
+    "a green backdrop with a light green shape and numbers"
+   ],
+   "persona": "groan-worthy pun about the scene",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "pixel2000"
+  }
+ },
+ {
+  "t": "2026-10-28T03:26:47.804Z",
+  "kind": "chat",
+  "text": "green logo with leafy shape and numbers",
+  "ctx": {
+   "scene": "A green logo with a leaf shape and numbers on it.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "\"a green triangle on a green background with numbers at the top and bottom looks staged",
+    "green triangle on green background",
+    "green background with light green shape and numbers",
+    "lilZ",
+    "a green backdrop with a light green shape and numbers",
+    "green logo w/ leaf & math"
+   ],
+   "persona": "over-invested — narrate what is happening like it is a huge deal",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "xmoth"
+  }
+ },
+ {
+  "t": "2026-10-28T03:26:49.546Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:26:50.422Z",
+  "kind": "chat",
+  "text": "green leaf logo with numbers",
+  "ctx": {
+   "scene": "A green logo with a leaf shape and numbers on it.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green triangle on green background",
+    "green background with light green shape and numbers",
+    "lilZ",
+    "a green backdrop with a light green shape and numbers",
+    "green logo w/ leaf & math",
+    "green logo with leafy shape and numbers"
+   ],
+   "persona": "suspicious — claim the whole thing looks staged",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "imwaffletv"
+  }
+ },
+ {
+  "t": "2026-10-28T03:26:52.886Z",
+  "kind": "chat",
+  "text": "green logo with leaf shape and numbers on it",
+  "ctx": {
+   "scene": "A green logo with a leaf shape and numbers on it.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green background with light green shape and numbers",
+    "lilZ",
+    "a green backdrop with a light green shape and numbers",
+    "green logo w/ leaf & math",
+    "green logo with leafy shape and numbers",
+    "green leaf logo with numbers"
+   ],
+   "persona": "curious again — ask a follow-up question about the streamer or the room",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "xmoth"
+  }
+ },
+ {
+  "t": "2026-10-28T03:26:53.654Z",
+  "kind": "caption",
+  "text": "A green background with a light green shape and some numbers."
+ },
+ {
+  "t": "2026-10-28T03:26:55.265Z",
+  "kind": "chat",
+  "text": "green shape with numbers",
+  "ctx": {
+   "scene": "A green background with a light green shape and some numbers.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "lilZ",
+    "a green backdrop with a light green shape and numbers",
+    "green logo w/ leaf & math",
+    "green logo with leafy shape and numbers",
+    "green leaf logo with numbers",
+    "green logo with leaf shape and numbers on it"
+   ],
+   "persona": "curious — ask the streamer one short question about what you see",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "lilmoth99"
+  }
+ },
+ {
+  "t": "2026-10-28T03:26:57.568Z",
+  "kind": "chat",
+  "text": "awesome green thing! perfect for night streams.",
+  "ctx": {
+   "scene": "A green background with a light green shape and some numbers.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "a green backdrop with a light green shape and numbers",
+    "green logo w/ leaf & math",
+    "green logo with leafy shape and numbers",
+    "green leaf logo with numbers",
+    "green logo with leaf shape and numbers on it",
+    "green shape with numbers"
+   ],
+   "persona": "totally hyped — short excited burst, caps allowed",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "imbeetle01"
+  }
+ },
+ {
+  "t": "2026-10-28T03:26:59.025Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:27:00.467Z",
+  "kind": "chat",
+  "text": "what is this green shape on the green background?",
+  "ctx": {
+   "scene": "A green background with a light green shape and some numbers.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green logo w/ leaf & math",
+    "green logo with leafy shape and numbers",
+    "green leaf logo with numbers",
+    "green logo with leaf shape and numbers on it",
+    "green shape with numbers",
+    "awesome green thing! perfect for night streams."
+   ],
+   "persona": "confused — ask one short question about something on screen",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "xghost_irl"
+  }
+ },
+ {
+  "t": "2026-10-28T03:27:03.187Z",
+  "kind": "caption",
+  "text": "A green logo with a leaf shape and numbers on it."
+ },
+ {
+  "t": "2026-10-28T03:27:03.266Z",
+  "kind": "chat",
+  "text": "A green background with a light green shape and some numbers.",
+  "ctx": {
+   "scene": "A green background with a light green shape and some numbers.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green logo with leafy shape and numbers",
+    "green leaf logo with numbers",
+    "green logo with leaf shape and numbers on it",
+    "green shape with numbers",
+    "awesome green thing! perfect for night streams.",
+    "what is this green shape on the green background?"
+   ],
+   "persona": "a regular — treat something on screen like a running joke",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "thecactus"
+  }
+ },
+ {
+  "t": "2026-10-28T03:27:05.597Z",
+  "kind": "chat",
+  "text": "green logo with leaf & numbers on seat",
+  "ctx": {
+   "scene": "A green logo with a leaf shape and numbers on it.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green leaf logo with numbers",
+    "green logo with leaf shape and numbers on it",
+    "green shape with numbers",
+    "awesome green thing! perfect for night streams.",
+    "what is this green shape on the green background?",
+    "A green background with a light green shape and some numbers."
+   ],
+   "persona": "backseat gaming — tell the streamer what to do next, unprompted",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "ttv_blitz_live"
+  }
+ },
+ {
+  "t": "2026-10-28T03:27:08.425Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:27:08.554Z",
+  "kind": "chat",
+  "text": "green logo with leaf & numbers look like a glitchy green alien next to a random number",
+  "ctx": {
+   "scene": "A green logo with a leaf shape and numbers on it.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green logo with leaf shape and numbers on it",
+    "green shape with numbers",
+    "awesome green thing! perfect for night streams.",
+    "what is this green shape on the green background?",
+    "A green background with a light green shape and some numbers.",
+    "green logo with leaf & numbers on seat"
+   ],
+   "persona": "groan-worthy pun about the scene",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "itsmoth"
+  }
+ },
+ {
+  "t": "2026-10-28T03:27:10.884Z",
+  "kind": "chat",
+  "text": "A green leaf logo with numbers - huge deal!",
+  "ctx": {
+   "scene": "A green logo with a leaf shape and numbers on it.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green shape with numbers",
+    "awesome green thing! perfect for night streams.",
+    "what is this green shape on the green background?",
+    "A green background with a light green shape and some numbers.",
+    "green logo with leaf & numbers on seat",
+    "green logo with leaf & numbers look like a glitchy green alien next to a random number"
+   ],
+   "persona": "over-invested — narrate what is happening like it is a huge deal",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "lilmoth99"
+  }
+ },
+ {
+  "t": "2026-10-28T03:27:11.763Z",
+  "kind": "caption",
+  "text": "A green leaf icon on a dark green background with a timestamp in the top right corner."
+ },
+ {
+  "t": "2026-10-28T03:27:13.597Z",
+  "kind": "chat",
+  "text": "green leaf on dark green background with timestamp",
+  "ctx": {
+   "scene": "A green leaf icon on a dark green background with a timestamp in the top right corner.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "awesome green thing! perfect for night streams.",
+    "what is this green shape on the green background?",
+    "A green background with a light green shape and some numbers.",
+    "green logo with leaf & numbers on seat",
+    "green logo with leaf & numbers look like a glitchy green alien next to a random number",
+    "A green leaf logo with numbers - huge deal!"
+   ],
+   "persona": "suspicious — claim the whole thing looks staged",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "bigwispx"
+  }
+ },
+ {
+  "t": "2026-10-28T03:27:17.458Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:27:18.189Z",
+  "kind": "chat",
+  "text": "Green leaf on dark green with timest ame",
+  "ctx": {
+   "scene": "A green leaf icon on a dark green background with a timestamp in the top right corner.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "what is this green shape on the green background?",
+    "A green background with a light green shape and some numbers.",
+    "green logo with leaf & numbers on seat",
+    "green logo with leaf & numbers look like a glitchy green alien next to a random number",
+    "A green leaf logo with numbers - huge deal!",
+    "green leaf on dark green background with timestamp"
+   ],
+   "persona": "curious — ask the streamer one short question about what you see",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "cactustv"
+  }
+ },
+ {
+  "t": "2026-10-28T03:27:21.153Z",
+  "kind": "caption",
+  "text": "A green logo with a leaf shape and numbers on it."
+ },
+ {
+  "t": "2026-10-28T03:27:21.253Z",
+  "kind": "chat",
+  "text": "least of a twitch, we're all in this together!",
+  "ctx": {
+   "scene": "A green leaf icon on a dark green background with a timestamp in the top right corner.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "A green background with a light green shape and some numbers.",
+    "green logo with leaf & numbers on seat",
+    "green logo with leaf & numbers look like a glitchy green alien next to a random number",
+    "A green leaf logo with numbers - huge deal!",
+    "green leaf on dark green background with timestamp",
+    "Green leaf on dark green with timest ame"
+   ],
+   "persona": "totally hyped — short excited burst, caps allowed",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "imbeetle01"
+  }
+ },
+ {
+  "t": "2026-10-28T03:27:23.549Z",
+  "kind": "chat",
+  "text": "what is the logo?",
+  "ctx": {
+   "scene": "A green logo with a leaf shape and numbers on it.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green logo with leaf & numbers on seat",
+    "green logo with leaf & numbers look like a glitchy green alien next to a random number",
+    "A green leaf logo with numbers - huge deal!",
+    "green leaf on dark green background with timestamp",
+    "Green leaf on dark green with timest ame",
+    "least of a twitch, we're all in this together!"
+   ],
+   "persona": "confused — ask one short question about something on screen",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "lilmoth99"
+  }
+ },
+ {
+  "t": "2026-10-28T03:27:25.952Z",
+  "kind": "chat",
+  "text": "green leaf logo with numbers",
+  "ctx": {
+   "scene": "A green logo with a leaf shape and numbers on it.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green logo with leaf & numbers look like a glitchy green alien next to a random number",
+    "A green leaf logo with numbers - huge deal!",
+    "green leaf on dark green background with timestamp",
+    "Green leaf on dark green with timest ame",
+    "least of a twitch, we're all in this together!",
+    "what is the logo?"
+   ],
+   "persona": "a regular — treat something on screen like a running joke",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "xmoth"
+  }
+ },
+ {
+  "t": "2026-10-28T03:27:27.046Z",
+  "kind": "asr",
+  "text": ""
+ },
+ {
+  "t": "2026-10-28T03:27:28.136Z",
+  "kind": "chat",
+  "text": "green logo with leaf + number - quick spin or move!",
+  "ctx": {
+   "scene": "A green logo with a leaf shape and numbers on it.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "A green leaf logo with numbers - huge deal!",
+    "green leaf on dark green background with timestamp",
+    "Green leaf on dark green with timest ame",
+    "least of a twitch, we're all in this together!",
+    "what is the logo?",
+    "green leaf logo with numbers"
+   ],
+   "persona": "backseat gaming — tell the streamer what to do next, unprompted",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "ttv_gremlin"
+  }
+ },
+ {
+  "t": "2026-10-28T03:27:29.637Z",
+  "kind": "caption",
+  "text": "A green logo with a curved line and two small squares at each corner."
+ },
+ {
+  "t": "2026-10-28T03:27:30.402Z",
+  "kind": "chat",
+  "text": "green logo with curved line & squares",
+  "ctx": {
+   "scene": "A green logo with a curved line and two small squares at each corner.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "green leaf on dark green background with timestamp",
+    "Green leaf on dark green with timest ame",
+    "least of a twitch, we're all in this together!",
+    "what is the logo?",
+    "green leaf logo with numbers",
+    "green logo with leaf + number - quick spin or move!"
+   ],
+   "persona": "groan-worthy pun about the scene",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "itsnewt_live"
+  }
+ },
+ {
+  "t": "2026-10-28T03:27:33.377Z",
+  "kind": "chat",
+  "text": "stream just go forks for an epic fight. can't believe they took this seriously...",
+  "ctx": {
+   "scene": "A green logo with a curved line and two small squares at each corner.",
+   "speech": "",
+   "sceneChange": false,
+   "userMsg": "",
+   "recent": [
+    "Green leaf on dark green with timest ame",
+    "least of a twitch, we're all in this together!",
+    "what is the logo?",
+    "green leaf logo with numbers",
+    "green logo with leaf + number - quick spin or move!",
+    "green logo with curved line & squares"
+   ],
+   "persona": "over-invested — narrate what is happening like it is a huge deal",
+   "emotes": "EZ, NaM, LuL, cvR, cvL, ppL, xdx, TwaT, CruW, ariW, LilZ, ZliL, BORT, ffzW, ffzX, ffzY, Clap, GabeN, KKona, haHAA, SqShy, Wowee, WubTF, reckH, Gayge, AYAYA",
+   "viewer": "ttv_gremlin"
+  }
+ }
+]
