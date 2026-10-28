@@ -70,6 +70,23 @@ serve.sh              named static server (ps: twitch-sim-server) — needed onl
   (`docs/sample-chatlog-2026-10-27.json`).
 - Serving: localhost :8619 (named `twitch-sim-server`) + tailnet
   https://jordans-maxbook.tail38dbd0.ts.net/ via `tailscale serve --bg 8619`.
-- Open / next candidates: Funnel if Alaina is off-tailnet; LFM3-VL-2B multiframe
-  (native 2fps video) as a "true motion" upgrade; InterruptableStoppingCriteria
-  for stale caption jobs; per-viewer model personas (model writes the username).
+- 2026-10-27/28: SpasmTV rename (was LurkerTV). Settings panel: vision detail
+  (512/640/768), motion focus crop, varied viewer views, ASR model (tiny/base,
+  hot-swappable), per-machine latency readout. Mod card v2 (Twitch usercard
+  style, draggable, fake stats, warn + 1s/1w/custom timeouts + permanent ban).
+  Chat memory: ASR fact extraction → localStorage facts → chat context.
+  Deployed: github.com/Jordan-Milner/spasmtv → Pages (master, root, CNAME
+  spasm.milner.zone set via API). DNS CNAME = manual Jordan step (no CF creds
+  on the machine; ask logged).
+- **Processor constraints learned the hard way** (all verified via a live bisect
+  matrix): LFM2.5-VL processor has NO null-image mode and treats image arrays
+  as batch — every generate call must pass exactly one image whose
+  `<image>` template slot matches (else "tokens 0, features N"). NaFlex encoder
+  resizes any input to a fixed grid (256 features @512²) regardless of input
+  size. Text-only VLM chat = blank-image stand-in with its image slot.
+  Multi-frame before/after is NOT servable on either ONNX family today
+  (LFM3-VL-2B is video-native but transformers.js path is single-image);
+  varied single views (motion crop vs wide) is the shipped substitute.
+- Open / next candidates: Funnel if Alaina is off-tailnet; true multi-frame
+  serving (ORT webgpu graphs or a batch-capable export) for real motion memory;
+  InterruptableStoppingCriteria for stale caption jobs.
