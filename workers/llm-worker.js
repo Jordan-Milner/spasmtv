@@ -32,6 +32,17 @@ const VLM = {
     dtype: { vision_encoder: 'fp16', embed_tokens: 'fp16', decoder_model_merged: 'q4f16' },
     multiFrame: true, // LFM3-VL is video-native (2fps)
   },
+  // A/B candidates (select via the brain dropdown or ?brain=lfm3b|qwen)
+  lfm3b: {
+    id: 'LiquidAI/LFM2.5-VL-3B-ONNX',
+    dtype: { vision_encoder: 'fp16', embed_tokens: 'fp16', decoder_model_merged: 'q4' },
+    multiFrame: false,
+  },
+  qwen: {
+    id: 'onnx-community/Qwen3-VL-2B-Instruct-ONNX',
+    dtype: { vision_encoder: 'fp16', embed_tokens: 'fp16', decoder_model_merged: 'q4f16' },
+    multiFrame: false,
+  },
   // phone brain: even the 450M's lightest config (q4 encoder, ~675 MB) jetsams
   // iOS Safari at load — its 481 MB q4 decoder alone is held twice in RAM during
   // the GPU upload. SmolVLM-256M q4/q8 is ~180 MB of weights (peak ~400 MB) and
@@ -249,7 +260,7 @@ const clip = (s, n) => String(s).slice(0, n);
 
 const CHAT_PROMPT_PARTS = (kind, ctx, T = {}) => {
   const parts = [
-    'You are one viewer writing a single Twitch chat message: max 12 words, lowercase, no quotes, no hashtags, no emoji faces.',
+    `You are one viewer writing a single Twitch chat message: usually 1 to 5 words, never more than ${Math.min(T.maxWords || 12, 12)}, lowercase, no quotes, no hashtags, no emoji faces.`,
   ];
   if (VISUAL_KINDS.has(kind) && ctx.scene) parts.push(`On screen, roughly: ${reactionSeed(ctx.scene, T.seedWords || 3)}`);
   if (ctx.sceneChange && VISUAL_KINDS.has(kind)) parts.push('Something on screen just changed.');
@@ -337,7 +348,7 @@ async function onChat(m) {
     .filter((s) => !softGenderDamp(s, (T.genderDamp ?? 50) / 100));
 
   let lines = keep(toChatLines(await gen(false), T.maxWords || 14, true));
-  if (!lines.length) lines = keep(toChatLines(await gen(true), T.maxWords || 14));
+  if (!lines.length) lines = keep(toChatLines(await gen(true), T.maxWords || 14, true));
   workerRecent = [...workerRecent, ...lines].slice(-8);
   post({ type: 'chat', id: m.id, messages: lines, kind });
 }
@@ -360,7 +371,7 @@ const PROMPT_LEAK = /\b(react like a viewer|like a viewer who|max ?12 ?words|nev
 // the 450M answers "react to that" with meta about reacting: "no reaction",
 // "no response", "no viewership humming by screensucking". Real chat says
 // "no shot" / "no way" — those survive.
-const META_NEG = /^\s*no\s+(response|reaction|answer|reply|replay|description|real|words?|emotes?|questions?|viewership|chat)\b/i;
+const META_NEG = /^\s*no\s+(response|reaction|answer|reply|replay|description|real|words?|emotes?|questions?|viewership|chat)\b|\b(screenshot|screenshots|the image|this image|the picture|this picture|pixelated|reacting|reaction to)\b|…/i;
 
 // strict: a line over maxWords is DROPPED (real chat is short; a rambling line
 // trimmed to "…" reads as a broken sentence). The retry pass trims instead.

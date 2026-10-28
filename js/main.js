@@ -1254,6 +1254,10 @@ if (new URLSearchParams(location.search).has('autolive')) {
   // ?phone previews the mode on a desktop.
   const appleMobile = /iPad|iPhone|iPod/.test(navigator.userAgent)
     || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  {
+    const b = new URLSearchParams(location.search).get('brain');
+    if (b && [...els.modelSelect.options].some((o) => o.value === b)) els.modelSelect.value = b;
+  }
   state.phoneMode = appleMobile || new URLSearchParams(location.search).has('phone');
   if (state.phoneMode) {
     els.modelSelect.value = 'fast';

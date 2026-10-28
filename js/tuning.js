@@ -9,12 +9,12 @@ const KEY = 'spasmtv-tune';
 // on every chat request so llm-worker.js can use them.
 export const TUNE_SCHEMA = [
   { group: 'Brain sampling', open: true, items: [
-    { key: 'temperature', label: 'temperature', type: 'range', min: 0.3, max: 1.5, step: 0.05, def: 0.85, worker: true, help: 'higher = wilder, lower = safer/blander' },
+    { key: 'temperature', label: 'temperature', type: 'range', min: 0.3, max: 1.5, step: 0.05, def: 0.7, worker: true, help: 'higher = wilder, lower = safer/blander' },
     { key: 'topP', label: 'top-p', type: 'range', min: 0.5, max: 1, step: 0.01, def: 0.95, worker: true, help: 'Nucleus sampling: only the most likely tokens that add up to this probability are considered. Lower = more predictable.' },
-    { key: 'topK', label: 'top-k (0 = off)', type: 'range', min: 0, max: 100, step: 1, def: 0, worker: true, help: 'cuts the long tail of weird tokens' },
-    { key: 'repPenalty', label: 'repetition penalty', type: 'range', min: 1, max: 1.5, step: 0.01, def: 1.15, worker: true, help: 'too high makes a 450M model babble to avoid repeating itself' },
-    { key: 'maxNewTokens', label: 'max tokens / line', type: 'range', min: 8, max: 60, step: 1, def: 20, worker: true, help: 'Hard cap on tokens generated per chat line. Short caps cut rambling and speed up chat.' },
-    { key: 'maxWords', label: 'trim lines to N words', type: 'range', min: 4, max: 30, step: 1, def: 14, worker: true, help: 'Lines longer than this are trimmed with an ellipsis after generation.' },
+    { key: 'topK', label: 'top-k (0 = off)', type: 'range', min: 0, max: 100, step: 1, def: 40, worker: true, help: 'cuts the long tail of weird tokens' },
+    { key: 'repPenalty', label: 'repetition penalty', type: 'range', min: 1, max: 1.5, step: 0.01, def: 1.1, worker: true, help: 'too high makes a 450M model babble to avoid repeating itself' },
+    { key: 'maxNewTokens', label: 'max tokens / line', type: 'range', min: 8, max: 60, step: 1, def: 16, worker: true, help: 'Hard cap on tokens generated per chat line. Short caps cut rambling and speed up chat.' },
+    { key: 'maxWords', label: 'trim lines to N words', type: 'range', min: 4, max: 30, step: 1, def: 8, worker: true, help: 'Lines longer than this are trimmed with an ellipsis after generation.' },
   ]},
   { group: 'Prompt', open: true, items: [
     { key: 'seedWords', label: 'scene keywords given to the model', type: 'range', min: 1, max: 12, step: 1, def: 6, worker: true, help: 'was 3 — with so few the model has nothing to react to and goes generic' },
@@ -36,9 +36,9 @@ export const TUNE_SCHEMA = [
     { key: 'banModelChance', label: 'model line in ban reactions %', type: 'range', min: 0, max: 100, step: 5, def: 55, help: 'When someone is banned, the chance one of the reaction lines is written by the model instead of a template. Templates are instant and free.' },
   ]},
   { group: 'What chat says (kind mix)', items: [
-    { key: 'kw_reaction', label: 'reactions', type: 'range', min: 0, max: 100, step: 1, def: 39, help: 'Relative weight for lines that react to what is on screen.' },
-    { key: 'kw_emote', label: 'emote-only (free)', type: 'range', min: 0, max: 100, step: 1, def: 13, help: 'Relative weight for emote-only lines, F spam and chants. These cost no GPU.' },
-    { key: 'kw_question', label: 'questions', type: 'range', min: 0, max: 100, step: 1, def: 21, help: 'Relative weight for viewers asking a short question.' },
+    { key: 'kw_reaction', label: 'reactions', type: 'range', min: 0, max: 100, step: 1, def: 44, help: 'Relative weight for lines that react to what is on screen.' },
+    { key: 'kw_emote', label: 'emote-only (free)', type: 'range', min: 0, max: 100, step: 1, def: 20, help: 'Relative weight for emote-only lines, F spam and chants. These cost no GPU.' },
+    { key: 'kw_question', label: 'questions', type: 'range', min: 0, max: 100, step: 1, def: 8, help: 'Relative weight for viewers asking a short question.' },
     { key: 'kw_backseat', label: 'backseat', type: 'range', min: 0, max: 100, step: 1, def: 8, help: 'Relative weight for viewers telling the streamer what to do.' },
     { key: 'kw_reply', label: 'replies', type: 'range', min: 0, max: 100, step: 1, def: 6, help: 'Relative weight for viewers replying to a specific earlier line.' },
     { key: 'kw_banter', label: 'banter', type: 'range', min: 0, max: 100, step: 1, def: 6, help: 'Relative weight for viewers talking to each other instead of the stream.' },
