@@ -5,6 +5,7 @@
 // This file never touches model APIs directly — only the message protocol.
 
 import { ChatSim } from './chat-sim.js';
+import { loadEmotes, emoteHintFrom } from './emotes.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -17,6 +18,7 @@ const els = {
   statusDot: $('status-dot'), statusText: $('status-text'),
   loadProgress: $('load-progress'), loadBar: $('load-bar'), loadPct: $('load-pct'),
   chatForm: $('chat-form'), chatInput: $('chat-input'), chatPanel: $('chat-panel'),
+  chatMessages: $('chat-messages'),
 };
 
 const CAPTURE_SIZE = 512;         // longest side handed to the vision model — LFM2.5-VL
@@ -55,6 +57,7 @@ const state = {
   // chat context
   speech: '', speechAt: 0, userMsg: '', userMsgTicks: 0,
   lastChatLines: [],
+  emoteHint: '',
   titleIdx: 0,
 };
 
@@ -141,10 +144,15 @@ function onWorkerMessage(ev) {
     state.pendingChat = Math.max(0, state.pendingChat - 1);
     window.__lurker.chat += (m.messages || []).length;
     if (m.messages?.length) window.__lurker.lastMsg = m.messages[m.messages.length - 1];
-    const ctx = pendingCtx.get(m.id);
-    for (const text of m.messages || []) sim.chat(text);
-    for (const text of m.messages || []) logEvent('chat', text, ctx);
+    const entry = pendingCtx.get(m.id);
     pendingCtx.delete(m.id);
+    (m.messages || []).forEach((text) => {
+      let viewer = entry?.viewer;
+      if (!viewer || (viewer.bannedUntil && viewer.bannedUntil > Date.now()))
+        viewer = sim.pickViewer();
+      const shown = sim.chat(text, viewer || undefined);
+      if (shown) logEvent('chat', text, { ...(entry?.context || {}), viewer: shown.name });
+    });
     state.lastChatLines = [...state.lastChatLines, ...(m.messages || [])].slice(-6);
   } else if (m.type === 'transcribe') {
     window.__lurker.asr += 1;
@@ -347,30 +355,43 @@ function tickChat() {
 }
 
 const PERSONAS = [
-  'hype viewer, sometimes all caps',
-  'confused lurker asking a short question',
-  'regular viewer making an inside joke',
-  'backseat gamer giving unsolicited advice',
-  'cringe jokester',
-  'over-invested viewer narrating everything',
-  'skeptical viewer who suspects it is staged',
+  'curious — ask the streamer one short question about what you see',
+  'totally hyped — short excited burst, caps allowed',
+  'confused — ask one short question about something on screen',
+  'a regular — treat something on screen like a running joke',
+  'backseat gaming — tell the streamer what to do next, unprompted',
+  'groan-worthy pun about the scene',
+  'over-invested — narrate what is happening like it is a huge deal',
+  'suspicious — claim the whole thing looks staged',
+  'curious again — ask a follow-up question about the streamer or the room',
 ];
 let personaIdx = (Math.random() * PERSONAS.length) | 0;
 
 function sendChatMessage({ sceneChange, offsetMs = 0 }) {
   setTimeout(() => {
     if (state.phase !== 'live') return;
+    const viewer = sim.pickViewer();
+    if (!viewer) return;
     state.pendingChat += 1;
+    // persona overrides: called-out viewers get defensive, returning prisoners announce it
+    let persona = PERSONAS[personaIdx++ % PERSONAS.length];
+    if (viewer.justReturned) {
+      persona = 'just back from a timeout — announce your return, dramatically unrepentant';
+      viewer.justReturned = false;
+    } else if (viewer.warned) {
+      persona = 'a mod just yelled at you — act innocent but keep chatting anyway';
+    }
     const context = {
       scene: state.scene || 'the stream just started; nobody has described it yet',
       speech: state.speech || '',
       sceneChange,
       userMsg: state.userMsgTicks > 0 ? state.userMsg : '',
       recent: state.lastChatLines,
-      persona: PERSONAS[personaIdx++ % PERSONAS.length],
+      persona,
+      emotes: state.emoteHint,
     };
     const id = ++state.reqId;
-    pendingCtx.set(id, context);
+    pendingCtx.set(id, { context, viewer });
     const msg = { type: 'chat', id, context };
     // scene-change bursts react to the actual frame; other lines run text-only
     if (sceneChange) {
@@ -567,6 +588,14 @@ els.micToggle.addEventListener('change', () => {
   if (els.micToggle.checked) els.demoToggle.checked = false;
 });
 
+// click a username → mod view for that viewer
+els.chatMessages.addEventListener('click', (e) => {
+  const u = e.target.closest('.user');
+  if (!u) return;
+  const viewer = sim.byName(u.textContent);
+  if (viewer) sim.openModCard(viewer, e.clientX, e.clientY);
+});
+
 /* ---------------- self-test hook (?autolive) ----------------
  * Dev only: auto-start on load and mirror pipeline stats into document.title
  * so an externally driven browser (fake media flags) can be polled from a shell. */
@@ -583,6 +612,12 @@ if (new URLSearchParams(location.search).has('autolive')) {
 
 /* boot */
 (async () => {
+  // emote sets are independent of the model — load in the background
+  loadEmotes().then((map) => {
+    sim.setEmotes(map);
+    state.emoteHint = emoteHintFrom(map).join(', ');
+  });
+
   if (!navigator.gpu) {
     setStatus('err', 'WebGPU not available in this browser — Chrome/Edge 113+ (or enable gpu flags).');
     els.startBtn.disabled = true;

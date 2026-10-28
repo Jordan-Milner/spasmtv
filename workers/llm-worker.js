@@ -184,11 +184,42 @@ const CHAT_PROMPT_PARTS = (ctx) => {
   if (ctx.speech) parts.push(`The streamer just said: "${ctx.speech}"`);
   if (ctx.sceneChange) parts.push('Something just changed on screen — react to it.');
   if (ctx.userMsg) parts.push(`The streamer typed in chat: "${ctx.userMsg}"`);
-  if (ctx.recent?.length) parts.push(`Do not repeat anything similar to: ${ctx.recent.join(' | ')}`);
+  if (ctx.emotes) parts.push(`You may use one emote from: ${ctx.emotes}`);
   parts.push(`Your vibe: ${ctx.persona}`);
-  parts.push('Reply with the chat message only.');
+  parts.push('Write only the message itself — never restate the style hint, never use hashtags.');
   return parts.join('\n');
 };
+
+// NOTE: recent chat lines are deliberately NOT pasted into the prompt — echoing
+// them back anchors a degeneration loop on small models ("A. hair? cringe me!"
+// ×20). Dedupe happens post-generation instead, against this worker-side ring
+// unioned with the recent lines the client saw.
+let workerRecent = [];
+
+const normTokens = (s) =>
+  s.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean);
+
+function tooSimilar(line, priors, thresh = 0.75) {
+  const a = new Set(normTokens(line));
+  if (!a.size) return true;
+  for (const prior of priors) {
+    const b = new Set(normTokens(prior));
+    if (!b.size) continue;
+    let inter = 0;
+    for (const x of a) if (b.has(x)) inter++;
+    if (inter / new Set([...a, ...b]).size >= thresh) return true;
+  }
+  return false;
+}
+
+function loopDetected(priors) {
+  const tail = priors.slice(-4);
+  if (tail.length < 3) return false;
+  let dupes = 0;
+  for (let i = 1; i < tail.length; i++)
+    if (tooSimilar(tail[i], [tail[0]], 0.7)) dupes += 1;
+  return dupes >= 2;
+}
 
 let blankImg = null;
 function blankImage() {
@@ -202,20 +233,43 @@ async function onChat(m) {
   let image = null;
   if (ctx.sceneChange && m.image) image = toRawImage(m.image);
   else if (!textOnlyOk) image = blankImage();
-  const raw = await generate({
+
+  const priors = [...(ctx.recent || []), ...workerRecent];
+  const looped = loopDetected(priors);
+  let raw = await generate({
     prompt: CHAT_PROMPT_PARTS(ctx),
     image,
     maxNewTokens: 30,
     sample: true,
+    temperature: looped ? 1.2 : 0.85,
+    repetitionPenalty: looped ? 1.25 : 1.15,
   });
-  post({ type: 'chat', id: m.id, messages: toChatLines(raw) });
+  let lines = toChatLines(raw)
+    .filter((s) => !tooSimilar(s, priors))
+    .filter((s) => !(ctx.persona && tooSimilar(s, [ctx.persona], 0.6)));
+  if (!lines.length) {
+    // everything collided — one hotter retry for fresh material
+    raw = await generate({
+      prompt: CHAT_PROMPT_PARTS(ctx),
+      image: null,
+      maxNewTokens: 30,
+      sample: true,
+      temperature: 1.25,
+      repetitionPenalty: 1.3,
+    });
+    lines = toChatLines(raw).filter((s) => !tooSimilar(s, priors));
+  }
+  workerRecent = [...workerRecent, ...lines].slice(-8);
+  post({ type: 'chat', id: m.id, messages: lines });
 }
 
 function toChatLines(raw) {
   let t = raw.replace(/^["'`\s]+|["'`\s]+$/g, '');
-  // the 450M sometimes roleplays with a "username:" prefix — strip it
-  t = t.replace(/^\w[\w.-]{1,15}\s*:\s+/, '');
-  t = t.replace(/^(chat message|viewer ?\d*|user ?\d*|message|chat)\s*[:\-]\s*/i, '');
+  // roleplay leakage: "username:", "@name:", "twitch chat:", "Viewer 2:" prefixes
+  t = t.replace(/^@?[\w .-]{2,24}\s*:\s+/, '');
+  t = t.replace(/^(?:twitch\s+)?(?:chat message|viewer ?\d*|user ?\d*|message|chat)\s*[:\-]\s*/i, '');
+  // hashtag debris the 450M picks up from its Twitch priors
+  t = t.replace(/#[\w-]+/g, '').replace(/\s{2,}/g, ' ').trim();
   const lines = t.split(/\n+/).map((s) => s.trim()).filter(Boolean);
   return lines.slice(0, 2).map((s) => (s.length > 120 ? s.slice(0, 117) + '…' : s));
 }
