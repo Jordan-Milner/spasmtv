@@ -29,11 +29,18 @@ html, body {
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   overflow: hidden;
 }
+/* dynamic viewport: keeps the chat bar out from under iOS/Android browser chrome */
+@supports (height: 100dvh) {
+  html, body { height: 100dvh; }
+}
+/* topbar sizes itself; main fills the rest (the topbar height changes on phones) */
+body { display: flex; flex-direction: column; }
 
 /* ---------- top bar ---------- */
 
 #topbar {
   height: 50px;
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -100,7 +107,8 @@ button.ghost:hover { color: var(--text); }
 
 main {
   display: flex;
-  height: calc(100% - 50px);
+  flex: 1;
+  min-height: 0;
   width: 100%;
   max-width: 1720px;   /* ultrawide: center the whole layout instead of stretching */
   margin: 0 auto;
@@ -481,7 +489,7 @@ main {
 /* settings popover */
 #settings {
   position: absolute;
-  top: 54px;
+  top: calc(100% + 4px); /* below the topbar however tall it has wrapped */
   right: 12px;
   z-index: 60;
   width: 300px;
@@ -553,7 +561,19 @@ main {
   /* phone (e.g. opened over tailscale): stack video over chat */
   main { flex-direction: column; }
   .brand .beta { display: none; }
-  #controls { gap: 8px; }
+
+  /* controls wrap to their own row — a <select> won't shrink below its longest
+     option, which used to push Go live and ⚙ off-screen */
+  #topbar {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 50px;
+    padding: 8px 12px;
+    row-gap: 8px;
+  }
+  #controls { flex-basis: 100%; gap: 8px; min-width: 0; }
+  #model-select { flex: 1; min-width: 0; }
+
   #stage { padding: 10px; flex: none; height: 56%; }
   #chat-panel {
     width: 100%;
@@ -561,4 +581,18 @@ main {
     border-left: none;
     border-top: 1px solid var(--line);
   }
+
+  /* settings popover: full-width sheet below the (possibly wrapped) topbar */
+  #settings {
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-height: 80vh;
+  }
+  @supports (height: 100dvh) {
+    #settings { max-height: calc(100dvh - 96px); }
+  }
+
+  /* 16px stops iOS Safari from zooming the page when a field gains focus */
+  #chat-input, #fact-input { font-size: 16px; }
 }

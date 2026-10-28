@@ -45,7 +45,6 @@ const post = (m) => self.postMessage(m);
 let processor = null;
 let model = null;
 let currentKey = null;
-let textOnlyOk = false;
 let asr = null;
 let asrPromise = null;
 
@@ -84,7 +83,10 @@ async function safeReply(m, fn, empty) {
     await fn(m);
   } catch (err) {
     console.error('[llm-worker] job failed:', err);
-    post({ type: m.type, id: m.id, ...empty, jerr: String(err?.message || err).slice(0, 100) });
+    post({
+      type: m.type, id: m.id, ...empty,
+      jerr: String(err?.stack || err?.message || err).slice(0, 500),
+    });
   }
 }
 
@@ -117,38 +119,8 @@ async function load(m) {
   const blank = new RawImage(new Uint8ClampedArray(64 * 64 * 4).fill(110), 64, 64, 4);
   await generate({ prompt: 'hi', image: blank, maxNewTokens: 2 });
 
-  // text-only prompts are the cheap path for chat lines; detect support once
-  try {
-    await generate({ prompt: 'hi', image: null, maxNewTokens: 2 });
-    textOnlyOk = true;
-  } catch {
-    textOnlyOk = false;
-  }
-
-  // before/after motion pairs need a multi-image-capable model — probe only
-  // when the model claims video support (LFM2.5-VL-450M's graph is single-image)
-  if (cfg.multiFrame) {
-    try {
-      const alt = new RawImage(new Uint8ClampedArray(64 * 64 * 4).fill(60), 64, 64, 4);
-      const msgs = [{
-        role: 'user',
-        content: [{ type: 'image' }, { type: 'image' }, { type: 'text', text: 'hi' }],
-      }];
-      const inputs = await processor([blank, alt], processor.apply_chat_template(msgs, {
-        add_generation_prompt: true,
-        enable_thinking: false,
-      }), { add_special_tokens: false });
-      await model.generate({ ...inputs, max_new_tokens: 2 });
-      multiImageOk = true;
-    } catch {
-      multiImageOk = false;
-    }
-  } else {
-    multiImageOk = false;
-  }
-
   if (m.asr) ensureAsr(); // loads in the background; first utterance awaits it
-  post({ type: 'ready', multiFrame: multiImageOk, asr: asrModelKey });
+  post({ type: 'ready', asr: asrModelKey });
 }
 
 function ensureAsr() {
@@ -169,31 +141,23 @@ function ensureAsr() {
 
 /* ---------------- generation core ---------------- */
 
-let multiImageOk = false;
-
 async function generate({
   prompt, frames, image, maxNewTokens, sample = false,
   temperature = 0.85, repetitionPenalty = 1.05, topP = 0.95,
 }) {
-  const images = frames?.length
-    ? frames.map(toRawImage).filter(Boolean)
-    : (image ? [toRawImage(image)] : []);
-  if (images.length > 1 && !multiImageOk) {
-    // this model/processor build can't take a batch — keep the newest frame
-    images.splice(0, images.length - 1);
-  }
-
-  const content = [...images.map(() => ({ type: 'image' })), { type: 'text', text: prompt }];
+  // ONE image per call — this processor family treats arrays as batch, not
+  // multi-image content, and it has no null-image mode: every call gets a real
+  // frame or a blank stand-in (with its matching <image> template slot).
+  const img = frames?.length
+    ? toRawImage(frames[frames.length - 1])
+    : (toRawImage(image) ?? blankImage());
+  const content = [{ type: 'image' }, { type: 'text', text: prompt }];
   const messages = [{ role: 'user', content }];
   const chatPrompt = processor.apply_chat_template(messages, {
     add_generation_prompt: true,
     enable_thinking: false,
   });
-  const inputs = await processor(
-    images.length ? images : (textOnlyOk ? null : blankImage()),
-    chatPrompt,
-    { add_special_tokens: false },
-  );
+  const inputs = await processor(img, chatPrompt, { add_special_tokens: false });
 
   const genOpts = {
     ...inputs,
@@ -289,18 +253,13 @@ function blankImage() {
 
 async function onChat(m) {
   const ctx = m.context || {};
-  const frames = (ctx.sceneChange && m.frames?.length) ? m.frames : null;
-  let prompt = CHAT_PROMPT_PARTS(ctx);
-  if (frames?.length === 2) {
-    prompt += '\nThe first image is BEFORE the change, the second is AFTER — react to the difference.';
-  }
-
+  const prompt = CHAT_PROMPT_PARTS(ctx);
   const priors = [...(ctx.recent || []), ...workerRecent];
   const looped = loopDetected(priors);
   let raw = await generate({
     prompt,
-    frames,
-    image: !frames && ctx.sceneChange ? m.image : null,
+    frames: ctx.sceneChange ? m.frames : null,
+    image: ctx.sceneChange ? m.image : null,
     maxNewTokens: 30,
     sample: true,
     temperature: looped ? 1.2 : 0.85,

@@ -153,6 +153,8 @@ function onWorkerMessage(ev) {
     resetToIdle();
   } else if (m.type === 'asr-ready') {
     if (state.phase === 'live') setStatus('ok', 'live — the chat can see you and hear you');
+  } else if (m.type === 'dbg') {
+    window.__lurker.dbg = m.shapes;
   } else if (m.type === 'caption') {
     noteLatency(m.id, 'cap');
     window.__lurker.cap += 1;
@@ -458,14 +460,19 @@ function drawCapture(full, motion) {
     if (wsum > 0) {
       cx = (cx / wsum / DIFF_W) * full.width;
       cy = (cy / wsum / DIFF_H) * full.height;
+      // zoomed window that KEEPS the source aspect — square crops (512×512)
+      // land exactly on the model's tiling boundary and break token expansion
       const size = Math.round(Math.min(full.width, full.height) * 0.6);
-      sx = Math.max(0, Math.min(full.width - size, Math.round(cx - size / 2)));
-      sy = Math.max(0, Math.min(full.height - size, Math.round(cy - size / 2)));
-      sw = size; sh = size;
+      sw = size;
+      sh = Math.round(size * full.height / full.width);
+      sx = Math.max(0, Math.min(full.width - sw, Math.round(cx - sw / 2)));
+      sy = Math.max(0, Math.min(full.height - sh, Math.round(cy - sh / 2)));
     }
   }
 
-  const scale = Math.min(S.detail / sw, S.detail / sh);
+  // 448 box: below the 512 tiling boundary even for square-ish crops
+  const box = S.detail - 64;
+  const scale = Math.min(box / sw, box / sh);
   const c = els.capture;
   c.width = Math.max(64, Math.round(sw * scale));
   c.height = Math.max(64, Math.round(sh * scale));
@@ -533,22 +540,16 @@ const PERSONAS = [
 ];
 let personaIdx = (Math.random() * PERSONAS.length) | 0;
 
-/* burst frames: which view of the stream this particular viewer reacts to */
+/* burst frames: which single view of the stream this viewer reacts to */
 function burstFrames(varied, index) {
   const cur = grabFrameBuffer(els.capture);
   if (!cur) return {};
-  const wide = () => {
+  // varied views: even viewers get the motion crop, odd ones the wide shot
+  if (varied && index % 2 === 1) {
     const w = grabFrameBuffer(els.captionCapture);
-    return (w && w !== cur) ? { frames: null, image: w } : { frames: [cur] };
-  };
-  if (state.multiFrame) {
-    // video-capable brain: before/after pair tells the real motion story
-    const pair = state.prevCapture ? [state.prevCapture, cur] : [cur];
-    return (varied && index % 2 === 1) ? wide() : { frames: pair };
+    if (w) return { image: w };
   }
-  // single-image brain: alternate motion-crop vs wide shot so viewers diverge
-  if (varied && index % 2 === 1) return wide();
-  return { frames: null, image: cur };
+  return { image: cur };
 }
 
 function sendChatMessage({ sceneChange, offsetMs = 0, burstIndex = 0 }) {
@@ -864,6 +865,17 @@ if (new URLSearchParams(location.search).has('autolive')) {
 
   if (!navigator.gpu) {
     setStatus('err', 'WebGPU not available in this browser — Chrome/Edge 113+ (or enable gpu flags).');
+    els.startBtn.disabled = true;
+    return;
+  }
+  // iPhone/iPad: Safari jetsams the tab once the model's GPU buffers allocate —
+  // the page reloads at the end of the download, and a retry can wedge the tab
+  // into "can't open this page" (seen on a real phone). Never let a phone start
+  // a download it can't survive; computers and (beefy) Android Chrome are fine.
+  const appleMobile = /iPad|iPhone|iPod/.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (appleMobile) {
+    setStatus('err', 'the AI brains don\u2019t fit in phone Safari\u2019s memory — the tab crashes when the model loads. open SpasmTV on a computer instead.');
     els.startBtn.disabled = true;
     return;
   }
