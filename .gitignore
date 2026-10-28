@@ -2,3 +2,5 @@
 __pycache__/
 .serena/
 .video_agent/
+
+videos/

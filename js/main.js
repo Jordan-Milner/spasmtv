@@ -7,11 +7,11 @@
 import { ChatSim } from './chat-sim.js';
 import { loadEmotes, emoteHintFrom } from './emotes.js';
 import {
-  pickKind, gateKind, nextGapMs, planBurst, templateLine, maybeBit, liveBits,
+  pickKind, gateKind, nextGapMs, planBurst, templateLine, maybeBit, liveBits, maybePasta,
 } from './cadence.js';
 import {
   factionFor, cultureLine, patternOf, trollWeight, defies, moodOf, MOOD_GAP,
-  ONLOOKER_LINES, RELIEF_LINES, spotLine, DEAD_CHAT_LINES,
+  onlookerLine, reliefLine, deadChatLine, spotLine,
 } from './culture.js';
 
 const $ = (id) => document.getElementById(id);
@@ -77,6 +77,7 @@ const state = {
   speech: '', speechAt: 0, userMsg: '', userMsgTicks: 0,
   lastChatLines: [],        // ring of {name, text} — the window replies quote from
   bits: [],                 // running jokes (§C), each {text, until}
+  templateRecent: [],       // freshness ring: template lines the crowd just heard
   culture: null,            // §D moderation culture state, see cultureState()
   hypeAt: 0,
   emoteHint: '',
@@ -186,11 +187,14 @@ function onWorkerMessage(ev) {
       let viewer = entry?.viewer;
       if (!viewer || (viewer.bannedUntil && viewer.bannedUntil > Date.now()))
         viewer = sim.pickViewer(viewerWeights());
-      const shown = sim.chat(text, viewer || undefined);
+      // the kind promised a question; a 450M that forgot the mark gets the free
+      // template rather than a statement wearing a question badge (§F rate)
+      const finalText = entry?.kind === 'question' && !text.includes('?') ? templateLine('question', { recent: state.templateRecent }) : text;
+      const shown = sim.chat(finalText, viewer || undefined);
       if (!shown) return;
       // the log carries what the §F scorer measures: message kind, archetype,
       // the rendered line (emotes and all) and, implicitly, that a model wrote it
-      logEvent('chat', text, {
+      logEvent('chat', finalText, {
         ...(entry?.context || {}),
         kind: m.kind || entry?.kind || 'reaction',
         viewer: shown.name,
@@ -198,8 +202,8 @@ function onWorkerMessage(ev) {
         shown: sim.lastRendered,
         codes: sim.lastEmotes,
       });
-      trackRecent(shown.name, text);
-      state.bits = maybeBit(state.bits, text, { hype: entry?.hype });
+      trackRecent(shown.name, finalText);
+      state.bits = maybeBit(state.bits, finalText, { hype: entry?.hype });
     });
   } else if (m.type === 'transcribe') {
     noteLatency(m.id, 'asr');
@@ -326,6 +330,11 @@ function logTemplate(text, viewer, kind, ctx = {}) {
     shown: sim.lastRendered, codes: sim.lastEmotes, ...ctx,
   });
   trackRecent(shown.name, text);
+  // the freshness ring: pickers check this before choosing, so the crowd never
+  // hears the same culture line twice in short succession (chants/pastas exempt)
+  state.templateRecent.push(
+    (text || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim());
+  if (state.templateRecent.length > 16) state.templateRecent.shift();
   return shown;
 }
 
@@ -369,7 +378,7 @@ function banReactionBurst(victim, action) {
         });
         return;
       }
-      cultureLog(cultureLine(factionFor(v.archetypeKey), victim.name), v, victim, action);
+      cultureLog(cultureLine(factionFor(v.archetypeKey), victim.name, Math.random, state.templateRecent), v, victim, action);
     }, delay);
   }
 }
@@ -390,8 +399,7 @@ function onCenter(viewer) {
       const v = sim.pickViewer(viewerWeights());
       if (!v || used.has(v.name)) return;
       used.add(v.name);
-      const text = ONLOOKER_LINES[(Math.random() * ONLOOKER_LINES.length) | 0]
-        .replace(/\{name\}/g, viewer.name);
+      const text = onlookerLine(viewer.name, Math.random, state.templateRecent);
       logTemplate(text, v, 'spot', { spot: viewer.name });
     }, 300 + Math.random() * 2600);
   }
@@ -399,7 +407,7 @@ function onCenter(viewer) {
   setTimeout(() => {
     if (state.phase !== 'live' || cultureState().centered !== viewer) return;
     if (state.pendingChat >= MAX_PENDING_CHAT) {
-      logTemplate(spotLine(viewer.archetypeKey), viewer, 'spot', { spot: viewer.name });
+      logTemplate(spotLine(viewer.archetypeKey, Math.random, state.templateRecent), viewer, 'spot', { spot: viewer.name });
       return;
     }
     sendChatMessage({ viewer, kind: 'spot', sceneChange: false, spot: true });
@@ -418,7 +426,7 @@ function onUncenter(viewer) {
       const v = sim.pickViewer(viewerWeights());
       if (!v || used.has(v.name)) return;
       used.add(v.name);
-      logTemplate(RELIEF_LINES[(Math.random() * RELIEF_LINES.length) | 0], v, 'relief', { spot: viewer.name });
+      logTemplate(reliefLine(Math.random, state.templateRecent, viewer.name), v, 'relief', { spot: viewer.name });
     }, 400 + i * 700 + Math.random() * 900);
   }
 }
@@ -496,7 +504,7 @@ async function goLiveAfterLoad() {
   rotateTitle();
 
   state.scene = ''; state.sceneAt = 0; state.speech = ''; state.lastChatLines = [];
-  state.bits = []; state.culture = null; state.hypeAt = 0;
+  state.bits = []; state.culture = null; state.hypeAt = 0; state.templateRecent = [];
   startLoops();
   els.loadProgress.hidden = true;
   els.loadPct.textContent = '';
@@ -685,7 +693,7 @@ function chatLoop() {
   // line from a template (free — the GPU stays on the real reactions)
   if (c.mood !== 'calm' && Math.random() < (c.mood === 'purge' ? 0.09 : 0.03)) {
     const v = sim.pickViewer(viewerWeights());
-    if (v) logTemplate(DEAD_CHAT_LINES[(Math.random() * DEAD_CHAT_LINES.length) | 0], v, 'mood');
+    if (v) logTemplate(deadChatLine(Math.random, state.templateRecent), v, 'mood');
   }
   scheduleNext(chatLoop, nextGapMs() * MOOD_GAP[c.mood]);
 }
@@ -706,10 +714,13 @@ function fireLine({ offsetMs = 0, burstIndex = 0, hype = false, chant = null, sc
     if (state.userMsgTicks > 0 && kind !== 'emote') kind = 'reply';
 
     if (kind === 'emote') {
-      const text = templateLine('emote', { emote: () => sim.randomEmote(), hype, chant });
+      const text = templateLine('emote', { emote: () => sim.randomEmote(), hype, chant, recent: state.templateRecent });
       logTemplate(text, viewer, kind);
       return;
     }
+    // a copypasta viewer pastes a classic instead of reacting — no GPU call
+    const pasta = maybePasta(kind, viewer.archetypeKey);
+    if (pasta) { logTemplate(pasta, viewer, 'copypasta'); return; }
     // GPU busy: drop the line rather than queue it — a queued line is stale chat
     if (state.pendingChat >= MAX_PENDING_CHAT) return;
     sendChatMessage({ viewer, kind, sceneChange, burstIndex, hype, bit: bits[0]?.text || '' });

@@ -17,7 +17,7 @@ import {
 } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2';
 
 // same yardstick the scorer uses (tools/score-chat.mjs imports this file too)
-import { normTokens, tooSimilar, echoesScene, reactionSeed } from '../js/text.js';
+import { normTokens, tooSimilar, echoesScene, reactionSeed, factCandidate } from '../js/text.js';
 
 env.allowLocalModels = false;
 
@@ -324,6 +324,7 @@ async function onChat(m) {
     .filter((s) => !(quoted.length && tooSimilar(s, quoted, 0.6)))
     .filter((s) => !keysmash(s))
     .filter((s) => !PROMPT_LEAK.test(s))
+    .filter((s) => !META_NEG.test(s))
     .filter((s) => !softGenderDamp(s));
 
   let lines = keep(toChatLines(await gen(false)));
@@ -342,8 +343,15 @@ function keysmash(s) {
 }
 
 // prompt fragments that come back as chat lines ("REACT LIKE A VIEWER WITH…",
-// "max 12 words <th_script> hey [stream_name]") — the model restating its brief
-const PROMPT_LEAK = /\b(react like a viewer|like a viewer who|max ?12 ?words|never describe|write only the message|one short chat message|your vibe|stream_name)\b/i;
+// "max 12 words <th_script> hey [stream_name]", "No emotes allowed; keep your
+// voice") — the model restating its brief. Extended after the first §C run
+// leaked "no description any more" and "(No emotes allowed, keep your voice".
+const PROMPT_LEAK = /\b(react like a viewer|like a viewer who|max ?12 ?words|never describe|write only the message|one short chat message|your vibe|stream_name|no emotes?|no description|no quotes?|no hashtags?|keep your voice|lowercase only|one emote from)\b/i;
+
+// the 450M answers "react to that" with meta about reacting: "no reaction",
+// "no response", "no viewership humming by screensucking". Real chat says
+// "no shot" / "no way" — those survive.
+const META_NEG = /^\s*no\s+(response|reaction|answer|reply|replay|description|real|words?|emotes?|questions?|viewership|chat)\b/i;
 
 function toChatLines(raw) {
   let t = raw.replace(/^["'`\s]+|["'`\s]+$/g, '');
@@ -371,20 +379,28 @@ async function onTranscribe(m) {
   const { text } = await asr(m.pcm);
   let fact = null;
   const clean = (text || '').trim();
-  if (clean.length > 10) {
-    // best-effort fact extraction: only crisp third-person statements survive
+  // "not everything the streamer says is a memory": the pure gate in text.js
+  // rejects filler/commands/stream-talk BEFORE any model call (the 450M almost
+  // never answers NO on its own), and the shape check after rejects anything
+  // not cleanly third-person. A junk fact poisons every chat prompt, so the
+  // whole path is biased to reject.
+  if (clean.length > 10 && factCandidate(clean)) {
     try {
       const raw = await generate({
         prompt:
           `The streamer said: "${clean}"\n` +
-          'If that states a durable fact about the streamer (a name, home, job, like, ' +
-          'possession, plan), reply with ONLY that fact in third person (max 12 words). ' +
-          'Otherwise reply exactly NO.',
+          'A durable fact about them means: their name, home town, job, age, family, ' +
+          'pets, likes, dislikes, possessions, or a long-term habit. Reply ONLY with ' +
+          'that fact in third person, max 12 words. Everything else — a mood, a plan ' +
+          'for today, a command, a joke, anything about the stream or chat — reply ' +
+          'exactly NO.',
         image: null,
         maxNewTokens: 36,
       });
       const t = raw.trim();
-      if (t && !/^no\b/i.test(t) && !t.includes('?') && t.length < 120) fact = t;
+      const thirdPerson = !/\b(i|me|my|we|us|our|you|your)\b/i.test(t);
+      if (t && thirdPerson && !/^no\b/i.test(t) && !t.includes('?')
+          && t.split(/\s+/).length <= 16) fact = t;
     } catch { /* classifier is best-effort; transcript still goes through */ }
   }
   post({ type: 'transcribe', id: m.id, text: text || '', fact });

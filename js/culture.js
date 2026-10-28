@@ -8,9 +8,15 @@ import { normTokens } from './text.js';
 
 // the three factions a ban splits a chat into. {name} is the victim.
 export const FACTIONS = {
-  mourner: ['F', 'rip {name}', 'he was funny tho', 'not the ban', 'biggest loss for chat', 'F for {name}'],
-  bootlicker: ["mods doing god's work", 'finally', 'justice is real', 'mod app when', 'thank you mods', 'the mods are the real heroes'],
-  critic: ['free {name}', 'mods on one', 'what did {name} even do', 'ban abuse fr', 'he was the content', 'this is why chat is dead'],
+  mourner: ['F', 'rip {name}', 'he was funny tho', 'not the ban', 'biggest loss for chat', 'F for {name}',
+    'genuine loss for chat', 'he carried the stream', 'unban challenge', 'pouring one out',
+    'first ban i actually witnessed', 'chat lost a legend today'],
+  bootlicker: ["mods doing god's work", 'finally', 'justice is real', 'mod app when', 'thank you mods', 'the mods are the real heroes',
+    'mods never miss', 'cleanse complete', 'chat improves immediately', 'give the mod a raise',
+    'this is moderation done right', 'ban speedrun any%'],
+  critic: ['free {name}', 'mods on one', 'what did {name} even do', 'ban abuse fr', 'he was the content', 'this is why chat is dead',
+    'power tripping fr', 'they ban the funny ones and keep the bots', 'half the regulars are gone',
+    'mods smelled a personality and killed it', '{name} did nothing wrong'],
 };
 
 // a reactor picks a side by who they are: trolls defend trolls, parasocials
@@ -29,9 +35,22 @@ export function factionFor(archetypeKey, rnd = Math.random) {
   }
 }
 
-export function cultureLine(faction, victimName, rnd = Math.random) {
+// the norm used for freshness checks everywhere templates are picked
+const norm = (s) => s.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+
+// pick from a pool avoiding recently-heard lines (the freshness ring main.js
+// keeps); falls back to the full pool when everything was heard recently
+export function pickFresh(pool, recent = [], rnd = Math.random, subst = {}) {
+  const recentSet = new Set(recent);
+  const render = (tpl) => tpl.replace(/\{name\}/g, subst.name || '').replace(/\{name\}/g, '');
+  const fresh = pool.filter((tpl) => !recentSet.has(norm(render(tpl))));
+  const from = fresh.length ? fresh : pool;
+  return render(from[(rnd() * from.length) | 0]);
+}
+
+export function cultureLine(faction, victimName, rnd = Math.random, recent = []) {
   const pool = FACTIONS[faction] || FACTIONS.mourner;
-  return pool[(rnd() * pool.length) | 0].replace(/\{name\}/g, victimName);
+  return pickFresh(pool, recent, rnd, { name: victimName });
 }
 
 // crude pattern extraction: the tokens the victim kept saying. Repeated tokens
@@ -77,20 +96,34 @@ export const MOOD_GAP = { calm: 1, tense: 1.12, purge: 1.3 };   // quieter chat
 export const DEAD_CHAT_LINES = [
   'chat so dead since the purge', 'where is everyone', 'quiet chat today…',
   'mods cleared the place out', 'we lost the good ones',
+  'chat crawling since the bans', 'the mods won and we lost', 'is this even the same stream',
 ];
+export function deadChatLine(rnd = Math.random, recent = []) {
+  return pickFresh(DEAD_CHAT_LINES, recent, rnd);
+}
 
 // centering (opening someone's card) — the crowd notices
 export const ONLOOKER_LINES = [
   'mods looking at {name}', '{name} is COOKED', 'what did {name} do',
   'chat what is happening', 'someone warn him', 'oh no', '{name} got the card',
+  '{name} in the mod menu', 'someone clip {name} last words', 'not {name} man',
+  'the card is open, run {name}', 'he is picking his last words',
 ];
 export const RELIEF_LINES = [
   'false alarm', 'mods were just admiring his profile', 'he is safe??',
   'chat exhaled', 'no ban?? worst modding', 'card without a ban is a flex',
+  'he survived the card', 'released from mod custody', '{name} walks free',
+  'card closed, no blood', 'we can chat freely again',
 ];
+export function onlookerLine(name, rnd = Math.random, recent = []) {
+  return pickFresh(ONLOOKER_LINES, recent, rnd, { name });
+}
+export function reliefLine(rnd = Math.random, recent = [], name = '') {
+  return pickFresh(RELIEF_LINES, recent, rnd, { name });
+}
 // the centered viewer gets one guaranteed line, by who they are
-export function spotLine(archetypeKey, rnd = Math.random) {
-  const pick = (a) => a[(rnd() * a.length) | 0];
+export function spotLine(archetypeKey, rnd = Math.random, recent = []) {
+  const pick = (a) => pickFresh(a, recent, rnd);
   switch (archetypeKey) {
     case 'troll': return pick(['worth it', 'do your worst', 'im not sorry', 'ban me and chat dies']);
     case 'earnest': return pick(['what did i do??', 'im behaving i promise', 'i did nothing!!', 'why is my card open']);

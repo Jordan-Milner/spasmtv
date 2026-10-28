@@ -5,7 +5,7 @@
 
 // §C weights. "emote" is the only kind that never costs a generate call.
 export const KIND_WEIGHTS = {
-  reaction: 39, emote: 13, question: 18, backseat: 8,
+  reaction: 39, emote: 13, question: 21, backseat: 8,
   reply: 6, banter: 6, callback: 5, meta: 3, greeting: 2,
 };
 
@@ -59,9 +59,31 @@ export function planBurst(rnd = Math.random) {
 // template lines — real chat is full of these and they cost no GPU
 const SMASH = ['asdfghjkl', 'ajskdlfj', 'sdkfjlsd', 'kdjfslkd', 'aksjdlkf'];
 const FILLS = ['F', 'f', 'F in the chat', 'KEKW', 'LUL', 'docL', 'WeirdChamp'];
+const QUESTIONS = [
+  'what game is this?', 'what are you playing?', 'how long have you been streaming?',
+  'where are you from?', 'what happened last stream?', 'can you play what i said?',
+];
+
+// the classics. Asking the 450M to invent a copypasta produced "Max_1CIPASTAS"
+// (observed in the first §C run) — a copypasta viewer pastes, it doesn't write.
+export const PASTAS = [
+  'have you ever been so far even as decided to use even go want to look more like?',
+  '┬─┬ ノ( ゜-゜ノ)',
+  'i am once again asking for one (1) emote',
+  'this message is so sad, alexa play despacito',
+  '┬┴┬┴┤(･_├┬┴┬┴ lying down while watching',
+];
+
+// a copypasta archetype sometimes pastes instead of reacting (no GPU call)
+export function maybePasta(kind, viewerKey, rnd = Math.random) {
+  return kind === 'reaction' && viewerKey === 'copypasta' && rnd() < 0.3
+    ? PASTAS[(rnd() * PASTAS.length) | 0]
+    : null;
+}
 
 export function templateLine(kind, { emote = () => 'KEKW', hype = false, chant = null } = {}) {
   if (chant) return chant;
+  if (kind === 'question') return QUESTIONS[(Math.random() * QUESTIONS.length) | 0];
   if (kind !== 'emote') return null;
   const r = Math.random();
   if (hype && r < 0.35) return SMASH[(Math.random() * SMASH.length) | 0];

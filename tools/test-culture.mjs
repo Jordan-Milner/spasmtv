@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {
   FACTIONS, factionFor, cultureLine, patternOf, trollWeight, defies, moodOf,
   MOOD_GAP, ONLOOKER_LINES, RELIEF_LINES, spotLine, DEAD_CHAT_LINES,
+  onlookerLine, reliefLine, deadChatLine,
 } from '../js/culture.js';
 
 const mulberry = (a) => () => {
@@ -84,5 +85,22 @@ for (const k of ['troll', 'earnest', 'parasocial', 'hype-man', 'doomer', 'regula
 assert.ok(ONLOOKER_LINES.every((l) => typeof l === 'string' && l.length > 2));
 assert.ok(ONLOOKER_LINES.filter((l) => l.includes('{name}')).length >= 3, 'onlookers name the victim');
 assert.ok(RELIEF_LINES.length >= 4 && DEAD_CHAT_LINES.length >= 4);
+
+// freshness ring: a recently-heard template line is not picked again until the
+// pool is exhausted — then the full pool is the fallback
+{
+  // pool-agnostic: the picked line is never one the crowd just heard
+  const norm = (x) => x.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+  for (let seed = 0; seed < 8; seed++) {
+    const heard = ['f', 'rip bob', 'he was funny tho'];
+    assert.ok(!heard.includes(norm(cultureLine('mourner', 'bob', mulberry(seed), heard))),
+      `seed ${seed} repeated a heard line`);
+  }
+  assert.ok(cultureLine('mourner', 'bob', mulberry(0), ['f', 'rip bob']).length > 0);
+  assert.ok(onlookerLine('bob', mulberry(1), ['mods looking at bob']).includes('bob'));
+  assert.ok(!onlookerLine('bob', mulberry(0), ['mods looking at bob']).includes('mods looking at bob'));
+  assert.ok(reliefLine(mulberry(0), ['false alarm'], 'bob') !== 'false alarm');
+  assert.ok(deadChatLine(mulberry(0), ['chat so dead since the purge']) !== 'chat so dead since the purge');
+}
 
 console.log('ok — culture: pattern, factions, troll entropy, defiance, mood, centering');

@@ -73,9 +73,10 @@ assert.ok(chantLines > 0 && (kindCount.emote || 0) > 0, 'template lines exist');
 assert.equal(lines - genCalls, chantLines + (kindCount.emote || 0), 'every non-model line is a template');
 
 // gateKind degradation — no interrogating doomers, no callbacks with no bits
-assert.equal(gateKind('question', { archetypeKey: 'doomer' }), 'reaction');
+assert.equal(gateKind('question', { archetypeKey: 'hype-man' }), 'reaction');
 assert.equal(gateKind('question', { archetypeKey: 'earnest' }), 'question');
-assert.ok(ASKERS.has('newcomer') && ASKERS.has('parasocial') && !ASKERS.has('troll'));
+assert.ok(ASKERS.has('newcomer') && ASKERS.has('parasocial') && !ASKERS.has('hype-man'));
+assert.match(templateLine('question'), /\?$/);   // the question fallback always asks
 assert.equal(gateKind('callback', { archetypeKey: 'regular' }, { bits: [] }), 'reaction');
 assert.equal(gateKind('callback', { archetypeKey: 'regular' }, { bits: [{ text: 'x', until: 1 }] }), 'callback');
 assert.equal(gateKind('reply', {}, { recent: [] }), 'banter');

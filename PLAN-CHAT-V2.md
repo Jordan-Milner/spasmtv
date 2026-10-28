@@ -138,6 +138,52 @@ The headline. Culture state (`sim.culture`) driven entirely by mod actions:
   just-chatting/vlog segment, a video-essay/music segment) in `videos/`
   (gitignored). One manual-ban scripted run to exercise (D).
 
+### G. Real-chat ground truth — VODs with chat, run through the same content
+
+Top rung of the tuning ladder (the §F rubric numbers are only priors; real
+Twitch chat is the target distribution).
+
+1. yt-dlp 2–3 YouTube videos that show a Twitch VOD **with the chat overlay
+   visible** (compilations, VOD uploads) → `videos/`, gitignored.
+2. `tools/extract-real-chat.mjs`: ffmpeg crops the chat panel and samples it
+   ~2 fps → tesseract OCR (installed, `/opt/homebrew/bin`) → dedupe lines
+   across frames → `videos/<name>.realchat.jsonl` with timestamps.
+3. Play the **same video** through the sim (`?video=` from §E) → sim log.
+4. `tools/score-chat.mjs --compare real.jsonl sim.jsonl`: side-by-side
+   distribution diff — length histogram, % emote-only, % with emote, %
+   question, % all-caps, % 1–2 words, top-emote overlap, burstiness
+   (coefficient of variation over 5 s buckets), msgs/viewer/min. Tune prompt
+   + weights until the sim's SHAPE sits inside the real distribution
+   (absolute rate is viewer-count-scaled by design; shape is the target).
+
+### H. Brain upgrades on the same WebGPU runtime (research 2026-10-28)
+
+Full research + sources: `docs/RESEARCH-CHAT-WEBGPU.md`. Runtime verdict:
+stay on transformers.js 4.3.2 (latest; WebLLM has no VLM path, so models +
+decoding + data are the only levers).
+
+- **U7 — third quality brain: Qwen3-VL-2B** (onnx-community ONNX, q4f16
+  ≈1.38 GB, **Apache-2.0** — which also re-opens the fine-tune-and-rehost
+  path the LFM licenses close). Benchmarks put it ahead of same-size peers;
+  our scorer is the arbiter. Unit: `tasks/U7-qwen3vl-quality-brain.md`.
+- **U8 — grammar guard**: `@huggingface/transformers-structured-output`
+  (dep-free regex/JSON-schema logits processor; chat gen is already
+  single-sequence) makes emoji/hashtag/caps/prompt-leak debris unsampleable
+  at the source → fewer rejected retries per kept line. Keysmash filter
+  stays (charset-legal). Unit: `tasks/U8-grammar-guard.md`.
+- **Sampling reality** (verified in the pinned 4.3.2 bundle): min_p is NOT
+  implemented (its only strings are `min_pixels`); num_return_sequences is
+  unreliable — temperature/top_p/top_k/repetition_penalty/typical_p/
+  no_repeat_ngram + sequential retry are what we have. `no_repeat_ngram`
+  is the untested one worth an A/B against echo loops.
+- **Parked, bigger levers** (Needs Jordan below): split-brain (450M VLM
+  captions + Qwen3-1.7B-ONNX writes chat; desktop-only tier, +~1 GB) and
+  SFT/LoRA on real chat corpora (TwitchChat AIIDE 2020, TTS-AGI/twitch,
+  our §G OCR corpus → merge → ONNX q4 → HF-host; needs a license-clean
+  base model, i.e. U7's Qwen).
+- Phone later: 4.1.0 added q1/q1f16/q2/q2f16 dtypes — lighter vision
+  encoders if iOS still jetsams; quality must be re-checked.
+
 ## Steps
 
 One line each, because the lane supervisor reads this file as the backlog; the
@@ -145,17 +191,28 @@ long form of every step is the section it names.
 
 - [x] chat-sim.js (§A) — stable weighted archetype per roster entry from the §A table, roster persisted in localStorage so regulars survive reloads, per-archetype cosmetics rendered client-side (case style, ellipsis, typo rate, emote affinity) with message-frequency weights, plus the instruction-phrased personaHint handed to the worker. Verify: reload twice, the same viewer names keep the same archetypes.
 - [x] workers/llm-worker.js (§B) — prompt v3: reaction seed instead of the caption anchor, an explicit react-don't-describe instruction, post-gen rejection of any line whose token Jaccard vs `ctx.scene` is over 0.5, a reply-to kind carrying exactly one recent line plus its author, non-visual kinds sent with the blank-image stand-in (the processor has no null-image mode — see PLAN.md).
-- [ ] js/main.js (§C) — message-kind scheduler with the §C weights, bursty cadence (4-8 s droughts, 3-lines-in-1.5-s flurries) replacing the 2.3 s metronome, template-only emote/chant/F/keyboard-smash lines with NO generate call, and bits/callback memory. Verify: messages per minute and generate calls per minute are not above today's rate.
-- [ ] js/main.js + js/chat-sim.js (§D) — culture state: log every mod action with the victim's last 3 messages and extract the pattern, fire a 2-4 line factioned reaction burst within ~5 s, keep a ~5 min standing culture note in the reaction prompts, troll defiance plus rising troll spawn weight while no mod action happens, mood drift over ban-heavy stretches, centering beats (onlooker lines + one guaranteed persona-aware line + relief when the card closes with no action), mod-card last-action history.
+- [x] js/main.js (§C) — verified: node budget test (18.9 lines/min, 14.9 gen/min, both ≤ 20) + live headless run; committed 598c94d.
+- [x] js/main.js + js/chat-sim.js (§D) — verified live: scripted ban → first reaction 856ms (run1) / 698ms (run3), 6 lines < 6 s, spot/banreact/relief kinds all firing; committed 598c94d.
 - [ ] js/main.js + index.html (§E) — video sources: `getDisplayMedia` screen/tab share with audio, drag-drop or file-picker video on the stage, both through the existing frame capture and both routed into the existing RMS gate so ASR gets speech; `?video=PATH&autolive` autoplays a file through the whole pipeline.
-- [ ] tools/score-chat.mjs (§F) — node, stdlib only, `tools/` is a new dir: the six §F metrics, exit non-zero unless every one passes, and add `videos/` to .gitignore. If the input log lacks archetype/kind/ban fields, score what exists and print which metrics were unavailable.
+- [x] tools/extract-real-chat.mjs + --compare — built (desk lane + integration fixes: streams[0] parse, crop= prefix, FFPEG typo, gray+negate chain, OCR noise gate), self-test green, smoked on real VOD probes. FNF VOD chat panel region: `--region 300:500:980:220` (OCR reads usernames cleanly); phantom VOD = right-30% default, hard mode.
+- [x] tools/score-chat.mjs (§F) — seven metrics now (added template-repeat), exit codes, `videos/` gitignored. Run4 rubric GREEN on the demo feed: echo 0%, questions 20.5%, emote 25%, bigrams 95.8%.
+- [ ] workers/llm-worker.js + js/main.js (§H/U7) — add onnx-community/Qwen3-VL-2B-Instruct-ONNX (q4f16) as a selectable third brain and A/B it against LFM3-VL-2B on the same video through the scorer; a verbatim load failure is a valid result. Unit: tasks/U7-qwen3vl-quality-brain.md. Verify: both brains reach ready headless (or the error is captured); score table in the report.
+- [ ] workers/llm-worker.js + js/main.js (§H/U8) — StructuredOutputProcessor regex guard on the chat path only, kill switch via ?grammar=0, phone always off; measure retries vs guard-off on the same content. Unit: tasks/U8-grammar-guard.md. Verify: guard-on log needs zero toChatLines strips; retry delta reported.
 - [ ] README — tuning-corpus section and the new sources; append the PLAN.md ledger line; commit by path.
 
 ## Needs Jordan
 
-- [ ] Tuning loop (§F): the 3 yt-dlp'd ~3-min 360p clips are his to pick and drop in
-      `videos/`, and once the rubric is green he reads a transcript end to end — a chat
-      that scores green while being boring is exactly the failure this step catches.
+- [ ] Final vibe check: once the paired runs land, read one sim transcript next to
+      its real VOD chat — scoring green while being boring is the failure only an
+      eyeball catches. Everything else is agent-reachable.
+- [ ] Hub cards for §H/U7+U8 (2026-10-28): the researching session had no
+      Coda MCP, so the two units exist as files + plan lines but not as Hub
+      cards — seed them like the six chat-v2 cards (project `twitch-sim`,
+      Lane Specced, repo `~/Projects/twitch-sim`) or run them from the plan
+      backlog directly.
+- [ ] Fine-tune go/no-go (§H): after U7's verdict — SFT/LoRA on real chat
+      corpora with a license-clean base (the Qwen brain), training on his
+      Mac or the fleet. His call on the time budget.
 
 Risks:
 - Echo-loop regression (the v1.1 killer) — reply-to/ban prompts paste minimal

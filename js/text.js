@@ -45,8 +45,37 @@ const SEED_STOP = new Set(('a an the of with and or in on at to for is are am wa
 // letter D" → "d". Deliberately useless as a description.
 export function reactionSeed(scene) {
   const all = [...new Set(normTokens(scene).filter((w) => !SEED_STOP.has(w)))];
-  const words = all.filter((w) => w.length > 2);
+  const words = all.filter((w) => !SEED_STOP.has(w) && w.length > 2);
   // a caption that is pure description ("…a large white letter D") still gets a
   // hook, otherwise the demo feed would give the model nothing to react to
   return (words.length ? words : all).slice(0, 3).join(' ') || 'the stream';
+}
+
+/* ---- fact extraction gate ------------------------------------------
+ * "not everything the streamer says is a memory." The 450M classifier prompt
+ * alone can't be trusted (it almost never answers NO), so this pure gate runs
+ * BEFORE any model call and a third-person shape check runs after it. Bias is
+ * deliberately toward NO: a missed fact costs one line of context, a junk
+ * fact poisons every chat prompt until someone edits the settings panel. */
+
+// first-person statements that can carry something durable
+const FACT_SIGNAL = /\b(i\s*am|i'?m|my|i\s*have|i'?ve|ive|i\s*live[sd]?|i\s*work[ed]?|i\s*used\s*to|i\s*like[sd]?|i\s*love[sd]?|i\s*hate[sd]?|i\s*play[ed]?|i\s*was\s*born|my\s*name|call\s*me|we\s*live|we\s*have|i\s*stud(y|ied)|i\s*own|i\s*drive|i\s*ride|i'?m\s*from|we'?re\s*from)\b/i;
+// filler/commands — the first words out of a talking mouth, never biography
+const FACT_OPENER = /^(hold|wait|look|watch|listen|check|chat|guys|brb|lol|lmao|haha|thanks?|sorry|oh|uh|um|whoa|wow|nice|cool|damn|ok|okay|yeah|yes|nah|nope|hey|hi|hello|so|and|but|right|alright|let|lets?|can|could|would|should|do|does|did|is|are|was|were|what|who|where|when|why|how)\b/i;
+// stream-context and transient-time talk: about the stream, not the streamer
+const FACT_ANYWHERE = /\b(today|tonight|right now|currently|this morning|this stream|on stream|the stream|streaming|tomorrow|yesterday)\b/i;
+// moods and motion — "i'm tired", "i'm going to" pass the signal but say nothing
+const FACT_TRANSIENT = /\b(tired|hungry|sleepy|bored|sick|excited|annoyed|confused|ready|late|done|going|gonna|leaving|coming|getting|streaming)\b/i;
+
+export function factCandidate(s) {
+  const t = String(s || '').trim().replace(/\s+/g, ' ');
+  const words = t.split(' ');
+  if (words.length < 4 || words.length > 25) return false;
+  if (t.includes('?')) return false;
+  if (/\byou(r|rs)?\b/i.test(t)) return false;        // addressed at someone else
+  if (!FACT_SIGNAL.test(t)) return false;             // no durable shape at all
+  if (FACT_OPENER.test(t)) return false;
+  if (FACT_ANYWHERE.test(t)) return false;
+  if (FACT_TRANSIENT.test(t)) return false;
+  return true;
 }

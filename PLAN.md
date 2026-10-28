@@ -108,3 +108,11 @@ serve.sh              named static server (ps: twitch-sim-server) — needed onl
   (project slug `twitch-sim`, Lane Specced, Repo `~/Projects/twitch-sim`) so the
   autonomous fleet picks them up; the tuning loop stays a human card because it
   needs eyes on transcripts.
+- 2026-10-28: chat-quality research under the WebGPU constraint landed as
+  `docs/RESEARCH-CHAT-WEBGPU.md`. Verdicts: stay on transformers.js 4.3.2
+  (WebLLM has no VLM path); Qwen3-VL-2B ONNX (Apache-2.0, q4f16 ≈1.38 GB) is
+  the quality-brain candidate → unit U7; structured-output regex guard on
+  chat gen → unit U8 (both in `tasks/`, §H of PLAN-CHAT-V2, plan-backlog
+  lines added); min_p confirmed NOT in the pinned bundle; split-brain
+  (Qwen3-1.7B text writer) + SFT/LoRA on Twitch corpora parked for Jordan
+  (§H Needs Jordan, incl. seeding the two Hub cards).

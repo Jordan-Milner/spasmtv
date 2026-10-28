@@ -4,7 +4,7 @@
 // functions the runtime and the scorer both depend on.
 
 import assert from 'node:assert/strict';
-import { normTokens, jaccard, tooSimilar, echoesScene, reactionSeed } from '../js/text.js';
+import { normTokens, jaccard, tooSimilar, echoesScene, reactionSeed, factCandidate } from '../js/text.js';
 
 // reactionSeed: a topic, never a description
 assert.equal(reactionSeed('A green background with a large white letter D.'), 'd');
@@ -36,4 +36,33 @@ assert.equal(tooSimilar('green background white square', ['green background whit
 assert.equal(tooSimilar('F', ['green background white square'], 0.75), false);
 assert.equal(normTokens('Hello, WORLD!! 42').join('|'), 'hello|world|42');
 
-console.log(`ok — ${6 + 4 + 10 + 5} assertions over js/text.js`);
+// factCandidate: "not everything the streamer says is a memory." Real talk from
+// a stream (the reject column) vs durable biography (the keep column) — the
+// gate is deliberately biased to reject.
+for (const keep of [
+  'my name is jordan',
+  'i live in glasgow',
+  'i have two dogs and a cat',
+  'i used to work in a kitchen',
+  'i like fishing more than golf',
+  "i'm from new zealand originally",
+  'i was born in september',
+  'we have a studio in the garage',
+]) assert.equal(factCandidate(keep), true, `should keep: ${keep}`);
+
+for (const reject of [
+  'hold on one second',              // filler
+  'look at this thing i have',       // command opener
+  'wait wait wait',                  // too short + filler
+  'what is that',                    // question, no signal
+  'yeah that was so funny',          // reaction, no signal
+  'chat stop spamming please',       // addressed at chat
+  "im tired today",                  // transient mood + today
+  "i'm going to the shop",           // motion, not biography
+  'ok so my name is actually graham',// filler opener (acceptable loss)
+  'you know i have two dogs',        // second person (acceptable loss)
+  'the stream is dying today',       // stream talk, no first person
+  'brb getting coffee',              // filler
+]) assert.equal(factCandidate(reject), false, `should reject: ${reject}`);
+
+console.log(`ok — ${6 + 4 + 10 + 5 + 20} assertions over js/text.js`);

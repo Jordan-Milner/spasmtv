@@ -23,6 +23,8 @@ const YELLS = [
   'we can see you.',
   'behave. this is a wholesome stream.',
   'mods are awake, just so you know.',
+  'you are testing the limits of my patience.',
+  'we discussed you in the mod discord.',
 ];
 
 const ARCHETYPES = {
@@ -220,7 +222,7 @@ export class ChatSim {
     if (viewer.archetype.ellipsis && Math.random() < 0.5 && !/[.!?…]$/.test(t)) t += '…';
     // emote affinity per archetype (§A): real chat carries an emote in about a
     // third of lines, so the affinity multiplies a base chance, not an excess
-    if (!/[A-Z]{2,}$/.test(t) && Math.random() < (viewer.archetype.emote || 1) * 0.2)
+    if (!/[A-Z]{2,}$/.test(t) && Math.random() < (viewer.archetype.emote || 1) * 0.32)
       t += ' ' + this.randomEmote();
     return t;
   }
@@ -248,6 +250,10 @@ export class ChatSim {
 
   chat(text, viewer = this.pickViewer()) {
     if (!viewer || (viewer.bannedUntil && viewer.bannedUntil > Date.now())) return null;
+    // a viewer repeating their own line verbatim reads as a glitch, not a bit —
+    // the worker dedupes model lines globally, this catches the rest per-viewer
+    const norm = (t) => t.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (viewer.msgs.slice(-5).some((m) => norm(m.text) === norm(text))) return null;
     const isQ = text.includes('?');
     if (isQ) {
       viewer.q += 1;
