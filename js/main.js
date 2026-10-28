@@ -7,6 +7,7 @@
 import { ChatSim } from './chat-sim.js';
 import { tune, loadTune, kindWeights, workerTune, renderTunePanel } from './tuning.js';
 import { STYLE_EXAMPLES } from './style-examples.js';
+import { CANNED_POOL } from './real-lines.js';
 import { loadEmotes, emoteHintFrom } from './emotes.js';
 import {
   pickKind, gateKind, nextGapMs, planBurst, templateLine, maybeBit, liveBits, maybePasta,
@@ -718,6 +719,8 @@ function chatLoop() {
   scheduleNext(chatLoop, nextGapMs(Math.random, tune) * MOOD_GAP[c.mood]);
 }
 
+const CANNABLE = new Set(['reaction', 'banter', 'backseat', 'meta', 'greeting']);
+
 function fireLine({ offsetMs = 0, burstIndex = 0, hype = false, chant = null, sceneChange = false }) {
   setTimeout(() => {
     if (state.phase !== 'live') return;
@@ -741,6 +744,13 @@ function fireLine({ offsetMs = 0, burstIndex = 0, hype = false, chant = null, sc
     // a copypasta viewer pastes a classic instead of reacting — no GPU call
     const pasta = maybePasta(kind, viewer.archetypeKey);
     if (pasta) { logTemplate(pasta, viewer, 'copypasta'); return; }
+    // canned real chat: a slice of ordinary lines is a genuine human line instead
+    // of model output (no GPU). Skips anything seen lately so the pool doesn't loop.
+    if (CANNABLE.has(kind) && Math.random() < tune.cannedPct / 100) {
+      const fresh = CANNED_POOL.filter((l) => !state.templateRecent.includes(
+        l.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()));
+      if (fresh.length) { logTemplate(fresh[(Math.random() * fresh.length) | 0], viewer, 'canned'); return; }
+    }
     // GPU busy: drop the line rather than queue it — a queued line is stale chat
     if (state.pendingChat >= tune.maxPending) return;
     sendChatMessage({ viewer, kind, sceneChange, burstIndex, hype, bit: bits[0]?.text || '' });

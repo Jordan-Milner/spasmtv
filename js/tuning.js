@@ -32,6 +32,7 @@ export const TUNE_SCHEMA = [
     { key: 'droughtP', label: 'drought chance %', type: 'range', min: 0, max: 60, step: 1, def: 20, help: 'Chance that chat goes quiet for 4–8 seconds instead of keeping a steady beat.' },
     { key: 'flurryP', label: 'flurry (burst) chance %', type: 'range', min: 0, max: 80, step: 1, def: 30, help: 'Chance that a tick fires 2–3 lines at once (pile-ons and chants).' },
     { key: 'maxPending', label: 'max concurrent generations', type: 'range', min: 1, max: 4, step: 1, def: 2, help: 'lines are dropped (not queued) beyond this' },
+    { key: 'cannedPct', label: 'canned real-chat lines %', type: 'range', min: 0, max: 80, step: 5, def: 15, help: 'Share of ordinary lines (reactions, banter, backseat, meta) replaced by a real chat line from a small curated pool. Instant, free, and genuinely human — but a small pool repeats, so keep it modest.' },
     { key: 'banModelChance', label: 'model line in ban reactions %', type: 'range', min: 0, max: 100, step: 5, def: 55, help: 'When someone is banned, the chance one of the reaction lines is written by the model instead of a template. Templates are instant and free.' },
   ]},
   { group: 'What chat says (kind mix)', items: [
