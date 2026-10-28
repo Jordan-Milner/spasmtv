@@ -49,6 +49,15 @@
           <option value="base" selected>base · hears you better</option>
         </select>
       </div>
+      <div class="set-head">Chat memory</div>
+      <div class="set-row">
+        <input id="fact-input" placeholder="add a fact about the streamer…" maxlength="120"/>
+        <button id="fact-add" class="ghost">+</button>
+      </div>
+      <div id="fact-list" class="fact-list"></div>
+      <div class="set-row"><button id="fact-clear" class="ghost">forget everything</button></div>
+      <div class="set-note">things you say as fact on stream get remembered here (kept
+        in this browser only) and the chat works with them naturally.</div>
       <div class="set-note">detail above 512 tiles the frame — smarter reads, slower chat.
         focus crop zooms the chat into wherever motion happens.</div>
       <div class="set-head">Latency (your machine)</div>

@@ -23,6 +23,8 @@ const els = {
   settingsBtn: $('settings-btn'), settings: $('settings'),
   setDetail: $('set-detail'), setFocus: $('set-focus'), setVaried: $('set-varied'),
   setAsr: $('set-asr'), setLatency: $('set-latency'),
+  factInput: $('fact-input'), factAdd: $('fact-add'),
+  factList: $('fact-list'), factClear: $('fact-clear'),
 };
 
 const CAPTURE_DEFAULT = 512;      // vision detail (settings panel: 512/640/768 —
@@ -71,6 +73,8 @@ const state = {
   titleIdx: 0,
   // per-kind round-trip latency (ms, last 10)
   latency: { chat: [], cap: [], asr: [] },
+  // chat memory: things the streamer stated as fact (settings panel, localStorage)
+  facts: [],
 };
 
 const sim = new ChatSim();
@@ -174,8 +178,62 @@ function onWorkerMessage(ev) {
     window.__lurker.asr += 1;
     window.__lurker.lastAsr = (m.text || '').slice(0, 80);
     logEvent('asr', m.text || '');
+    if (m.fact) addFact(m.fact);
     onTranscript(m.text);
   }
+}
+
+/* ---------------- chat memory (facts) ---------------- */
+
+const FACTS_KEY = 'spasmtv-facts';
+
+function loadFacts() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(FACTS_KEY) || '[]');
+    if (Array.isArray(arr)) state.facts = arr.filter((f) => f && typeof f.text === 'string');
+  } catch { state.facts = []; }
+}
+
+function saveFacts() {
+  try { localStorage.setItem(FACTS_KEY, JSON.stringify(state.facts.slice(-50))); } catch {}
+}
+
+function addFact(text) {
+  const clean = text.trim().replace(/\s+/g, ' ');
+  if (!clean) return;
+  const norm = clean.toLowerCase().replace(/[^a-z0-9 ]/g, '');
+  if (state.facts.some((f) => f.text.toLowerCase().replace(/[^a-z0-9 ]/g, '') === norm)) return;
+  state.facts.push({ t: new Date().toISOString(), text: clean });
+  if (state.facts.length > 50) state.facts.shift();
+  saveFacts();
+  renderFacts();
+}
+
+function factsForContext() {
+  const tail = state.facts.slice(-8).map((f) => f.text).join('; ');
+  return tail.length > 300 ? tail.slice(-300) : tail;
+}
+
+function renderFacts() {
+  if (!state.facts.length) {
+    els.factList.innerHTML = '<div class="set-note">chat hasn\'t learned anything yet — say a fact out loud, or add one.</div>';
+    return;
+  }
+  els.factList.innerHTML = state.facts
+    .map((f, i) =>
+      `<div class="fact-row"><span class="fact-text"></span>` +
+      `<button class="fact-del" data-i="${i}">✕</button></div>`)
+    .join('');
+  els.factList.querySelectorAll('.fact-text').forEach((el, i) => {
+    el.textContent = state.facts[i].text;
+  });
+  els.factList.querySelectorAll('.fact-del').forEach((b) => {
+    b.onclick = () => {
+      state.facts.splice(+b.dataset.i, 1);
+      saveFacts();
+      renderFacts();
+    };
+  });
 }
 
 function noteLatency(id, kind) {
@@ -509,6 +567,7 @@ function sendChatMessage({ sceneChange, offsetMs = 0, burstIndex = 0 }) {
       recent: state.lastChatLines,
       persona,
       emotes: state.emoteHint,
+      facts: factsForContext(),
     };
     const id = ++state.reqId;
     pendingMeta.set(id, { kind: 'chat', sentAt: performance.now(), context, viewer });
@@ -755,6 +814,23 @@ els.setAsr.addEventListener('change', () => {
   state.settings.asr = els.setAsr.value;
   saveSettings();
   if (state.worker) post({ type: 'asr-model', model: state.settings.asr, preload: state.phase === 'live' });
+});
+
+/* chat memory wiring */
+loadFacts();
+renderFacts();
+els.factAdd.addEventListener('click', (e) => {
+  e.preventDefault();
+  addFact(els.factInput.value);
+  els.factInput.value = '';
+});
+els.factInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); addFact(els.factInput.value); els.factInput.value = ''; }
+});
+els.factClear.addEventListener('click', () => {
+  state.facts = [];
+  saveFacts();
+  renderFacts();
 });
 
 /* ---------------- self-test hook (?autolive) ----------------

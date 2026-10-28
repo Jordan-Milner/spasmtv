@@ -228,6 +228,7 @@ const CHAT_PROMPT_PARTS = (ctx) => {
   if (ctx.speech) parts.push(`The streamer just said: "${ctx.speech}"`);
   if (ctx.sceneChange) parts.push('Something just changed on screen — react to it.');
   if (ctx.userMsg) parts.push(`The streamer typed in chat: "${ctx.userMsg}"`);
+  if (ctx.facts) parts.push(`Things chat knows about the streamer: ${ctx.facts} — use naturally, never list.`);
   if (ctx.emotes) parts.push(`You may use one emote from: ${ctx.emotes}`);
   parts.push(`Your vibe: ${ctx.persona}`);
   parts.push('Write only the message itself — never restate the style hint, never use hashtags.');
@@ -334,5 +335,23 @@ function toChatLines(raw) {
 async function onTranscribe(m) {
   await ensureAsr();
   const { text } = await asr(m.pcm);
-  post({ type: 'transcribe', id: m.id, text: text || '' });
+  let fact = null;
+  const clean = (text || '').trim();
+  if (clean.length > 10) {
+    // best-effort fact extraction: only crisp third-person statements survive
+    try {
+      const raw = await generate({
+        prompt:
+          `The streamer said: "${clean}"\n` +
+          'If that states a durable fact about the streamer (a name, home, job, like, ' +
+          'possession, plan), reply with ONLY that fact in third person (max 12 words). ' +
+          'Otherwise reply exactly NO.',
+        image: null,
+        maxNewTokens: 36,
+      });
+      const t = raw.trim();
+      if (t && !/^no\b/i.test(t) && !t.includes('?') && t.length < 120) fact = t;
+    } catch { /* classifier is best-effort; transcript still goes through */ }
+  }
+  post({ type: 'transcribe', id: m.id, text: text || '', fact });
 }

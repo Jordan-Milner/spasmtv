@@ -512,6 +512,43 @@ main {
   white-space: nowrap;
 }
 
+/* chat memory (facts) */
+.fact-list {
+  max-height: 150px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.fact-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+.fact-text { flex: 1; font-size: 12px; color: var(--text-dim); word-wrap: break-word; }
+.fact-del {
+  background: none;
+  color: var(--text-faint);
+  padding: 0 4px;
+  font-size: 11px;
+}
+.fact-del:hover { color: var(--live); }
+#fact-input {
+  flex: 1;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 5px 8px;
+  font-size: 12px;
+}
+#fact-input:focus { outline: none; border-color: var(--accent); }
+#fact-add { padding: 4px 10px; }
+
 @media (max-width: 760px) {
   /* phone (e.g. opened over tailscale): stack video over chat */
   main { flex-direction: column; }
