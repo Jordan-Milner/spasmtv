@@ -33,7 +33,7 @@ const ARCHETYPES = {
   'hype-man':    { weight: 3, freq: 1.0, hint: 'you are the hype man — a few words at maximum energy, pile onto anything exciting (your lines get shouted in caps for you)',           case: 'upper', ellipsis: false, typo: 0.02, emote: 1.3 },
   'backseat':    { weight: 2, freq: 0.9, hint: 'a backseat gamer — tell the streamer what to do next, unprompted, with timestamps',       case: 'lower', ellipsis: false, typo: 0.03, emote: 0.8 },
   'lurker':      { weight: 4, freq: 0.4, hint: 'a lurker — nearly silent, post only a single word or emote now and then',                 case: 'lower', ellipsis: true,  typo: 0.02, emote: 1.0 },
-  'regular':     { weight: 3, freq: 1.3, hint: 'a regular — treat something on screen like a running joke you\u2019ve seen every stream', case: 'lower', ellipsis: true,  typo: 0.04, emote: 1.0 },
+  'regular':     { weight: 3, freq: 1.3, hint: 'a regular — treat what you are looking at like a running joke you\u2019ve seen every stream', case: 'lower', ellipsis: true,  typo: 0.04, emote: 1.0 },
   'earnest':     { weight: 2, freq: 0.8, hint: 'earnest — ask one genuine short question about the streamer or the room',                case: 'lower', ellipsis: true,  typo: 0.03, emote: 0.7 },
   'doomer':      { weight: 2, freq: 0.7, hint: 'a doomer — ironic defeatist, "this is who i am now" energy',                        case: 'lower', ellipsis: true,  typo: 0.05, emote: 0.8 },
   'parasocial':  { weight: 2, freq: 0.8, hint: 'parasocial — talk to the streamer like a close friend, bring up things you "remember"', case: 'lower', ellipsis: true,  typo: 0.04, emote: 1.0 },
@@ -48,6 +48,10 @@ const ARCHETYPE_KEYS = Object.keys(ARCHETYPES);
 
 // persisted roster: names + archetypes survive reloads so regulars stay theirs
 const ROSTER_KEY = 'spasmtv-roster';
+
+// share of lines spoken by a one-time visitor instead of a roster regular
+// (docs/twitch-chat-fingerprint.md law 3)
+const DRIVE_BY_P = 0.22;
 const ROSTER_VERSION = 1;
 
 // weighted pick of a random archetype from the roster table
@@ -133,7 +137,12 @@ export class ChatSim {
 
   setEmotes(map) {
     this.emotes = new Map([...map].filter(([code]) => safeEmote(code)));
-    const codes = [...this.emotes.keys()].sort((a, b) => b.length - a.length).map(escapeRe);
+    // _formatText escapes the line before matching, so a code carrying & or "
+    // (7TV has several — "M&Mjc" rendered as a word in the 2026-10-28 quality
+    // run) could never match its own escaped text. Match the escaped form and
+    // map it back for the lookup.
+    this.emoteByKey = new Map([...this.emotes.keys()].map((c) => [escapeHtml(c), c]));
+    const codes = [...this.emoteByKey.keys()].sort((a, b) => b.length - a.length).map(escapeRe);
     this.emoteRe = codes.length
       ? new RegExp('(^|\\s)(' + codes.join('|') + ')(?=[\\s.,!?…]|$)', 'g')
       : null;
@@ -192,6 +201,16 @@ export class ChatSim {
   pickViewer(mult = () => 1) {
     const pool = this.activeViewers();
     if (!pool.length) return null;
+    // Measured 2026-10-28: 37-66% of the people who ever speak in a real room
+    // say exactly one line and are never heard from again. A roster of 34
+    // permanent regulars cannot produce that (ours: 0% one-line users, 13 lines
+    // per person). A drive-by is a real viewer object that simply never joins
+    // the roster, so it speaks once and is gone.
+    if (Math.random() < DRIVE_BY_P) {
+      const v = this._makeViewer(makeName(), pickArchetype());
+      v.transient = true;
+      return v;
+    }
     // weighted by archetype frequency — regulars/posts dominate, lurkers rare
     for (let attempt = 0; attempt < 8; attempt++) {
       const v = pool[pickByFreq(pool, mult)];
@@ -227,11 +246,11 @@ export class ChatSim {
     let t = words.join(' ');
     const endsInCode = isCode(words[words.length - 1] || '');
     if (viewer.archetype.ellipsis && !endsInCode && Math.random() < 0.5 && !/[.!?…]$/.test(t)) t += '…';
-    // emote affinity per archetype (§A): real chat carries an emote in about a
-    // third of lines. Emote-only lines and chants already make up about a
-    // quarter of chat (2026-10-28 run: 21 of 81), so this tops the rest up
-    // rather than adding a third on top (that run measured 52 %, over the band)
-    if (!endsInCode && Math.random() < (viewer.archetype.emote || 1) * 0.16)
+    // emote affinity per archetype (§A). Measured 2026-10-28 across 6 real
+    // rooms: an emote appears in 3-9% of lines, NOT the "about a third" the
+    // first build assumed. Kind mix + template lines already supply most of
+    // what is left, so this tops up by a few percent at most.
+    if (!endsInCode && Math.random() < (viewer.archetype.emote || 1) * 0.05)
       t += ' ' + this.randomEmote();
     return t;
   }
@@ -249,8 +268,9 @@ export class ChatSim {
     this.lastEmotes = [];
     if (this.emoteRe) {
       html = html.replace(this.emoteRe, (m, ws, code) => {
-        const url = this.emotes.get(code);
-        this.lastEmotes.push(code);   // what the §F emote metric measures
+        const real = this.emoteByKey.get(code);
+        const url = this.emotes.get(real);
+        this.lastEmotes.push(real);   // what the §F emote metric measures
         return `${ws}<img class="emote-img" alt="${code}" title="${code}" src="${url}" loading="lazy"/>`;
       });
     }

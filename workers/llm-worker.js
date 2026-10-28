@@ -20,7 +20,7 @@ import {
 // same yardstick the scorer uses (tools/score-chat.mjs imports this file too)
 import {
   normTokens, tooSimilar, echoesScene, reactionSeed, factCandidate,
-  unsafeLine, personaLeak, junkLine, echoesSpeech,
+  unsafeLine, personaLeak, junkLine, echoesSpeech, tagEcho,
 } from '../js/text.js';
 
 // workers/omni.js pulls onnxruntime-web and its own tokenizer — fetched only
@@ -346,12 +346,12 @@ async function onCaption(m) {
  * a kind we don't know is treated as a plain reaction.
  */
 const KIND_PROMPT = {
-  reaction: 'React to what is happening right now.',
+  reaction: 'Say what you think about what is happening right now.',
   reply:    'Reply to the chat user quoted below — not to the stream.',
   banter:   'Talk to the other people in chat, not to the stream.',
   question: 'Ask one short question, ending with a question mark.',
-  backseat: 'Backseat: tell the streamer what to do next, unprompted.',
-  meta:     'Meta chatter about the stream itself — the lag, the title, the viewer count, how it is going.',
+  backseat: 'Tell the streamer what to do next, unprompted.',
+  meta:     'Chatter about the stream itself — the lag, the title, the viewer count, how it is going.',
   greeting: 'You just arrived in the stream. Say hi in a few words.',
   callback: 'Call back to the running joke quoted below, the way a regular would, with no explanation.',
   banreact: 'A viewer was just moderated by the mods. React to that.',
@@ -366,12 +366,22 @@ const VISUAL_KINDS = new Set(['reaction', 'question', 'backseat', 'reply', 'call
 const clip = (s, n) => String(s).slice(0, n);
 
 const CHAT_PROMPT_PARTS = (kind, ctx, T = {}) => {
+  /* v4, measured: the fast run made 122 generate() calls to keep 48 lines — 44
+   * first passes died in keep() below, and what died was almost always the
+   * prompt's own vocabulary coming back ("on screen just changed", "max 12 words
+   * hey", "No emotes allowed", "HYPEMAN", "Reaction like a troll says nothing.").
+   * An instruction-tuned model copies the words nearest the output and does not
+   * hear negations — "never mention colors" hands it the word colors. So the data
+   * lines are bracketed tags (an echo of one is unmissable: "[" is never chat),
+   * the rules are positive, the length is a range the real corpus actually has
+   * (median 3 words, p90 6), and the last line is a completion cue instead of a
+   * warning. keep() still catches an echo — it is the net, not the fix. */
   const parts = [
-    `You are one viewer writing a single Twitch chat message: usually 1 to 5 words, never more than ${Math.min(T.maxWords || 12, 12)}, lowercase, no quotes, no hashtags, no emoji faces.`,
+    'You are one viewer in a Twitch chat. Write one chat line of 2 to 6 words, lowercase, plain words.',
   ];
-  if (VISUAL_KINDS.has(kind) && ctx.scene) parts.push(`On screen, roughly: ${reactionSeed(ctx.scene, T.seedWords || 3)}`);
-  if (ctx.sceneChange && VISUAL_KINDS.has(kind)) parts.push('Something on screen just changed.');
-  parts.push('React like a viewer who has been here for hours. Never describe what is on screen, never mention colors, backgrounds, letters or layout — unless you are making a joke of it.');
+  if (VISUAL_KINDS.has(kind) && ctx.scene) parts.push(`[see ${reactionSeed(ctx.scene, T.seedWords || 3)}]`);
+  if (ctx.sceneChange && VISUAL_KINDS.has(kind)) parts.push('[new]');
+  parts.push('You have been here for hours. React.');
   parts.push(KIND_PROMPT[kind]);
   // exactly ONE quoted line, never the recent window — pasting the window back
   // is the v1.1 echo loop that killed the last build
@@ -383,10 +393,10 @@ const CHAT_PROMPT_PARTS = (kind, ctx, T = {}) => {
   if (ctx.userMsg) parts.push(`The streamer typed in chat: "${ctx.userMsg}"`);
   if (ctx.facts) parts.push(`Things chat knows about the streamer: ${ctx.facts} — use naturally, never list.`);
   if (ctx.emotes) parts.push(`You may use one emote from: ${ctx.emotes}`);
-  if (ctx.persona) parts.push(`Your vibe: ${ctx.persona}`);
+  if (ctx.persona) parts.push(`[vibe ${ctx.persona}]`);
   if (T.extraDirection) parts.push(`Also: ${clip(T.extraDirection, 160)}`);
   if (ctx.styleExamples?.length) parts.push(`Real chat lines look like this (style only — never copy): ${ctx.styleExamples.map((x) => `"${x}"`).join(' / ')}`);
-  parts.push('Write only the message itself — never restate these instructions, never use hashtags.');
+  parts.push('Chat line:');
   return parts.join('\n');
 };
 
@@ -460,6 +470,7 @@ async function onChat(m) {
     // invented @handles and digit/symbol junk; the streamer's words repeated back
     .filter((s) => !unsafeLine(s))
     .filter((s) => !personaLeak(s))
+    .filter((s) => !tagEcho(s))
     .filter((s) => !junkLine(s, [ctx.replyTo?.name, ctx.ban?.name]))
     .filter((s) => ![ctx.speech, ctx.userMsg].some((said) => said && echoesSpeech(s, said)))
     .filter((s) => !softGenderDamp(s, (T.genderDamp ?? 50) / 100));
@@ -493,7 +504,7 @@ function toChatLines(raw, maxWords = 14, strict = false) {
   let t = raw.replace(/^["'`\s]+|["'`\s]+$/g, '');
   // roleplay leakage: "username:", "@name:", "twitch chat:", "Viewer 2:" prefixes
   t = t.replace(/^@?[\w .-]{2,24}\s*:\s+/, '');
-  t = t.replace(/^(?:twitch\s+)?(?:chat message|viewer ?\d*|user ?\d*|message|chat)\s*[:\-]\s*/i, '');
+  t = t.replace(/^(?:twitch\s+)?(?:chat message|chat line|viewer ?\d*|user ?\d*|message|chat)\s*[:\-]\s*/i, '');
   // hashtag debris the 450M picks up from its Twitch priors
   t = t.replace(/#[\w-]+/g, '');
   // template debris: "<th_script>", "[stream_name]"

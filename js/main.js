@@ -228,14 +228,21 @@ function onWorkerMessage(ev) {
         viewer = sim.pickViewer(viewerWeights());
       // the kind promised a question; a 450M that forgot the mark gets the free
       // template rather than a statement wearing a question badge (§F rate)
-      const finalText = entry?.kind === 'question' && !text.includes('?') ? templateLine('question', { recent: state.templateRecent }) : text;
+      const templated = entry?.kind === 'question' && !text.includes('?');
+      let finalText = templated ? templateLine('question', { recent: state.templateRecent }) : text;
+      // A reply names who it answers. On real Twitch the reply button inserts
+      // the @mention, so a reply with no name reads as fake — measured 0% of
+      // our lines named another chatter against 4-11% in the small rooms.
+      const rt = entry?.context?.replyTo;
+      if (rt?.name && !finalText.toLowerCase().includes(rt.name.toLowerCase()))
+        finalText = `@${rt.name} ${finalText}`;
       const shown = sim.chat(finalText, viewer || undefined);
       if (!shown) return;
       // the log carries what the §F scorer measures: message kind, archetype,
       // the rendered line (emotes and all) and, implicitly, that a model wrote it
       logEvent('chat', finalText, {
         ...(entry?.context || {}),
-        ...(finalText !== text ? { model: false } : {}),   // swapped for a template
+        ...(templated ? { model: false } : {}),   // swapped for a template
         kind: m.kind || entry?.kind || 'reaction',
         calls: m.calls, drops: m.drops,
         viewer: shown.name,
@@ -906,7 +913,9 @@ function sendChatMessage({ viewer, kind, sceneChange, burstIndex = 0, hype = fal
     userMsg: state.userMsgTicks > 0 ? state.userMsg : '',
     recent: state.lastChatLines.map((l) => l.text),
     persona: personaFor(viewer, kind),
-    emotes: state.emoteHint,
+    // only an emote line is offered emotes: offering them on every line is how
+    // the model ended up putting one in 48% of chat (real rooms: 3-9%)
+    emotes: kind === 'emote' ? state.emoteHint : '',
     facts: factsForContext(),
     replyTo: replySrc ? { name: replySrc.name, text: replySrc.text } : null,
     bit: kind === 'callback' ? bit : '',

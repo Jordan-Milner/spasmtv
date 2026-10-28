@@ -6,9 +6,13 @@
 import { pickFresh } from './culture.js';
 
 // §C weights. "emote" is the only kind that never costs a generate call.
+// Measured 2026-10-28 (docs/twitch-chat-fingerprint.md): the rooms we resemble
+// (13-24 lines/min) put an emote in 3-9% of lines and reply to a specific line
+// 6-8% of the time. The old mix produced emotes in 48% of lines and named
+// another chatter in 0% of them.
 export const KIND_WEIGHTS = {
-  reaction: 39, emote: 13, question: 21, backseat: 8,
-  reply: 6, banter: 6, callback: 5, meta: 3, greeting: 2,
+  reaction: 39, emote: 8, question: 21, backseat: 8,
+  reply: 10, banter: 6, callback: 5, meta: 3, greeting: 2,
 };
 
 // who is allowed to ask questions — question inflation (§ diagnosis 2) came
@@ -82,8 +86,9 @@ export function pileOnBurst(rnd = Math.random) {
 export const pileOnGap = (rnd = Math.random) => 900 + rnd() * 700;
 // the first gap after the wave: chat catches its breath
 export const breatherGap = (rnd = Math.random) => 6000 + rnd() * 4000;
-// a follow-up is mostly an emote (free); the rest are real reactions
-export const pileOnKind = (rnd = Math.random) => (rnd() < 0.6 ? 'emote' : 'reaction');
+// follow-ups lean on free emote lines so the wave costs little GPU — but a
+// measured room only puts an emote in ~8% of lines, so the wave is mostly words
+export const pileOnKind = (rnd = Math.random) => (rnd() < 0.35 ? 'emote' : 'reaction');
 
 // template lines — real chat is full of these and they cost no GPU
 export const SMASH = ['asdfghjkl', 'ajskdlfj', 'sdkfjlsd', 'kdjfslkd', 'aksjdlkf'];
@@ -113,6 +118,10 @@ export function maybePasta(kind, viewerKey, rnd = Math.random) {
     : null;
 }
 
+// one or two words that a real chatter hangs an emote on — measured emote
+// lines usually DECORATE a sentence instead of replacing it
+const EMOTE_TAG = ['nice', 'lmao', 'W', 'fr', 'real', 'classic', 'sheesh', 'o7', 'big W', 'insane'];
+
 // `recent` is main.js's freshness ring: a canned question or fill the crowd
 // just heard is skipped (chants repeat on purpose; emotes come from emote())
 export function templateLine(kind, { emote = () => 'KEKW', hype = false, chant = null, recent = [] } = {}) {
@@ -121,7 +130,11 @@ export function templateLine(kind, { emote = () => 'KEKW', hype = false, chant =
   if (kind !== 'emote') return null;
   const r = Math.random();
   if (hype && r < 0.35) return SMASH[(Math.random() * SMASH.length) | 0];
-  if (r < 0.75) return emote();
+  // real rooms: emote-only in 0.5-6% of ALL lines, ~2.2 emotes per emote line.
+  // This branch used to return a bare emote 75% of the time.
+  if (r < 0.30) return emote();
+  if (r < 0.50) return `${emote()} ${emote()}`;
+  if (r < 0.85) return `${EMOTE_TAG[(Math.random() * EMOTE_TAG.length) | 0]} ${emote()}`;
   return pickFresh(TEXT_FILLS, recent);
 }
 

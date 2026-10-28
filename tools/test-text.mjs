@@ -6,12 +6,12 @@
 import assert from 'node:assert/strict';
 import {
   normTokens, jaccard, tooSimilar, echoesScene, reactionSeed, factCandidate,
-  unsafeLine, safeEmote, personaLeak, junkLine, echoesSpeech,
+  unsafeLine, safeEmote, personaLeak, junkLine, echoesSpeech, tagEcho,
 } from '../js/text.js';
 import { CANNED_POOL } from '../js/real-lines.js';
 import { FACTIONS, DEAD_CHAT_LINES, ONLOOKER_LINES, RELIEF_LINES, spotLine } from '../js/culture.js';
 import { PASTAS, TEXT_FILLS, templateLine } from '../js/cadence.js';
-import { ARCHETYPE_KEYS } from '../js/chat-sim.js';
+import { ARCHETYPE_KEYS, ChatSim } from '../js/chat-sim.js';
 
 // reactionSeed: a topic, never a description
 assert.equal(reactionSeed('A green background with a large white letter D.'), 'd');
@@ -125,6 +125,41 @@ for (const l of canned) {
   assert.equal(unsafeLine(t), false, `canned line is unsafe: ${t}`);
   assert.equal(personaLeak(t), false, `canned line leaks the brief: ${t}`);
   n2 += 2;
+}
+
+// v4 prompt leaks the eye caught in post2-phone that no metric scored: the 256M
+// describing the interface it can see, and the bracketed prompt tags coming back
+for (const bad of ['The user\u2019s profile picture.', 'The user\'s avatar and name.',
+  'The text reads as follows...', 'The last comment was written by zlox.',
+  'Be respectful in your responses if using Twitter.', 'comments were written',
+  'STREAMCHART JUST CHANGED LOL', 'bruh something just changed',
+  'real chat lines look like this?', 'things chat know about you'])
+  assert.equal(personaLeak(bad), true, `should leak: ${bad}`), n2++;
+for (const ok of ['that drawing tho', 'the line work is clean', 'who is this guy',
+  'text mode', 'peak comment', 'respect mod', 'changed the whole palette?'])
+  assert.equal(personaLeak(ok), false, `should pass: ${ok}`), n2++;
+
+// the prompt feeds data as [see …] / [new] / [vibe …] and ends with "Chat line:"
+for (const bad of ['[see cartoon dog hat]', '[new]', '[vibe a lurker]', 'Chat line: ez', '[red]'])
+  assert.equal(tagEcho(bad), true, `should be a tag echo: ${bad}`), n2++;
+for (const ok of ['ez', 'kekw', 'vibes', 'vibe check', 'the vibe is off'])
+  assert.equal(tagEcho(ok), false, `should pass: ${ok}`), n2++;
+
+// a leading-zero number is the model reading a filename back, not chat
+assert.equal(junkLine('0560 in my mind!'), true); n2++;
+for (const ok of ['100%', '240p lag', '10:15', 'top 10', 'gtx 1070'])
+  assert.equal(junkLine(ok), false, `should pass: ${ok}`), n2++;
+
+// a code carrying & is escaped before emoteRe matches, so a raw-code regex
+// never found it and "M&Mjc" rendered as a word (post2-quality, emote-render 6 %)
+{
+  const sim = Object.create(ChatSim.prototype);
+  ChatSim.prototype.setEmotes.call(sim, new Map([['M&Mjc', 'u1'], ['Kappa', 'u2'], ['<b>', 'u3']]));
+  const html = ChatSim.prototype._formatText.call(sim, 'M&Mjc Kappa <b> look');
+  assert.equal(sim.lastEmotes.join(','), 'M&Mjc,Kappa,<b>');
+  assert.ok(html.includes('src="u1"'), 'the & code must become an image');
+  assert.ok(!html.includes('>M&Mjc<'), 'and must not survive as text');
+  n2 += 3;
 }
 
 console.log(`ok — ${6 + 4 + 10 + 5 + 20 + n2} assertions over js/text.js + every canned line`);

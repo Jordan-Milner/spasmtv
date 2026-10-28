@@ -1,0 +1,18 @@
+collecting 30 channels → data/real/2026-10-28-round1.jsonl for 14 min (cap 9000/channel)
+TLS ok
+  1.0 min · 299 lines · lirik=84 sykkuno=26 hasanabi=99 jynxzi=83 shroud=7
+  2.0 min · 737 lines · lirik=161 sykkuno=41 hasanabi=223 jynxzi=294 shroud=18
+  3.0 min · 1159 lines · lirik=238 sykkuno=50 cdawg=1 hasanabi=332 jynxzi=510 shroud=28
+  4.0 min · 1795 lines · lirik=388 sykkuno=68 cdawg=1 hasanabi=376 jynxzi=915 shroud=47
+  5.0 min · 2250 lines · lirik=572 sykkuno=86 cdawg=2 hasanabi=437 jynxzi=1089 shroud=64
+  6.0 min · 2799 lines · lirik=691 sykkuno=94 cdawg=6 hasanabi=520 jynxzi=1421 shroud=67
+  7.0 min · 3553 lines · lirik=878 sykkuno=108 cdawg=7 hasanabi=602 jynxzi=1863 shroud=95
+  8.0 min · 4185 lines · lirik=1053 sykkuno=125 cdawg=10 hasanabi=663 jynxzi=2223 shroud=111
+  9.0 min · 5055 lines · lirik=1307 sykkuno=136 cdawg=11 hasanabi=761 jynxzi=2689 shroud=151
+  10.0 min · 5553 lines · lirik=1441 sykkuno=148 cdawg=13 hasanabi=823 jynxzi=2954 shroud=174
+  11.0 min · 6334 lines · lirik=1665 sykkuno=163 cdawg=13 hasanabi=869 jynxzi=3437 shroud=187
+  12.0 min · 7160 lines · lirik=1954 sykkuno=179 cdawg=13 hasanabi=927 jynxzi=3867 shroud=220
+  13.0 min · 7858 lines · lirik=2158 sykkuno=190 cdawg=13 hasanabi=980 jynxzi=4250 shroud=267
+  14.0 min · 8747 lines · lirik=2358 sykkuno=199 cdawg=13 hasanabi=1046 jynxzi=4797 shroud=334
+  14.0 min · 8799 lines · lirik=2374 sykkuno=199 cdawg=13 hasanabi=1046 jynxzi=4832 shroud=335
+total 8799 lines → data/real/2026-10-28-round1.jsonl

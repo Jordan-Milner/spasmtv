@@ -94,19 +94,20 @@ export const safeEmote = (code) =>
  * see…" (5 of 47 model lines, from "On screen, roughly:" and "Something on
  * screen just changed."). */
 const PERSONA_LEAK = /\b(react(s|ed|ing|ion|ions)?|hype ?-?m[ae]n|hypem[ae]n|troll(s|ing|ed)?|doomer|parasocial|backseat(s|ing|er)?|copypasta|newcomer|earnest|chatter ?line|chat ?line|persona|archetype)\b/i;
-const PROMPT_LEAK = /\b(react like a viewer|like a viewer who|max ?12 ?words|never describe|write only the message|one short chat message|your vibe|stream_name|no emotes?|no description|no quotes?|no hashtags?|keep your voice|lowercase only|one emote from|on ?screen,? roughly|something on ?screen|(on ?screen|screen) just changed|just changed)\b|^\W*on ?screen\b/i;
+const PROMPT_LEAK = /\b(react like a viewer|like a viewer who|max ?12 ?words|never describe|write only the message|one short chat message|your vibe|stream_name|no emotes?|no description|no quotes?|no hashtags?|real chat lines look like|things chat know|keep your voice|lowercase only|one emote from|on ?screen,? roughly|something on ?screen|(on ?screen|screen) just changed|just changed)\b|^\W*on ?screen\b/i;
 /* UI narration — the 256M looking at a screenshot of a stream and describing the
  * interface instead of reacting to it (post2-phone, 7 of 44 model lines, none of
  * them caught by the junk metric): "The user's profile picture.", "The text reads
  * as follows...", "The last comment was written by zlox." */
-const UI_LEAK = /\bthe (user'?s|streamer'?s|viewer'?s|chat'?s)? ?(profile picture|avatar|username|user ?name|display name|text|caption|comment|message|image|picture|screenshot)\b|\breads as follows\b|\bwritten by\b|\bbe respectful\b|\bplease (note|remember)\b/i;
+const UI_LEAK = /\bthe (user[’\']?s|streamer[’\']?s|viewer[’\']?s|chat[’\']?s)? ?(profile picture|avatar|username|user ?name|display name|text|caption|comment|message|image|picture|screenshot)\b|\breads as follows\b|\bwritten by\b|\bcomments? (were|was)\b|\bbe respectful\b|\bplease (note|remember)\b/i;
 export const personaLeak = (s) => PERSONA_LEAK.test(String(s || '')) || PROMPT_LEAK.test(String(s || ''))
   || UI_LEAK.test(String(s || ''));
 
 /* prompt-tag echo — the prompt feeds data as bracketed tags ([see …], [new],
  * [vibe …]) and ends with the completion cue "Chat line:". A bracket is never
- * real chat, so an echo of the framing is unmissable rather than plausible. */
-export const tagEcho = (s) => { const t = String(s || ''); return /[\[\]]/.test(t) || /^\W*(chat line|vibe)\b/i.test(t); };
+ * real chat, so an echo of the framing is unmissable rather than plausible. The
+ * word "vibe" on its own stays legal — "vibe check" is a real chat line. */
+export const tagEcho = (s) => { const t = String(s || ''); return /[\[\]]/.test(t) || /^\W*chat line\b/i.test(t); };
 
 /* ---- junk ------------------------------------------------------------
  * The 256M phone brain's failure shape: "@@/234506579", "@bryan@fergie@gabe_",

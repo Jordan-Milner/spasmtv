@@ -1,0 +1,20 @@
+collecting 82 channels → data/real/2026-10-28-round2-small.jsonl for 16 min (cap 3000/channel)
+TLS ok
+  1.0 min · 20 lines · b0aty=8 n0thing=2 sykkuno=10
+  2.0 min · 34 lines · b0aty=11 n0thing=2 sykkuno=21
+  3.0 min · 64 lines · b0aty=18 n0thing=7 sykkuno=39
+  4.0 min · 85 lines · b0aty=24 n0thing=13 sykkuno=48
+  5.0 min · 110 lines · b0aty=38 n0thing=13 sykkuno=59
+  6.0 min · 201 lines · b0aty=102 n0thing=14 sykkuno=85
+  7.0 min · 261 lines · b0aty=130 n0thing=17 cohhcarnage=1 sykkuno=113
+  8.0 min · 301 lines · b0aty=144 n0thing=17 cohhcarnage=2 sykkuno=138
+  9.0 min · 325 lines · b0aty=153 n0thing=18 cohhcarnage=2 sykkuno=152
+  10.0 min · 343 lines · b0aty=161 n0thing=18 cohhcarnage=2 sykkuno=162
+  11.0 min · 358 lines · b0aty=163 n0thing=19 auronplay=1 cohhcarnage=2 sykkuno=173
+  12.0 min · 389 lines · b0aty=170 n0thing=21 auronplay=1 cohhcarnage=2 sykkuno=195
+  13.0 min · 409 lines · b0aty=179 n0thing=22 auronplay=1 cohhcarnage=2 sykkuno=205
+  14.0 min · 429 lines · b0aty=186 n0thing=22 auronplay=2 cohhcarnage=2 sykkuno=217
+  15.0 min · 448 lines · b0aty=198 n0thing=23 auronplay=2 cohhcarnage=2 sykkuno=223
+  16.0 min · 469 lines · b0aty=212 n0thing=23 auronplay=2 cohhcarnage=2 sykkuno=230
+  16.0 min · 470 lines · b0aty=212 n0thing=23 auronplay=2 cohhcarnage=2 sykkuno=231
+total 470 lines → data/real/2026-10-28-round2-small.jsonl

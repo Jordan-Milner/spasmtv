@@ -137,7 +137,9 @@ for U7) and the training time to spend on it. Parked.
    (fixed bank, NOT the recent window — the v1.1 echo-loop lesson), gated on
    §G corpus arriving.
 4. **Split-brain** (§3) and **SFT/LoRA** (§5) — parked.
-5. Phone-tier q1/q2 encoders — only if iOS load needs it.
+5. ~~Phone-tier q1/q2 encoders~~ — dead end, killed 2026-10-28: the phone ceiling is ~1 GB and the
+   lightest useful Omni/VLM load is ~1.6 GB (`notes/tasks/OMNI-REPORT.md`), so halving an encoder
+   still leaves it 2x over. Phone brains stay a separate, much smaller model.
 
 ## Sources
 

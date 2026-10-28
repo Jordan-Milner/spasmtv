@@ -24,11 +24,19 @@ const OUT = arg('out', '/tmp/spasmtv-run.jsonl');
 const PARAMS = arg('url-params', 'autolive=1');
 const BASE = arg('base', 'http://127.0.0.1:8619/');
 const CHROME = arg('chrome', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome');
-const DEADLINE = Date.now() + (MINUTES * 60 + 240) * 1000; // run + 4 min of slack
+// The sample window is live chat, not wall clock from launch. A cold brain load
+// (parse weights + build WebGPU graphs) is 30-90 s and is NOT the thing being
+// measured — charging it to the window is what made post2-quality look like a
+// 1.6-minute run and pushed --minutes to 5 for the 2 GB brains.
+const LOAD_SLACK = 4 * 60;
+let readyAt = 0;
+let DEADLINE = Date.now() + (MINUTES * 60 + LOAD_SLACK) * 1000; // re-armed once live
 
-// persistent profile on purpose: the model weights (~800 MB) cache in the
-// browser Cache API, so a second run starts warm. --fresh wipes it.
-const profile = arg('profile', '/tmp/spasmtv-chrome-profile');
+// persistent profile on purpose: the model weights (~800 MB to 2.3 GB per brain,
+// 7 GB for the shipped set) cache in the browser Cache API, so the next run
+// starts warm. Default lives in ~/.cache, NOT /tmp — macOS sweeps /tmp and a
+// swept profile costs a full re-download of every brain. --fresh wipes it.
+const profile = arg('profile', `${process.env.HOME}/.cache/spasmtv/cdp-profile`);
 if (flag('fresh')) rmSync(profile, { recursive: true, force: true });
 mkdirSync(profile, { recursive: true });
 const chrome = spawn(CHROME, [
@@ -55,6 +63,10 @@ const die = (code, msg) => {
   process.exit(code);
 };
 process.on('SIGTERM', () => die(1, 'killed'));
+// a chain that exits 1 with no output costs a whole run to diagnose (post3-omni
+// did exactly that) — say what killed it before killing the browser
+process.on('unhandledRejection', (e) => die(1, 'fatal: ' + (e && e.stack || e)));
+process.on('uncaughtException', (e) => die(1, 'fatal: ' + (e && e.stack || e)));
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -155,12 +167,22 @@ const BAN_SNIPPET = `(() => {
   return Date.now();
 })()`;
 
+const startedAt = Date.now();
 while (Date.now() < DEADLINE) {
   await sleep(5000);
   try { title = (await evaluate(ws, 'document.title')) || ''; } catch (e) { console.error('poll failed:', e.message); continue; }
   const status = await evaluate(ws, "document.getElementById('status-text').textContent").catch(() => '?');
   console.log(`… ${title.slice(0, 110)} :: ${status}`);
   const chat = +(title.match(/chat=(\d+)/) || [])[1] || 0;
+  // re-arm the clock the first time the page is actually producing chat, so
+  // --minutes means minutes of chat and a slow model load costs sample time
+  // from the run instead of from the measurement
+  if (!readyAt && /phase=live/.test(title) && chat >= 1) {
+    readyAt = Date.now();
+    DEADLINE = readyAt + MINUTES * 60 * 1000;
+    console.log(`ready after ${((readyAt - startedAt) / 1000).toFixed(0)}s load`
+      + ` · sampling ${MINUTES} min to ${new Date(DEADLINE).toLocaleTimeString()}`);
+  }
   if (flag('ban') && !banAt && chat >= 8) {
     banAt = await evaluate(ws, BAN_SNIPPET);
     if (banAt) console.log(`banned a loud viewer at ${new Date(banAt).toISOString()}`);

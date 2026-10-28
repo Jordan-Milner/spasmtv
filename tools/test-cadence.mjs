@@ -139,7 +139,10 @@ assert.equal(maybeBit(bits, 'x'.repeat(60), { hype: true }).length, 1, 'too long
   console.log(`pile-on sim: ${changes.length} changes, ${rate.toFixed(1)} lines/min, ` +
     `${(gen2 / MINUTES).toFixed(1)} generate calls/min, ${(waveRate / rate).toFixed(2)}× in the 10 s after a change`);
   assert.ok(waveRate / rate >= 2, `pile-on only ${(waveRate / rate).toFixed(2)}× the session rate`);
-  assert.ok(gen2 / MINUTES <= 20, `pile-ons push generate calls to ${(gen2 / MINUTES).toFixed(1)}/min`);
+  // budget raised 20 -> 21/min: the word-heavy pile-on tuning (fingerprint
+  // research, 2026-10-28) drops pile-on emotes from 60% to ~35%, so a wave
+  // costs one more generate call. The old 20/min was calibrated for that 60%.
+  assert.ok(gen2 / MINUTES <= 21, `pile-ons push generate calls to ${(gen2 / MINUTES).toFixed(1)}/min`);
   assert.ok(rate <= 30, `pile-ons push chat to ${rate.toFixed(1)} lines/min (north star: 1 per 2–3 s)`);
 }
 
