@@ -81,29 +81,34 @@ if (!duration) die('ffprobe did not report a duration');
 
 // --- 2. region ------------------------------------------------------------
 // default = RIGHT 30% of the frame, full height. --region W:H:X:Y overrides.
-let crop;
+let cropW, cropH, cropX, cropY;
 if (REGION) {
   const [cw, ch, cx, cy] = REGION.split(':').map((n) => parseFloat(n));
   if ([cw, ch, cx, cy].some((n) => Number.isNaN(n) || n <= 0))
     die(`bad --region "${REGION}" (want W:H:X:Y, positive numbers)`);
-  crop = `${cw}:${ch}:${cx}:${cy}`;
+  [cropW, cropH, cropX, cropY] = [cw, ch, cx, cy];
 } else {
   if (!W0 || !H0) die('could not read frame size from ffprobe');
-  crop = `crop=${Math.round(W0 * 0.3)}:${H0}:0:0`;
+  // RIGHT 30% — x offset is the remainder, not 0 (x=0 is the LEFT edge).
+  cropW = Math.round(W0 * 0.3);
+  [cropH, cropX, cropY] = [H0, W0 - cropW, 0];
 }
+// the `crop=` filter name is mandatory — bare "300:500:980:220" parses as a
+// filter NAME ("No such filter"), not as crop arguments.
+const crop = `crop=${cropW}:${cropH}:${cropX}:${cropY}`;
 
 if (PREVIEW) {
-  // ONE annotated png: crop box drawn, so the region can be found by eye.
+  // ONE annotated png: full frame with the crop box outlined in yellow, so the
+  // region can be found by eye. drawbox (not drawtext) — this ffmpeg build has
+  // no drawtext/freetype, and the box alone is what you actually need.
   const png = '/tmp/extract-preview.png';
-  const draw = `drawtext=text='CROP':x=2:y=2:fontsize=24:color=yellow,`
-    + `boxcolor=white@0.5:boxwidth=120:boxheight=24`;
+  const box = `drawbox=x=${cropX}:y=${cropY}:w=${cropW}:h=${cropH}:color=yellow:t=3`;
   const r = spawnSync(FFMPEG, [
     '-y', '-ss', String(START), '-i', VIDEO, '-frames:v', '1',
-    '-vf', `${crop},scale=iw*3:ih*3:flags=lanczos,fps=${FPS},${draw}`,
-    png,
+    '-vf', box, png,
   ], { encoding: 'utf8' });
   if (r.status !== 0) die(`ffmpeg preview failed: ${r.stderr?.toString().trim()}`);
-  console.log(`wrote preview to ${png}`);
+  console.log(`wrote preview to ${png} (crop ${cropW}x${cropH} at ${cropX},${cropY})`);
   process.exit(0);
 }
 

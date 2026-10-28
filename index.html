@@ -21,8 +21,13 @@
       <label class="toggle" title="No camera? Chat reacts to a fake demo stream">
         <input type="checkbox" id="demo-toggle"/> demo
       </label>
+      <label class="toggle" title="Share a tab or screen — the chat watches it">
+        <input type="checkbox" id="share-toggle"/> share
+      </label>
       <button id="start-btn" class="primary">Go live</button>
       <button id="stop-btn" class="ghost" hidden>End stream</button>
+      <button id="file-btn" class="ghost" title="Play a video file as the stream">+</button>
+      <input type="file" id="file-input" accept="video/*" hidden/>
       <button id="settings-btn" class="ghost" title="Vision & latency settings">⚙</button>
     </div>
     <div id="settings" hidden>
@@ -70,6 +75,7 @@
       <div id="video-wrap">
         <video id="cam" autoplay playsinline muted></video>
         <canvas id="demo-canvas" hidden></canvas>
+        <video id="file-video" autoplay playsinline muted hidden></video>
         <canvas id="frame-capture" hidden></canvas>
         <canvas id="caption-capture" hidden></canvas>
 

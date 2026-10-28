@@ -38,6 +38,7 @@ const chrome = spawn(CHROME, [
   '--enable-unsafe-webgpu',
   '--use-fake-device-for-media-stream',
   '--use-fake-ui-for-media-stream',
+  '--autoplay-policy=no-user-gesture-required',
   '--no-first-run', '--no-default-browser-check', '--disable-translate',
   '--window-size=1400,900',
   `${BASE}?${PARAMS}`,

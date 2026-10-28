@@ -19,7 +19,8 @@ const $ = (id) => document.getElementById(id);
 const els = {
   startBtn: $('start-btn'), stopBtn: $('stop-btn'),
   modelSelect: $('model-select'), micToggle: $('mic-toggle'), demoToggle: $('demo-toggle'),
-  cam: $('cam'), demoCanvas: $('demo-canvas'), capture: $('frame-capture'),
+  shareToggle: $('share-toggle'), fileBtn: $('file-btn'), fileInput: $('file-input'),
+  cam: $('cam'), demoCanvas: $('demo-canvas'), fileVideo: $('file-video'), capture: $('frame-capture'),
   captionCapture: $('caption-capture'),
   offlineCover: $('offline-cover'), overlay: $('overlay'), titleCard: $('title-card'),
   streamTitle: $('stream-title'), captions: $('captions'),
@@ -60,7 +61,11 @@ const state = {
   pendingChat: 0,
   loops: [],                // timer ids / raf ids
   stream: null,             // MediaStream (camera + mic)
+  shareStream: null,        // MediaStream (getDisplayMedia: tab/screen)
   audioCtx: null,
+  fileVideoUrl: null,       // object URL (picker/drop) or served path (?video=) for the file source
+  fileVideoIsBlob: false,
+  source: 'cam',            // cam | demo | share | file
   demoRaf: 0,
   phoneMode: false,        // iPhone/iPad (or ?phone): SmolVLM-256M brain, no ASR
   // settings (settings panel, persisted)
@@ -471,7 +476,15 @@ async function start() {
 
 async function goLiveAfterLoad() {
   try {
-    if (els.demoToggle.checked) {
+    // precedence: file (?video= / picker / drop) > share > demo > camera
+    state.source = state.fileVideoUrl ? 'file'
+      : els.shareToggle.checked ? 'share'
+      : (els.demoToggle.checked ? 'demo' : 'cam');
+    if (state.source === 'share') {
+      await startShareFeed();
+    } else if (state.source === 'file') {
+      await startFileFeed();
+    } else if (state.source === 'demo') {
       startDemoFeed();
     } else {
       state.stream = await navigator.mediaDevices.getUserMedia({
@@ -481,7 +494,9 @@ async function goLiveAfterLoad() {
       els.cam.hidden = false;
       els.demoCanvas.hidden = true;
     }
-    if (els.micToggle.checked) await startMic();
+    // share/file feeds carry their own audio (wired in their start function);
+    // the mic is only for the camera / demo sources.
+    if (els.micToggle.checked && !state.audioCtx) await startMic();
   } catch (err) {
     setStatus('err', humanizeMediaError(err));
     stopEverything();
@@ -530,6 +545,7 @@ function stopEverything() {
   els.cam.srcObject = null;
   els.cam.hidden = true;
   els.demoCanvas.hidden = true;
+  stopVideoSources();
   els.captions.classList.remove('on');
   els.offlineCover.hidden = false;
   els.overlay.hidden = true;
@@ -557,6 +573,7 @@ function scheduleNext(fn, ms) {
 }
 
 function activeSource() {
+  if (!els.fileVideo.hidden) return els.fileVideo;
   return els.demoCanvas.hidden ? els.cam : els.demoCanvas;
 }
 
@@ -873,6 +890,14 @@ async function startMic() {
     ? new MediaStream([...state.stream.getVideoTracks(), ...mic.getAudioTracks()])
     : mic;
 
+  await wireAudioTap(mic.getAudioTracks()[0]);
+}
+
+/* wire an audio track into the RMS gate. Shared by the mic (getUserMedia) and
+ * the share feed (getDisplayMedia with preferCurrentTab audio) — same worklet,
+ * same PCM tap, same onPcm gate. Kept here (not in startMic) so the share path
+ * reuses the exact same wiring instead of duplicating the AudioWorklet setup. */
+async function wireAudioTap(audioTrack, mediaEl) {
   // Ask for 16 kHz directly (Chrome 74+ resamples in the HAL); if the context
   // comes back at another rate, resampleTo16k handles it before inference.
   let ctx;
@@ -884,11 +909,114 @@ async function startMic() {
   state.audioCtx = ctx;
 
   await state.audioCtx.audioWorklet.addModule(new URL('./recorder-worklet.js', import.meta.url));
-  const src = state.audioCtx.createMediaStreamSource(mic);
+  const src = mediaEl
+    ? state.audioCtx.createMediaElementSource(mediaEl)
+    : state.audioCtx.createMediaStreamSource(new MediaStream([audioTrack]));
   const tap = new AudioWorkletNode(state.audioCtx, 'pcm-tap');
   tap.port.onmessage = (e) => onPcm(e.data);
-  src.connect(tap); // never connected to destination → no echo
+  src.connect(tap);
+  // mic / shared-tab audio: never connected to destination (no echo — the tab
+  // already plays itself). A file element is rerouted INTO the graph by
+  // createMediaElementSource, so it must go to the speakers or it is silent.
+  if (mediaEl) src.connect(state.audioCtx.destination);
+  if (state.audioCtx.state === 'suspended') state.audioCtx.resume().catch(() => {});
 }
+
+/* ---------------- video sources: tab/screen share + video file ---------------- */
+
+function showVideoSource() {
+  els.cam.hidden = true;
+  els.demoCanvas.hidden = true;
+  els.fileVideo.hidden = false;
+}
+
+function stopVideoSources() {
+  if (state.shareStream) { state.shareStream.getTracks().forEach(t => t.stop()); state.shareStream = null; }
+  els.fileVideo.pause();
+  els.fileVideo.srcObject = null;
+  els.fileVideo.removeAttribute('src');
+  els.fileVideo.load();
+  els.fileVideo.hidden = true;
+  if (state.fileVideoUrl && state.fileVideoIsBlob) URL.revokeObjectURL(state.fileVideoUrl);
+  if (state.fileVideoIsBlob) { state.fileVideoUrl = null; state.fileVideoIsBlob = false; }
+}
+
+/* getDisplayMedia: the magic path — play YouTube in a shared tab, the chat sees
+ * the frames and (tab audio) hears it through the same RMS gate → ASR. */
+async function startShareFeed() {
+  const ds = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+  state.shareStream = ds;
+  ds.getVideoTracks()[0].addEventListener('ended', () => { if (state.phase === 'live') stop(); });
+  els.fileVideo.muted = true; // the shared tab already plays its own sound
+  els.fileVideo.srcObject = ds;
+  showVideoSource();
+  await els.fileVideo.play().catch(() => {});
+  // tab audio feeds the gate when the share carries it; no audio track (screen
+  // share, or the user left "share audio" off) falls back to the mic via
+  // goLiveAfterLoad. Phone mode never has the mic toggle on, so it is video-only.
+  const at = ds.getAudioTracks()[0];
+  if (at && els.micToggle.checked) await wireAudioTap(at);
+}
+
+/* <video> file (picker / drop / ?video=): frames via the same capture path,
+ * element audio tapped into the same gate (and kept audible). */
+async function startFileFeed() {
+  // createMediaElementSource() may bind an element only once, ever — a fresh
+  // element per go-live keeps the second run from throwing InvalidStateError.
+  const fresh = els.fileVideo.cloneNode(false);
+  els.fileVideo.replaceWith(fresh);
+  els.fileVideo = fresh;
+  const v = fresh;
+  v.srcObject = null;
+  v.src = state.fileVideoUrl;
+  v.loop = true;
+  v.muted = false; // a muted element feeds silence into the audio graph
+  showVideoSource();
+  if (els.micToggle.checked) await wireAudioTap(null, v);
+  await v.play().catch(async () => {
+    // autoplay policy refused sound (no user gesture, e.g. ?autolive): the
+    // frames still matter more than the audio, so fall back to muted playback.
+    v.muted = true;
+    await v.play().catch(() => {});
+  });
+}
+
+function setFileVideo(file) {
+  if (!file || !/^video\//.test(file.type || 'video/')) return;
+  if (state.fileVideoUrl && state.fileVideoIsBlob) URL.revokeObjectURL(state.fileVideoUrl);
+  state.fileVideoUrl = URL.createObjectURL(file);
+  state.fileVideoIsBlob = true;
+  els.shareToggle.checked = false;
+  if (state.phase === 'live') { swapToFile(); return; }
+  setStatus('', `video ready: ${file.name} — go live to play it as the stream`);
+}
+
+/* mid-stream source swap: drop the previous display source + audio tap, keep
+ * the rest of the stream (loops, roster, chat) running. */
+async function swapToFile() {
+  if (state.stream) { state.stream.getTracks().forEach(t => t.stop()); state.stream = null; }
+  if (state.demoRaf) { cancelAnimationFrame(state.demoRaf); state.demoRaf = 0; }
+  if (state.audioCtx) { await state.audioCtx.close().catch(() => {}); state.audioCtx = null; }
+  els.cam.srcObject = null;
+  if (state.shareStream) { state.shareStream.getTracks().forEach(t => t.stop()); state.shareStream = null; }
+  state.source = 'file';
+  try { await startFileFeed(); setStatus('ok', 'live — playing your video'); }
+  catch (err) { setStatus('err', humanizeMediaError(err)); }
+}
+els.fileBtn.addEventListener('click', () => els.fileInput.click());
+els.fileInput.addEventListener('change', () => { setFileVideo(els.fileInput.files[0]); els.fileInput.value = ''; });
+const dropZone = $('video-wrap');
+['dragenter', 'dragover'].forEach(ev => dropZone.addEventListener(ev, (e) => {
+  e.preventDefault(); dropZone.classList.add('dragging');
+}));
+['dragleave', 'drop'].forEach(ev => dropZone.addEventListener(ev, (e) => {
+  e.preventDefault(); dropZone.classList.remove('dragging');
+}));
+dropZone.addEventListener('drop', (e) => setFileVideo(e.dataTransfer && e.dataTransfer.files[0]));
+els.shareToggle.addEventListener('change', () => {
+  if (els.shareToggle.checked) { els.demoToggle.checked = false; state.fileVideoUrl = null; }
+});
+els.demoToggle.addEventListener('change', () => { if (els.demoToggle.checked) els.shareToggle.checked = false; });
 
 // RMS hysteresis gate (constants per the moonshine-web demo's VAD tuning)
 const RMS_ON = 0.010, RMS_OFF = 0.005;
@@ -1064,6 +1192,12 @@ els.factClear.addEventListener('click', () => {
 /* ---------------- self-test hook (?autolive) ----------------
  * Dev only: auto-start on load and mirror pipeline stats into document.title
  * so an externally driven browser (fake media flags) can be polled from a shell. */
+
+{
+  // ?video=<served-path>: play a file through the whole pipeline (pair with &autolive)
+  const vp = new URLSearchParams(location.search).get('video');
+  if (vp) { state.fileVideoUrl = vp; state.fileVideoIsBlob = false; els.shareToggle.checked = false; }
+}
 
 if (new URLSearchParams(location.search).has('autolive')) {
   setInterval(() => {
