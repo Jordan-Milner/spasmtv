@@ -1,0 +1,28 @@
+{
+  "name": "twitch-sim chat-v2 handoff: §E video sources + §G real-chat extraction (2026-10-28)",
+  "handoff": "/Users/jordan/Projects/twitch-sim/PLAN-CHAT-V2.md",
+  "folder": "/Users/jordan/Projects/twitch-sim",
+  "deliver": "fresh",
+  "stop_on_fail": false,
+  "stall_minutes": 30,
+  "cards": [
+    {
+      "id": "E1-video-sources",
+      "kind": "local-agent",
+      "dir": "/Users/jordan/Projects/twitch-sim",
+      "task": "Implement the unit spec in tasks/U4-video-sources.md EXACTLY — it is complete and authoritative. You edit ONLY js/main.js, index.html, and css/style.css. js/cadence.js, js/culture.js, js/chat-sim.js, js/text.js, js/emotes.js, workers/, tools/ are OFF-LIMITS (do not even reformat them). Browser APIs only, no deps, no network. Match existing style: comments state constraints, kebab-case ids, use the existing $(id) helper and els map. The spec's Verification section lists required wiring. NOTE for the audio path: the RMS gate constants (RMS_ON/RMS_OFF/MIN_SPEECH_MS) and onPcm must not be modified — factor the AudioWorklet wiring into a reusable function instead. A previous desk-lane attempt aborted after 12 read-only turns: start editing early, iterate against the test. Write tasks/E1-REPORT.md at the end (files touched, functions added/changed one line each, deviations flagged).",
+      "test": "node --check js/main.js && node --check js/chat-sim.js && grep -q getDisplayMedia js/main.js && grep -q file-video index.html && grep -q createMediaElementSource js/main.js && grep -q \"get('video')\" js/main.js && test -f tasks/E1-REPORT.md",
+      "commit_message": "chat-v2 §E: screen/tab share + video-file drop sources, ?video= autoplay param (unit U4)",
+      "timeout_s": 5400
+    },
+    {
+      "id": "D1-real-chat-extraction",
+      "kind": "local-agent",
+      "dir": "/Users/jordan/Projects/twitch-sim",
+      "task": "Extract the real-chat ground truth (§G, spec tasks/U6-real-chat.md section A) from the corpus in videos/ using tools/extract-real-chat.mjs (read it first — args are --video/--out/--fps/--start/--dur/--region/--preview). The chat-panel regions are KNOWN: videos/vod-fnf-work.mp4 → --region 300:500:980:220 (clean panel, expect usernames); videos/vod-phantom.mp4 → default right-30% (stylized overlay, hard mode — if the noise gate eats it, try --region 300:560:960:140 or report best effort). The extraction commands themselves are the verify (below), so use run_tests to execute them; outputs are gitignored by design. If a .part file or missing mp4 shows the main session's download still running, wait and retry — do NOT restart or re-download anything. Then write tasks/D1-REPORT.md: per-video line counts, unique users, median words/line, 10 sample lines each, and any OCR tuning you applied (only to tools/extract-real-chat.mjs, nothing else).",
+      "test": "node tools/extract-real-chat.mjs --video videos/vod-fnf-work.mp4 --region 300:500:980:220 --fps 2 --out videos/vod-fnf-work.realchat.jsonl && (node tools/extract-real-chat.mjs --video videos/vod-phantom.mp4 --fps 2 --out videos/vod-phantom.realchat.jsonl || true) && test $(wc -l < videos/vod-fnf-work.realchat.jsonl) -ge 50 && test -f tasks/D1-REPORT.md",
+      "commit_message": "chat-v2 §G: D1 real-chat extraction report (corpus stats + OCR tuning)",
+      "timeout_s": 3600
+    }
+  ]
+}
