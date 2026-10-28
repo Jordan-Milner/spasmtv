@@ -125,6 +125,7 @@ function ensureAsr() {
     }).then(async (p) => {
       await p(new Float32Array(16000)); // warmup
       asr = p;
+      post({ type: 'asr-ready' });
       return p;
     });
   }
@@ -183,7 +184,7 @@ const CHAT_PROMPT_PARTS = (ctx) => {
   if (ctx.speech) parts.push(`The streamer just said: "${ctx.speech}"`);
   if (ctx.sceneChange) parts.push('Something just changed on screen — react to it.');
   if (ctx.userMsg) parts.push(`The streamer typed in chat: "${ctx.userMsg}"`);
-  if (ctx.recent?.length) parts.push(`Already said, do NOT repeat: ${ctx.recent.join(' | ')}`);
+  if (ctx.recent?.length) parts.push(`Do not repeat anything similar to: ${ctx.recent.join(' | ')}`);
   parts.push(`Your vibe: ${ctx.persona}`);
   parts.push('Reply with the chat message only.');
   return parts.join('\n');
@@ -204,7 +205,7 @@ async function onChat(m) {
   const raw = await generate({
     prompt: CHAT_PROMPT_PARTS(ctx),
     image,
-    maxNewTokens: 36,
+    maxNewTokens: 30,
     sample: true,
   });
   post({ type: 'chat', id: m.id, messages: toChatLines(raw) });
@@ -212,6 +213,8 @@ async function onChat(m) {
 
 function toChatLines(raw) {
   let t = raw.replace(/^["'`\s]+|["'`\s]+$/g, '');
+  // the 450M sometimes roleplays with a "username:" prefix — strip it
+  t = t.replace(/^\w[\w.-]{1,15}\s*:\s+/, '');
   t = t.replace(/^(chat message|viewer ?\d*|user ?\d*|message|chat)\s*[:\-]\s*/i, '');
   const lines = t.split(/\n+/).map((s) => s.trim()).filter(Boolean);
   return lines.slice(0, 2).map((s) => (s.length > 120 ? s.slice(0, 117) + '…' : s));

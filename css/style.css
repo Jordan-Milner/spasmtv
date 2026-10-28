@@ -17,6 +17,10 @@
 
 * { box-sizing: border-box; }
 
+/* author display rules must never defeat the hidden attribute
+   (this exact bug left the offline cover covering the live video) */
+[hidden] { display: none !important; }
+
 html, body {
   height: 100%;
   margin: 0;

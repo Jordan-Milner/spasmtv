@@ -61,7 +61,7 @@ const state = {
 const sim = new ChatSim();
 
 // pipeline counters; the ?autolive self-test mirrors these into document.title
-window.__lurker = { chat: 0, cap: 0, asr: 0, err: '' };
+window.__lurker = { chat: 0, cap: 0, asr: 0, err: '', lastMsg: '', lastCap: '', lastAsr: '' };
 
 /* ---------------- worker client ---------------- */
 
@@ -82,8 +82,13 @@ function post(msg, transfer = []) { ensureWorker().postMessage(msg, transfer); }
 function onWorkerMessage(ev) {
   const m = ev.data;
   if (m.type === 'progress') {
-    els.loadProgress.hidden = false;
     const pct = Math.round((m.progress || 0) * 100);
+    if (state.phase === 'live') {
+      // background ASR download after going live — don't resurrect the load bar
+      setStatus('busy', `loading speech model… ${pct}%`);
+      return;
+    }
+    els.loadProgress.hidden = false;
     els.loadBar.style.width = pct + '%';
     els.loadPct.textContent = pct + '%';
   } else if (m.type === 'ready') {
@@ -94,16 +99,21 @@ function onWorkerMessage(ev) {
     setStatus('err', m.message);
     els.loadProgress.hidden = true;
     resetToIdle();
+  } else if (m.type === 'asr-ready') {
+    if (state.phase === 'live') setStatus('ok', 'live — the chat can see you and hear you');
   } else if (m.type === 'caption') {
     window.__lurker.cap += 1;
+    window.__lurker.lastCap = m.text || '';
     state.scene = m.text; state.sceneAt = Date.now();
   } else if (m.type === 'chat') {
     state.pendingChat = Math.max(0, state.pendingChat - 1);
     window.__lurker.chat += (m.messages || []).length;
+    if (m.messages?.length) window.__lurker.lastMsg = m.messages[m.messages.length - 1];
     for (const text of m.messages || []) sim.chat(text);
-    state.lastChatLines = [...state.lastChatLines, ...(m.messages || [])].slice(-4);
+    state.lastChatLines = [...state.lastChatLines, ...(m.messages || [])].slice(-6);
   } else if (m.type === 'transcribe') {
     window.__lurker.asr += 1;
+    window.__lurker.lastAsr = (m.text || '').slice(0, 80);
     onTranscript(m.text);
   }
 }
@@ -528,10 +538,10 @@ els.micToggle.addEventListener('change', () => {
 
 if (new URLSearchParams(location.search).has('autolive')) {
   setInterval(() => {
+    const L = window.__lurker;
     document.title =
-      `LURKER phase=${state.phase} chat=${window.__lurker.chat} ` +
-      `cap=${window.__lurker.cap} asr=${window.__lurker.asr} ` +
-      `err=${window.__lurker.err.slice(0, 50)}`;
+      `LURKER phase=${state.phase} chat=${L.chat} cap=${L.cap} asr=${L.asr} err=${L.err.slice(0, 40)} ` +
+      `| cap:"${L.lastCap.slice(0, 50)}" | msg:"${L.lastMsg.slice(0, 50)}" | asr:"${L.lastAsr.slice(0, 30)}"`;
   }, 1500);
   setTimeout(() => els.startBtn.click(), 800);
 }
