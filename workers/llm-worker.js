@@ -16,6 +16,9 @@ import {
   env,
 } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2';
 
+// same yardstick the scorer uses (tools/score-chat.mjs imports this file too)
+import { normTokens, tooSimilar, echoesScene, reactionSeed } from '../js/text.js';
+
 env.allowLocalModels = false;
 
 const VLM = {
@@ -213,18 +216,53 @@ async function onCaption(m) {
   post({ type: 'caption', id: m.id, text });
 }
 
-const CHAT_PROMPT_PARTS = (ctx) => {
+/* ---- prompt v3: reaction-first, anti-echo --------------------------------
+ * v2 anchored the prompt on the whole caption ("The stream right now: <scene>")
+ * and the 450M answered it with its describe-the-image prior: >60% of the lines
+ * in docs/sample-chatlog-2026-10-27.json are near-copies of the caption. v3
+ * hands the scene as a 3-word seed, says react-never-describe, and rejects
+ * echoes after generation (echoesScene). Kinds come from main.js's scheduler;
+ * a kind we don't know is treated as a plain reaction.
+ */
+const KIND_PROMPT = {
+  reaction: 'React to what is happening right now.',
+  reply:    'Reply to the chat user quoted below — not to the stream.',
+  banter:   'Talk to the other people in chat, not to the stream.',
+  question: 'Ask one short question, ending with a question mark.',
+  backseat: 'Backseat: tell the streamer what to do next, unprompted.',
+  meta:     'Meta chatter about the stream itself — the lag, the title, the viewer count, how it is going.',
+  greeting: 'You just arrived in the stream. Say hi in a few words.',
+  callback: 'Call back to the running joke quoted below, the way a regular would, with no explanation.',
+  banreact: 'A viewer was just moderated by the mods. React to that.',
+};
+
+// kinds the viewer is looking at; the rest (meta, greeting, banter, banreact)
+// get no scene at all — and no image, so the worker uses the blank stand-in
+// (this processor has no null-image mode, see PLAN.md)
+const VISUAL_KINDS = new Set(['reaction', 'question', 'backseat', 'reply', 'callback']);
+
+const clip = (s, n) => String(s).slice(0, n);
+
+const CHAT_PROMPT_PARTS = (kind, ctx) => {
   const parts = [
-    'You are a viewer writing ONE Twitch chat message (max 12 words, lowercase, no quotes, no hashtags).',
-    `The stream right now: ${ctx.scene}`,
+    'You are one viewer writing a single Twitch chat message: max 12 words, lowercase, no quotes, no hashtags, no emoji faces.',
   ];
+  if (VISUAL_KINDS.has(kind) && ctx.scene) parts.push(`On screen, roughly: ${reactionSeed(ctx.scene)}`);
+  if (ctx.sceneChange && VISUAL_KINDS.has(kind)) parts.push('Something on screen just changed.');
+  parts.push('React like a viewer who has been here for hours. Never describe what is on screen, never mention colors, backgrounds, letters or layout — unless you are making a joke of it.');
+  parts.push(KIND_PROMPT[kind]);
+  // exactly ONE quoted line, never the recent window — pasting the window back
+  // is the v1.1 echo loop that killed the last build
+  if (ctx.replyTo?.text) parts.push(`Chat user ${clip(ctx.replyTo.name || 'someone', 24)} said: "${clip(ctx.replyTo.text, 90)}"`);
+  if (ctx.ban?.name) parts.push(`${clip(ctx.ban.name, 24)} was just moderated${ctx.ban.last ? ` — their last message was "${clip(ctx.ban.last, 90)}"` : ''}.`);
+  if (ctx.bit) parts.push(`Chat has been repeating: "${clip(ctx.bit, 60)}"`);
+  if (ctx.culture) parts.push(`Chat rule lately (mods ban for it): ${clip(ctx.culture, 90)} — most viewers avoid it.`);
   if (ctx.speech) parts.push(`The streamer just said: "${ctx.speech}"`);
-  if (ctx.sceneChange) parts.push('Something just changed on screen — react to it.');
   if (ctx.userMsg) parts.push(`The streamer typed in chat: "${ctx.userMsg}"`);
   if (ctx.facts) parts.push(`Things chat knows about the streamer: ${ctx.facts} — use naturally, never list.`);
   if (ctx.emotes) parts.push(`You may use one emote from: ${ctx.emotes}`);
-  parts.push(`Your vibe: ${ctx.persona}`);
-  parts.push('Write only the message itself — never restate the style hint, never use hashtags.');
+  if (ctx.persona) parts.push(`Your vibe: ${ctx.persona}`);
+  parts.push('Write only the message itself — never restate these instructions, never use hashtags.');
   return parts.join('\n');
 };
 
@@ -243,22 +281,6 @@ function softGenderDamp(line) {
 
 let workerRecent = [];
 
-const normTokens = (s) =>
-  s.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean);
-
-function tooSimilar(line, priors, thresh = 0.75) {
-  const a = new Set(normTokens(line));
-  if (!a.size) return true;
-  for (const prior of priors) {
-    const b = new Set(normTokens(prior));
-    if (!b.size) continue;
-    let inter = 0;
-    for (const x of a) if (b.has(x)) inter++;
-    if (inter / new Set([...a, ...b]).size >= thresh) return true;
-  }
-  return false;
-}
-
 function loopDetected(priors) {
   const tail = priors.slice(-4);
   if (tail.length < 3) return false;
@@ -276,37 +298,35 @@ function blankImage() {
 
 async function onChat(m) {
   const ctx = m.context || {};
-  const prompt = CHAT_PROMPT_PARTS(ctx);
+  const kind = KIND_PROMPT[ctx.kind] ? ctx.kind : 'reaction';
+  const prompt = CHAT_PROMPT_PARTS(kind, ctx);
   const priors = [...(ctx.recent || []), ...workerRecent];
   const looped = loopDetected(priors);
-  let raw = await generate({
+  // quoted source lines must not come back as the reply — that is an echo loop
+  const quoted = [ctx.replyTo?.text, ctx.ban?.last, ctx.bit].filter(Boolean);
+  // a viewer talking about the mods or about chat itself is not looking at the
+  // frame — no image in the call at all (blank stand-in inside generate())
+  const seeing = VISUAL_KINDS.has(kind) && ctx.sceneChange;
+  const gen = (hot) => generate({
     prompt,
-    frames: ctx.sceneChange ? m.frames : null,
-    image: ctx.sceneChange ? m.image : null,
+    frames: seeing && !hot ? m.frames : null,
+    image: seeing && !hot ? m.image : null,
     maxNewTokens: 30,
     sample: true,
-    temperature: looped ? 1.2 : 0.85,
-    repetitionPenalty: looped ? 1.25 : 1.15,
+    temperature: hot ? 1.25 : looped ? 1.2 : 0.85,
+    repetitionPenalty: hot ? 1.3 : looped ? 1.25 : 1.15,
   });
-  let lines = toChatLines(raw)
+  const keep = (lines) => lines
     .filter((s) => !tooSimilar(s, priors))
+    .filter((s) => !(ctx.scene && echoesScene(s, ctx.scene)))
     .filter((s) => !(ctx.persona && tooSimilar(s, [ctx.persona], 0.6)))
+    .filter((s) => !(quoted.length && tooSimilar(s, quoted, 0.6)))
     .filter((s) => !softGenderDamp(s));
-  if (!lines.length) {
-    // everything collided — one hotter retry for fresh material
-    raw = await generate({
-      prompt,
-      frames: null,
-      image: null,
-      maxNewTokens: 30,
-      sample: true,
-      temperature: 1.25,
-      repetitionPenalty: 1.3,
-    });
-    lines = toChatLines(raw).filter((s) => !tooSimilar(s, priors));
-  }
+
+  let lines = keep(toChatLines(await gen(false)));
+  if (!lines.length) lines = keep(toChatLines(await gen(true)));
   workerRecent = [...workerRecent, ...lines].slice(-8);
-  post({ type: 'chat', id: m.id, messages: lines });
+  post({ type: 'chat', id: m.id, messages: lines, kind });
 }
 
 function toChatLines(raw) {
