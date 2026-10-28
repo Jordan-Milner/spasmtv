@@ -60,13 +60,19 @@ const state = {
 
 const sim = new ChatSim();
 
+// pipeline counters; the ?autolive self-test mirrors these into document.title
+window.__lurker = { chat: 0, cap: 0, asr: 0, err: '' };
+
 /* ---------------- worker client ---------------- */
 
 function ensureWorker() {
   if (state.worker) return state.worker;
   const w = new Worker(new URL('../workers/llm-worker.js', import.meta.url), { type: 'module' });
   w.onmessage = onWorkerMessage;
-  w.onerror = (e) => setStatus('err', `worker error: ${e.message || 'unknown'}`);
+  w.onerror = (e) => {
+    window.__lurker.err = e.message || 'worker error';
+    setStatus('err', `worker error: ${e.message || 'unknown'}`);
+  };
   state.worker = w;
   return w;
 }
@@ -84,16 +90,20 @@ function onWorkerMessage(ev) {
     els.loadProgress.hidden = true; els.loadPct.textContent = '';
     goLiveAfterLoad();
   } else if (m.type === 'error') {
+    window.__lurker.err = m.message || 'unknown';
     setStatus('err', m.message);
     els.loadProgress.hidden = true;
     resetToIdle();
   } else if (m.type === 'caption') {
+    window.__lurker.cap += 1;
     state.scene = m.text; state.sceneAt = Date.now();
   } else if (m.type === 'chat') {
     state.pendingChat = Math.max(0, state.pendingChat - 1);
+    window.__lurker.chat += (m.messages || []).length;
     for (const text of m.messages || []) sim.chat(text);
     state.lastChatLines = [...state.lastChatLines, ...(m.messages || [])].slice(-4);
   } else if (m.type === 'transcribe') {
+    window.__lurker.asr += 1;
     onTranscript(m.text);
   }
 }
@@ -474,6 +484,7 @@ function onTranscript(text) {
 
 let captionTimer = 0;
 function showCaption(text) {
+  els.captions.hidden = false;
   els.captions.textContent = text;
   els.captions.classList.add('on');
   clearTimeout(captionTimer);
@@ -510,6 +521,20 @@ els.demoToggle.addEventListener('change', () => {
 els.micToggle.addEventListener('change', () => {
   if (els.micToggle.checked) els.demoToggle.checked = false;
 });
+
+/* ---------------- self-test hook (?autolive) ----------------
+ * Dev only: auto-start on load and mirror pipeline stats into document.title
+ * so an externally driven browser (fake media flags) can be polled from a shell. */
+
+if (new URLSearchParams(location.search).has('autolive')) {
+  setInterval(() => {
+    document.title =
+      `LURKER phase=${state.phase} chat=${window.__lurker.chat} ` +
+      `cap=${window.__lurker.cap} asr=${window.__lurker.asr} ` +
+      `err=${window.__lurker.err.slice(0, 50)}`;
+  }, 1500);
+  setTimeout(() => els.startBtn.click(), 800);
+}
 
 /* boot */
 (async () => {
