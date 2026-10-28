@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>LurkerTV — an AI Twitch stream that watches you</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%239147ff'/%3E%3Ctext x='16' y='22' font-size='16' text-anchor='middle' fill='white' font-family='monospace'%3E%F0%9F%93%BA%3C/text%3E%3C/svg%3E"/>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+  <header id="topbar">
+    <div class="brand">LurkerTV <span class="beta">your personal AI stream</span></div>
+    <div id="controls">
+      <select id="model-select" title="Chat brain">
+        <option value="fast" selected>Fast chat (~300 MB)</option>
+        <option value="quality">Sharper chat (~1 GB)</option>
+      </select>
+      <label class="toggle" title="Chat hears what you say (transcribed locally)">
+        <input type="checkbox" id="mic-toggle" checked/> mic
+      </label>
+      <label class="toggle" title="No camera? Chat reacts to a fake demo stream">
+        <input type="checkbox" id="demo-toggle"/> demo
+      </label>
+      <button id="start-btn" class="primary">Go live</button>
+      <button id="stop-btn" class="ghost" hidden>End stream</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="stage">
+      <div id="video-wrap">
+        <video id="cam" autoplay playsinline muted></video>
+        <canvas id="demo-canvas" hidden></canvas>
+        <canvas id="frame-capture" hidden></canvas>
+
+        <div id="offline-cover">
+          <div class="offline-inner">
+            <div class="offline-logo">LurkerTV</div>
+            <div class="offline-line">an AI Twitch stream that watches <b>you</b></div>
+            <div class="offline-line dim">your camera feed becomes the stream — the chat is a
+              vision-language model running on <b>your</b> GPU (WebGPU). nothing is uploaded.</div>
+            <div class="offline-line dim2">pick a brain, then hit <b>Go live</b> ▶</div>
+          </div>
+        </div>
+
+        <div id="overlay" hidden>
+          <div id="live-badge">● LIVE</div>
+          <div id="viewers"><span id="viewer-count">0</span> viewers</div>
+        </div>
+        <div id="title-card" hidden><span id="stream-title"></span></div>
+        <div id="captions" hidden></div>
+      </div>
+      <div id="status-strip">
+        <span id="status-dot" class="dot"></span>
+        <span id="status-text">checking WebGPU…</span>
+        <div id="load-progress" hidden><div id="load-bar"></div></div>
+        <span id="load-pct"></span>
+      </div>
+    </section>
+
+    <aside id="chat-panel">
+      <div id="chat-header">Stream Chat</div>
+      <div id="chat-scroll">
+        <div id="chat-messages"></div>
+      </div>
+      <form id="chat-form">
+        <input id="chat-input" placeholder="Send a message" autocomplete="off" maxlength="140"/>
+        <button type="submit">Chat</button>
+      </form>
+    </aside>
+  </main>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
