@@ -42,6 +42,7 @@ const VLM = {
     id: 'onnx-community/Qwen3-VL-2B-Instruct-ONNX',
     dtype: { vision_encoder: 'fp16', embed_tokens: 'fp16', decoder_model_merged: 'q4f16' },
     multiFrame: false,
+    textFirst: true, // Qwen-VL processors take (text, images)
   },
   // phone brain: even the 450M's lightest config (q4 encoder, ~675 MB) jetsams
   // iOS Safari at load — its 481 MB q4 decoder alone is held twice in RAM during
