@@ -151,7 +151,7 @@ async function generate({ prompt, image, maxNewTokens, sample = false }) {
     repetition_penalty: 1.05,
     do_sample: sample,
   };
-  if (sample) { genOpts.temperature = 0.9; genOpts.top_p = 0.95; }
+  if (sample) { genOpts.temperature = 0.85; genOpts.top_p = 0.95; }
 
   const outputs = await model.generate(genOpts);
   const gen = outputs.slice(null, [inputs.input_ids.dims.at(-1), null]);
@@ -178,7 +178,7 @@ async function onCaption(m) {
 
 const CHAT_PROMPT_PARTS = (ctx) => {
   const parts = [
-    'You are a viewer writing ONE Twitch chat message (max 12 words, lowercase, no quotes).',
+    'You are a viewer writing ONE Twitch chat message (max 12 words, lowercase, no quotes, no hashtags).',
     `The stream right now: ${ctx.scene}`,
   ];
   if (ctx.speech) parts.push(`The streamer just said: "${ctx.speech}"`);

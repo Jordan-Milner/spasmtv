@@ -63,6 +63,37 @@ const sim = new ChatSim();
 // pipeline counters; the ?autolive self-test mirrors these into document.title
 window.__lurker = { chat: 0, cap: 0, asr: 0, err: '', lastMsg: '', lastCap: '', lastAsr: '' };
 
+/* ---------------- chat log (local only) ----------------
+ * Every generated message is stored with the context that produced it, so chat
+ * quality can be reviewed/tuned after a session. In-memory ring (2000) with a
+ * best-effort localStorage mirror. Dump from the console:
+ *   __lurkerDump()               → JSON string
+ *   __lurkerDownload()           → saves lurker-chatlog-<date>.jsonl */
+
+const chatLog = [];
+try { // restore the tail of the previous session's log so reloads keep history
+  const prev = JSON.parse(localStorage.getItem('lurker-log') || '[]');
+  if (Array.isArray(prev)) chatLog.push(...prev);
+} catch {}
+
+const pendingCtx = new Map(); // reqId → generation context, attached to the reply
+
+function logEvent(kind, text, ctx) {
+  chatLog.push({ t: new Date().toISOString(), kind, text, ...(ctx ? { ctx } : {}) });
+  if (chatLog.length > 2000) chatLog.splice(0, chatLog.length - 2000);
+  try { localStorage.setItem('lurker-log', JSON.stringify(chatLog.slice(-400))); } catch {}
+}
+
+window.__lurkerDump = () => JSON.stringify(chatLog, null, 1);
+window.__lurkerDownload = () => {
+  const blob = new Blob([chatLog.map((e) => JSON.stringify(e)).join('\n')], { type: 'application/jsonl' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `lurker-chatlog-${new Date().toISOString().slice(0, 10)}.jsonl`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+};
+
 /* ---------------- worker client ---------------- */
 
 function ensureWorker() {
@@ -104,16 +135,21 @@ function onWorkerMessage(ev) {
   } else if (m.type === 'caption') {
     window.__lurker.cap += 1;
     window.__lurker.lastCap = m.text || '';
+    logEvent('caption', m.text || '');
     state.scene = m.text; state.sceneAt = Date.now();
   } else if (m.type === 'chat') {
     state.pendingChat = Math.max(0, state.pendingChat - 1);
     window.__lurker.chat += (m.messages || []).length;
     if (m.messages?.length) window.__lurker.lastMsg = m.messages[m.messages.length - 1];
+    const ctx = pendingCtx.get(m.id);
     for (const text of m.messages || []) sim.chat(text);
+    for (const text of m.messages || []) logEvent('chat', text, ctx);
+    pendingCtx.delete(m.id);
     state.lastChatLines = [...state.lastChatLines, ...(m.messages || [])].slice(-6);
   } else if (m.type === 'transcribe') {
     window.__lurker.asr += 1;
     window.__lurker.lastAsr = (m.text || '').slice(0, 80);
+    logEvent('asr', m.text || '');
     onTranscript(m.text);
   }
 }
@@ -325,18 +361,17 @@ function sendChatMessage({ sceneChange, offsetMs = 0 }) {
   setTimeout(() => {
     if (state.phase !== 'live') return;
     state.pendingChat += 1;
-    const msg = {
-      type: 'chat',
-      id: ++state.reqId,
-      context: {
-        scene: state.scene || 'the stream just started; nobody has described it yet',
-        speech: state.speech || '',
-        sceneChange,
-        userMsg: state.userMsgTicks > 0 ? state.userMsg : '',
-        recent: state.lastChatLines,
-        persona: PERSONAS[personaIdx++ % PERSONAS.length],
-      },
+    const context = {
+      scene: state.scene || 'the stream just started; nobody has described it yet',
+      speech: state.speech || '',
+      sceneChange,
+      userMsg: state.userMsgTicks > 0 ? state.userMsg : '',
+      recent: state.lastChatLines,
+      persona: PERSONAS[personaIdx++ % PERSONAS.length],
     };
+    const id = ++state.reqId;
+    pendingCtx.set(id, context);
+    const msg = { type: 'chat', id, context };
     // scene-change bursts react to the actual frame; other lines run text-only
     if (sceneChange) {
       const img = grabFrameBuffer();
