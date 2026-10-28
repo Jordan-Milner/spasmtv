@@ -140,21 +140,22 @@ The headline. Culture state (`sim.culture`) driven entirely by mod actions:
 
 ## Steps
 
-1. [ ] chat-sim.js: archetypes, persistent roster (localStorage), cosmetics
-       renderer, weighted pickViewer. Verify: reload keeps the same regulars.
-2. [ ] llm-worker.js: prompt v3 (reaction seed, no-caption-echo filter,
-       reply-to single-line, ban-context prompt).
-3. [ ] main.js: message-kind scheduler + bursty cadence + template lines
-       (emote-only/chant/F/smash) + bits memory.
-4. [ ] (D) culture state + mod-action reaction bursts + standing notes +
-       entropy; mod-card history line; centering event (victim line + onlooker
-       beat + relief on close).
-5. [ ] (E) screen-share + file-drop sources + `?video=` param; route video/
-       tab audio into the RMS gate.
-6. [ ] tools/score-chat.mjs + videos/ corpus download.
-7. [ ] Tuning loop: run each video + one ban session, score, iterate prompts
-       and weights until rubric green; eyeball transcripts for vibe.
-8. [ ] README (tuning-corpus section + new sources), PLAN.md ledger, commit.
+One line each, because the lane supervisor reads this file as the backlog; the
+long form of every step is the section it names.
+
+- [ ] chat-sim.js (§A) — stable weighted archetype per roster entry from the §A table, roster persisted in localStorage so regulars survive reloads, per-archetype cosmetics rendered client-side (case style, ellipsis, typo rate, emote affinity) with message-frequency weights, plus the instruction-phrased personaHint handed to the worker. Verify: reload twice, the same viewer names keep the same archetypes.
+- [ ] workers/llm-worker.js (§B) — prompt v3: reaction seed instead of the caption anchor, an explicit react-don't-describe instruction, post-gen rejection of any line whose token Jaccard vs `ctx.scene` is over 0.5, a reply-to kind carrying exactly one recent line plus its author, non-visual kinds sent with the blank-image stand-in (the processor has no null-image mode — see PLAN.md).
+- [ ] js/main.js (§C) — message-kind scheduler with the §C weights, bursty cadence (4-8 s droughts, 3-lines-in-1.5-s flurries) replacing the 2.3 s metronome, template-only emote/chant/F/keyboard-smash lines with NO generate call, and bits/callback memory. Verify: messages per minute and generate calls per minute are not above today's rate.
+- [ ] js/main.js + js/chat-sim.js (§D) — culture state: log every mod action with the victim's last 3 messages and extract the pattern, fire a 2-4 line factioned reaction burst within ~5 s, keep a ~5 min standing culture note in the reaction prompts, troll defiance plus rising troll spawn weight while no mod action happens, mood drift over ban-heavy stretches, centering beats (onlooker lines + one guaranteed persona-aware line + relief when the card closes with no action), mod-card last-action history.
+- [ ] js/main.js + index.html (§E) — video sources: `getDisplayMedia` screen/tab share with audio, drag-drop or file-picker video on the stage, both through the existing frame capture and both routed into the existing RMS gate so ASR gets speech; `?video=PATH&autolive` autoplays a file through the whole pipeline.
+- [ ] tools/score-chat.mjs (§F) — node, stdlib only, `tools/` is a new dir: the six §F metrics, exit non-zero unless every one passes, and add `videos/` to .gitignore. If the input log lacks archetype/kind/ban fields, score what exists and print which metrics were unavailable.
+- [ ] README — tuning-corpus section and the new sources; append the PLAN.md ledger line; commit by path.
+
+## Needs Jordan
+
+- [ ] Tuning loop (§F): the 3 yt-dlp'd ~3-min 360p clips are his to pick and drop in
+      `videos/`, and once the rubric is green he reads a transcript end to end — a chat
+      that scores green while being boring is exactly the failure this step catches.
 
 Risks:
 - Echo-loop regression (the v1.1 killer) — reply-to/ban prompts paste minimal
