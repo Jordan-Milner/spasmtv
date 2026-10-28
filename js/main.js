@@ -56,6 +56,7 @@ const state = {
   stream: null,             // MediaStream (camera + mic)
   audioCtx: null,
   demoRaf: 0,
+  phoneMode: false,        // iPhone/iPad (or ?phone): q4-encoder fast brain, no ASR
   // settings (settings panel, persisted)
   settings: { detail: CAPTURE_DEFAULT, focus: true, varied: true, asr: 'base' },
   // vision
@@ -300,6 +301,7 @@ async function start() {
   post({
     type: 'load',
     model: els.modelSelect.value,
+    phone: state.phoneMode,
     asr: els.micToggle.checked,
     asrModel: state.settings.asr,
   });
@@ -868,23 +870,30 @@ if (new URLSearchParams(location.search).has('autolive')) {
     els.startBtn.disabled = true;
     return;
   }
-  // iPhone/iPad: Safari jetsams the tab once the model's GPU buffers allocate —
-  // the page reloads at the end of the download, and a retry can wedge the tab
-  // into "can't open this page" (seen on a real phone). Never let a phone start
-  // a download it can't survive; computers and (beefy) Android Chrome are fine.
+  // iPhone/iPad: the stock fp16-encoder config (~800 MB) puts a phone tab
+  // over Safari's ~1–1.5 GB WebContent limit — the tab gets jetsammed at
+  // model load (uncatchable reload; a retry can wedge the tab entirely).
+  // Phone mode keeps the budget: q4 encoder, 450M brain only, no ASR.
+  // ?phone previews the mode on a desktop.
   const appleMobile = /iPad|iPhone|iPod/.test(navigator.userAgent)
     || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  if (appleMobile) {
-    setStatus('err', 'the AI brains don\u2019t fit in phone Safari\u2019s memory — the tab crashes when the model loads. open SpasmTV on a computer instead.');
-    els.startBtn.disabled = true;
-    return;
+  state.phoneMode = appleMobile || new URLSearchParams(location.search).has('phone');
+  if (state.phoneMode) {
+    els.modelSelect.value = 'fast';
+    els.modelSelect.disabled = true;
+    els.modelSelect.title = 'phones run the fast brain only — the 2B needs a computer';
+    els.micToggle.checked = false;
+    els.micToggle.disabled = true;
+    els.micToggle.parentElement.title = 'speech recognition doesn\u2019t fit in phone memory yet';
   }
   try {
     const adapter = await navigator.gpu.requestAdapter();
     if (!adapter) throw new Error('no adapter');
     if (!adapter.features || !adapter.features.has('shader-f16'))
       throw new Error('shader-f16');
-    setStatus('', 'ready — pick a brain and go live');
+    setStatus('', state.phoneMode
+      ? 'phone mode — lighter brain, mic off. if the tab reloads during load, this phone can\u2019t hold it'
+      : 'ready — pick a brain and go live');
   } catch (err) {
     setStatus('err', err.message === 'shader-f16'
       ? 'this GPU lacks shader-f16 support, which the model requires.'

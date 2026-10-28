@@ -90,3 +90,15 @@ serve.sh              named static server (ps: twitch-sim-server) — needed onl
 - Open / next candidates: Funnel if Alaina is off-tailnet; true multi-frame
   serving (ORT webgpu graphs or a batch-capable export) for real motion memory;
   InterruptableStoppingCriteria for stale caption jobs.
+- 2026-10-28: mobile. (a) phone layout: topbar controls wrapped to their own
+  row (a `<select>` never shrinks below its longest option — that pushed Go
+  live/⚙ off-screen), body → flex column (no calc(100%-50px)), 100dvh,
+  settings popover → full-width sheet, 16px inputs (iOS focus-zoom guard).
+  (b) iPhone crash: Safari jetsams the tab at model load — fp16 vision encoder
+  (~400 MB) + transient fetch copy puts peak RSS over the ~1–1.5 GB
+  WebContent limit; uncatchable reload, retry can wedge the tab. Phone mode
+  replaces the hard gate: `phone:true` on the load msg → worker forces the
+  450M brain with vision_encoder **q8** (repo ships q4/q8 encoders — verified
+  via HF API file list); UI pins brain to fast + mic (ASR) off; `?phone`
+  previews the mode on desktop. If the tab still reloads during load, that
+  phone can't hold even q8 — no catchable error exists for a jetsam kill.

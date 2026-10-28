@@ -100,8 +100,18 @@ function humanizeError(err) {
 /* ---------------- load / warmup ---------------- */
 
 async function load(m) {
-  if (model && currentKey === m.model) { post({ type: 'ready' }); return; }
-  const cfg = VLM[m.model] || VLM.fast;
+  // phone mode: 450M brain only, vision encoder q4. The fp16 encoder config
+  // (~800 MB total) puts a phone tab over Safari's ~1–1.5 GB WebContent
+  // jetsam limit — q4 encoder is the lightest this repo ships (note: the
+  // _q8 files exist but transformers.js 4.3.2 has no dtype that maps to the
+  // "_q8" suffix, so they're unreachable). ~675 MB total, transient fetch
+  // copies on top; if it still jetsams, this model family can't run on phones.
+  const key = VLM[m.model] ? m.model : 'fast';
+  const cfg = m.phone
+    ? { ...VLM.fast, dtype: { ...VLM.fast.dtype, vision_encoder: 'q4' } }
+    : VLM[key];
+  const loadKey = (m.phone ? 'phone:' : '') + key;
+  if (model && currentKey === loadKey) { post({ type: 'ready' }); return; }
   filePct.clear();
   post({ type: 'progress', progress: 0 });
 
@@ -113,7 +123,7 @@ async function load(m) {
       progress_callback: onProg,
     }),
   ]);
-  currentKey = m.model;
+  currentKey = loadKey;
 
   // compile GPU pipelines before the user sees the first "live" moment
   const blank = new RawImage(new Uint8ClampedArray(64 * 64 * 4).fill(110), 64, 64, 4);

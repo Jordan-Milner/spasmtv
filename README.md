@@ -22,8 +22,16 @@ valid HTTPS cert → WebGPU works on other devices signed into the tailnet,
 including phones; the layout stacks for phone screens). To share beyond the
 tailnet, `tailscale funnel 8619` makes it public-HTTPS — deliberate choice.
 
-- First load downloads the model(s) (~560 MB fast / ~1.8 GB sharp) into the
-  browser cache — reloads after that are instant.
+- First load downloads the model(s) (~800 MB fast / ~1.8 GB sharp — encoder
+  fp16 189 + decoder q4 481 + embeds 134) into the browser cache; reloads
+  after that are instant.
+- **iPhone/iPad:** automatic *phone mode* — the 450M brain with a **q4**
+  vision encoder (~675 MB total) because Safari kills a tab whose memory
+  passes roughly 1–1.5 GB (with the stock config the page just reloads
+  mid-download). Mic hearing and the 2B brain stay computer-only. This is
+  the lightest this model can get; if the tab still reloads during load,
+  that phone can't hold the 450M brain at all — open it on a computer.
+  `?phone` previews phone mode on a desktop.
 - No camera? Check **demo** — the chat reacts to a generated fake stream.
 - Talk into your mic — the chat hears you (transcribed locally) and answers
   within a couple of seconds.
@@ -84,7 +92,8 @@ browser, Twitch energy not chatbot energy) and `PLAN.md` for the ledger.
 ## Model notes
 
 - **Vision/chat:** `LiquidAI/LFM2.5-VL-450M-ONNX` — the same weights and load
-  config (WebGPU, fp16 vision+embed, q4 decoder, ~556 MB) as LiquidAI's own
+  config (WebGPU, fp16 vision+embed, q4 decoder; ~800 MB as currently
+  exported) as LiquidAI's own
   [WebGPU demo](https://huggingface.co/spaces/LiquidAI/LFM2.5-VL-450M-WebGPU).
   "Sharper" option: `onnx-community/LFM3-VL-2B-ONNX` q4f16 (~1.8 GB).
 - **Speech-to-text:** `onnx-community/moonshine-tiny-ONNX` (~75 MB, MIT) —
@@ -103,7 +112,9 @@ text to the VLM is the sane way to make chat "hear" you, so that's what this doe
 
 ## Known limits
 
-- Desktop Chrome/Edge with WebGPU required (Safari/Firefox: no WebGPU or flaky).
+- Desktop Chrome/Edge with WebGPU required (Safari/Firefox: no WebGPU or
+  flaky). iPhone/iPad Safari is the one mobile exception — phone mode (q8
+  fast brain, no ASR), everything else needs a computer.
 - First message after model load can lag a few seconds while the GPU warms up.
 - The 350–450M "fast" brain writes dumb chat. That's the point. The 1.6B
   "sharp" option is there when you want cleverness over speed.
