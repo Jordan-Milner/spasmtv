@@ -38,6 +38,23 @@ const WORKER = readFileSync(fileURLToPath(new URL('../workers/llm-worker.js', im
 }
 const toChatLines = new Function('return ' + WORKER.match(/function toChatLines[\s\S]*?\n}/)[0])();
 
+// Speech is a reaction trigger, not just passive context (the north star promises
+// replies to spoken words within seconds). main.js must: (a) pull chatLoop forward
+// on a transcript, (b) force the first line of that burst to a speech-carrying
+// kind, and (c) NOT let the free canned/copypasta shortcuts swallow it — that was
+// the bug: a forced 'reaction' is CANNABLE, so a generic canned line answered
+// nothing. Assert the guard that keeps a speech answer on the model path.
+{
+  const MAIN = readFileSync(fileURLToPath(new URL('../js/main.js', import.meta.url)), 'utf8');
+  assert.match(MAIN, /onTranscript[\s\S]*?chatLoop\(\)/, 'a transcript pulls the chat loop forward (react now, not on a later tick)');
+  assert.match(MAIN, /answerSpeech[\s\S]{0,120}kind = 'reaction'/, 'a fresh transcript forces the first line to react to it');
+  assert.match(MAIN, /answerSpeech && CANNABLE\.has\(kind\)/, 'a speech answer skips the canned shortcut so it reaches the model');
+  assert.match(MAIN, /answerSpeech \? null : maybePasta/, 'a speech answer skips copypasta too');
+  // the worker sharpens the prompt and lets the answer quote what was said
+  assert.match(WORKER, /React to what the streamer just said\./, 'fresh speech gets an explicit react-to-it cue');
+  assert.match(WORKER, /ctx\.speechFresh \? \[\] : \[ctx\.speech\]/, 'a fresh-speech answer may quote the streamer (echo filter relaxed)');
+}
+
 // reactionSeed: a topic, never a description
 assert.equal(reactionSeed('A green background with a large white letter D.'), 'd');
 assert.equal(reactionSeed('A green background with a large white letter D.').includes('green'), false);

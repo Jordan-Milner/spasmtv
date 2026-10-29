@@ -91,7 +91,7 @@ const state = {
   // audio gate
   pcm: [], pcmSamples: 0, speaking: false, silenceMs: 0,
   // chat context
-  speech: '', speechAt: 0, userMsg: '', userMsgTicks: 0, contagion: null,
+  speech: '', speechAt: 0, speechChatHandled: 0, userMsg: '', userMsgTicks: 0, contagion: null,
   lastChatLines: [],        // ring of {name, text} — the window replies quote from
   bits: [],                 // running jokes (§C), each {text, until}
   templateRecent: [],       // freshness ring: template lines the crowd just heard
@@ -578,7 +578,7 @@ async function goLiveAfterLoad() {
   sim.startViewerDrift(20 + ((Math.random() * 18) | 0));
   rotateTitle();
 
-  state.scene = ''; state.sceneAt = 0; state.sceneHistory = []; state.speech = ''; state.lastChatLines = [];
+  state.scene = ''; state.sceneAt = 0; state.sceneHistory = []; state.speech = ''; state.speechChatHandled = 0; state.lastChatLines = [];
   // replies still in flight from a previous stream must not hold GPU slots
   state.pendingChat = 0; pendingMeta.clear(); state.diffMax = 0; state.hotMax = 0;
   state.motionHist = []; state.prevThumb = null;
@@ -832,13 +832,20 @@ function chatLoop() {
   if (sceneChange) state.sceneChatHandled = state.sceneChangeAt;
   // …and the ticks after it are the pile-on (js/cadence.js): one quick line each
   const piling = !sceneChange && state.sceneChangeAt > 0 && Date.now() - state.sceneChangeAt < PILE_ON_MS;
+  // a transcript the room hasn't reacted to yet (set by onTranscript, consumed
+  // once here so one spoken sentence is one reaction, not a burst every tick)
+  const speechTrigger = state.speechAt > state.speechChatHandled && Date.now() - state.speechAt < 6000;
+  if (speechTrigger) state.speechChatHandled = state.speechAt;
   const burst = sceneChange ? pileOnBurst() : piling ? { n: 1, offsets: [0], chant: false } : planBurst(Math.random, tune);
+  // a spoken sentence always earns at least one line — a drought burst (n=0)
+  // must not swallow the reaction the north star promises within seconds.
+  if (speechTrigger && burst.n < 1) { burst.n = 1; burst.offsets = [0]; }
   // (piling alone isn't hype: hype turns a third of emote lines into keysmash)
   const hype = sceneChange || Date.now() - state.hypeAt < 2500;
   // a chant = the whole burst is one emote, from three different viewers
   const chant = burst.chant ? sim.randomEmote() : null;
   for (let i = 0; i < burst.n; i++) {
-    fireLine({ offsetMs: burst.offsets[i], burstIndex: i, hype, chant, sceneChange, piling });
+    fireLine({ offsetMs: burst.offsets[i], burstIndex: i, hype, chant, sceneChange, piling, speechTrigger });
   }
   if (state.userMsgTicks > 0) state.userMsgTicks -= 1;
   const c = cultureState();
@@ -856,7 +863,7 @@ function chatLoop() {
 
 const CANNABLE = new Set(['reaction', 'banter', 'backseat', 'meta', 'greeting']);
 
-function fireLine({ offsetMs = 0, burstIndex = 0, hype = false, chant = null, sceneChange = false, piling = false }) {
+function fireLine({ offsetMs = 0, burstIndex = 0, hype = false, chant = null, sceneChange = false, piling = false, speechTrigger = false }) {
   setTimeout(() => {
     if (state.phase !== 'live') return;
     const viewer = sim.pickViewer(viewerWeights());
@@ -870,7 +877,12 @@ function fireLine({ offsetMs = 0, burstIndex = 0, hype = false, chant = null, sc
     });
     // the streamer addressed chat → the next line answers them, dice be damned
     if (state.userMsgTicks > 0 && kind !== 'emote') kind = 'reply';
-
+    // the streamer just said something out loud → the first line of this burst
+    // reacts to it. 'reaction' is the visual kind that carries the speech line
+    // into the prompt; forcing it (over emote/canned/pasta shortcuts) is what
+    // makes the room actually answer what was said instead of ignoring it.
+    const answerSpeech = speechTrigger && burstIndex === 0 && !!state.speech;
+    if (answerSpeech) kind = 'reaction';
     if (kind === 'emote') {
       const text = templateLine('emote', { emote: () => sim.randomEmote(), hype, chant, recent: state.templateRecent });
       logTemplate(text, viewer, kind);
@@ -883,18 +895,20 @@ function fireLine({ offsetMs = 0, burstIndex = 0, hype = false, chant = null, sc
       return;
     }
     // a copypasta viewer pastes a classic instead of reacting — no GPU call
-    const pasta = maybePasta(kind, viewer.archetypeKey);
+    const pasta = answerSpeech ? null : maybePasta(kind, viewer.archetypeKey);
     if (pasta) { logTemplate(pasta, viewer, 'copypasta'); return; }
     // canned real chat: a slice of ordinary lines is a genuine human line instead
     // of model output (no GPU). Skips anything seen lately so the pool doesn't loop.
-    if (CANNABLE.has(kind) && Math.random() < tune.cannedPct / 100) {
+    // a speech answer must reach the model — a canned generic line would ignore
+    // what the streamer just said, which is the exact thing this path exists for.
+    if (!answerSpeech && CANNABLE.has(kind) && Math.random() < tune.cannedPct / 100) {
       const fresh = CANNED_POOL.filter((l) => !state.templateRecent.includes(
         l.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()));
       if (fresh.length) { logTemplate(fresh[(Math.random() * fresh.length) | 0], viewer, 'canned'); return; }
     }
     // GPU busy: drop the line rather than queue it — a queued line is stale chat
     if (state.pendingChat >= tune.maxPending) return;
-    sendChatMessage({ viewer, kind, sceneChange, burstIndex, hype, bit: bits[0]?.text || '' });
+    sendChatMessage({ viewer, kind, sceneChange, burstIndex, hype, bit: bits[0]?.text || '', speechFresh: answerSpeech });
   }, offsetMs);
 }
 
@@ -979,7 +993,7 @@ function burstFrames(varied, index) {
   return { image: cur };
 }
 
-function sendChatMessage({ viewer, kind, sceneChange, burstIndex = 0, hype = false, bit = '', ban = null, spot = false }) {
+function sendChatMessage({ viewer, kind, sceneChange, burstIndex = 0, hype = false, bit = '', ban = null, spot = false, speechFresh = false }) {
   if (state.phase !== 'live') return;
   const replySrc = kind === 'reply' && !state.userMsgTicks ? pickRecent(viewer.name) : null;
   const context = {
@@ -987,6 +1001,7 @@ function sendChatMessage({ viewer, kind, sceneChange, burstIndex = 0, hype = fal
     scene: state.scene || 'the stream just started; nobody has described it yet',
     sceneHistory: state.sceneHistory,
     speech: state.speech || '',
+    speechFresh,
     sceneChange,
     userMsg: state.userMsgTicks > 0 ? state.userMsg : '',
     recent: state.lastChatLines.map((l) => l.text),
@@ -1277,6 +1292,12 @@ function onTranscript(text) {
   state.speech = clean.slice(-300);
   state.speechAt = Date.now();
   showCaption(clean);
+  // a spoken sentence is a reaction trigger, not just passive context — the
+  // north star promises replies to spoken words within seconds, but until now a
+  // transcript only sat in state.speech until some random later tick happened to
+  // glance at it. Mirror the scene-change path (noteMotion): pull the pending
+  // chatLoop forward so the room turns to what was just said *now*.
+  if (state.chatTimer) { clearTimeout(state.chatTimer); state.chatTimer = 0; chatLoop(); }
 }
 
 let captionTimer = 0;

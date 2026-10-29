@@ -398,6 +398,10 @@ const CHAT_PROMPT_PARTS = (kind, ctx, T = {}) => {
   if (ctx.bit) parts.push(`Chat has been repeating: "${clip(ctx.bit, 60)}"`);
   if (ctx.culture) parts.push(`Chat rule lately (mods ban for it): ${clip(ctx.culture, 90)} — most viewers avoid it.`);
   if (ctx.speech) parts.push(`The streamer just said: "${ctx.speech}"`);
+  // when this line is the room's *answer* to a fresh transcript, say so — the
+  // bare "just said" line is passive context the 450M mostly ignores; the cue
+  // turns it into the thing to respond to.
+  if (ctx.speech && ctx.speechFresh) parts.push('React to what the streamer just said.');
   if (ctx.userMsg) parts.push(`The streamer typed in chat: "${ctx.userMsg}"`);
   if (ctx.facts) parts.push(`Things chat knows about the streamer: ${ctx.facts} — use naturally, never list.`);
   if (ctx.emotes) parts.push(`[emote ok: ${ctx.emotes}]`);
@@ -487,7 +491,11 @@ async function onChat(m) {
     .filter((s) => !personaLeak(s))
     .filter((s) => !tagEcho(s))
     .filter((s) => !junkLine(s, [ctx.replyTo?.name, ctx.ban?.name]))
-    .filter((s) => ![ctx.speech, ctx.userMsg].some((said) => said && echoesSpeech(s, said)))
+    // a reply to a fresh transcript is *allowed* to quote what was said — that
+    // is what answering sounds like. the echo filter stays on for every other
+    // line (and on userMsg always) so the streamer's words don't come back as
+    // filler when nobody was answering them.
+    .filter((s) => ![ctx.userMsg, ...(ctx.speechFresh ? [] : [ctx.speech])].some((said) => said && echoesSpeech(s, said)))
     .filter((s) => !softGenderDamp(s, (T.genderDamp ?? 50) / 100))
     .filter((s) => !softExclaimDamp(s, (T.exclaimDamp ?? 85) / 100));
 
