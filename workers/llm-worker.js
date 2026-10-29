@@ -329,8 +329,9 @@ function toRawImage(img) {
 /* ---------------- jobs ---------------- */
 
 async function onCaption(m) {
+  const prompt = 'What is on this screen and what is happening right now? One short sentence.';
   const text = await generate({
-    prompt: 'What is on this screen and what is happening right now? One short sentence.',
+    prompt,
     image: toRawImage(m.image),
     maxNewTokens: currentKey === 'omni' ? 40 : 64, // omni calls queue behind each other — shorter captions free the GPU for chat
   });

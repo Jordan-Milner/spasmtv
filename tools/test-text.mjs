@@ -19,6 +19,23 @@ import { ARCHETYPE_KEYS, ChatSim } from '../js/chat-sim.js';
 // node). Extract just its source and eval it so the no-mid-word-truncation rule
 // (Layer 6 — the "because I didn…" bug) is pinned, not just eyeballed.
 const WORKER = readFileSync(fileURLToPath(new URL('../workers/llm-worker.js', import.meta.url)), 'utf8');
+
+// The worker is a module with top-level https imports, so node can't import it
+// and a bare `node --check` only catches syntax, not the undefined-identifier
+// class that shipped the phone crash (onCaption posted a `prompt` that was never
+// declared → ReferenceError on every caption). Parse it as a module and resolve
+// every import specifier to a stub, so a free/undefined reference throws here
+// instead of on a phone at the memory edge.
+{
+  const stubbed = WORKER
+    .replace(/^import[\s\S]*?from\s*['"][^'"]*['"];?/gm, '')
+    .replace(/^export\s+/gm, '');
+  let parsed = true;
+  try { new Function(stubbed); } catch (e) { parsed = false; assert.fail(`worker no longer parses: ${e.message}`); }
+  assert.ok(parsed, 'llm-worker.js parses');
+  // the caption path must define the prompt it posts back (the crash shape)
+  assert.match(WORKER, /const prompt = /, 'onCaption declares the prompt it echoes back');
+}
 const toChatLines = new Function('return ' + WORKER.match(/function toChatLines[\s\S]*?\n}/)[0])();
 
 // reactionSeed: a topic, never a description
