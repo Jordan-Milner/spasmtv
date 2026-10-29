@@ -334,6 +334,33 @@ export class ChatSim {
     this._append(el);
   }
 
+  // a sub/resub/gift notice — the highlighted line Twitch pins in chat. Law 8:
+  // the room has an economy; these are the events it reacts to.
+  notice(html) {
+    const el = document.createElement('div');
+    el.className = 'msg notice';
+    el.innerHTML = html;
+    this._append(el);
+  }
+
+  // Build + render a sub notice from a viewer and the cadence subNotice shape.
+  // Returns the plain text (for the log); the HTML is escaped here so main.js
+  // never touches raw names.
+  subNoticeLine(viewer, sub) {
+    const name = escapeHtml(viewer.name);
+    const badge = sub.prime ? 'Prime ' : '';
+    const tenure = sub.months > 0 ? `${sub.months} month${sub.months === 1 ? '' : 's'}` : null;
+    // a gift reads as the gifter→recipient; a plain sub/resub reads as the viewer
+    const html = sub.gifted
+      ? `<span class="nbadge">⭐ ${sub.prime ? 'PRIME ' : ''}GIFT</span><span class="nuser" style="color:${viewer.color}">${name}</span> was gifted a sub${tenure ? ` (resub for ${tenure})` : ''}!`
+      : `<span class="nbadge">⭐ ${sub.prime ? 'PRIME ' : ''}SUB</span><span class="nuser" style="color:${viewer.color}">${name}</span> ${tenure ? `resubscribed for ${tenure}` : 'just subscribed'}!`;
+    const plain = sub.gifted
+      ? `${viewer.name} was gifted a sub${tenure ? ` (resub for ${sub.months} months)` : ''}`
+      : `${viewer.name} ${tenure ? `resubscribed for ${sub.months} months` : 'just subscribed'}`;
+    this.notice(html);
+    return plain;
+  }
+
   streamer(text) {
     const el = document.createElement('div');
     el.className = 'msg streamer';

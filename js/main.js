@@ -12,7 +12,7 @@ import { loadEmotes, emoteHintFrom } from './emotes.js';
 import {
   pickKind, gateKind, nextGapMs, planBurst, templateLine, maybeBit, liveBits, maybePasta,
   PILE_ON_MS, pileOnBurst, pileOnGap, breatherGap, pileOnKind, threadSeed, threadDelayMs,
-  seedContagion, contagionEcho,
+  seedContagion, contagionEcho, subGapMs, subNotice, subCheer,
 } from './cadence.js';
 import {
   factionFor, cultureLine, patternOf, trollWeight, defies, moodOf, MOOD_GAP,
@@ -610,6 +610,7 @@ function startLoops() {
   state.loops.push(setTimeout(tickCaption, 400));
   state.chatTimer = setTimeout(chatLoop, 1800);
   state.loops.push(state.chatTimer);
+  state.loops.push(setTimeout(subLoop, 12000));
   state.loops.push(setTimeout(rotateTitle, 45000));
 }
 
@@ -624,6 +625,38 @@ function scheduleNext(fn, ms) {
   const id = setTimeout(fn, ms);
   state.loops.push(id);
   return id;
+}
+
+/* the room has an economy (Layer 5, law 8/9): subs, resubs, gifts land as
+ * notices and the room reacts within seconds. A small room sits at the low end
+ * of the measured 0.1-7.6 notices/min — roughly one every 1-2 min. */
+function subLoop() {
+  if (state.phase !== 'live') return;
+  const sub = subNotice();
+  const viewer = sim.pickViewer(() => 1);
+  if (viewer) {
+    const text = sim.subNoticeLine(viewer, sub);
+    logEvent('notice', text, { sub, viewer: viewer.name });
+    subCheerBurst(viewer, sub);
+  }
+  scheduleNext(subLoop, subGapMs());
+}
+
+// 2-4 viewers congratulate the sub within a few seconds — free templates, the
+// room acknowledging its own economy (mirrors banReactionBurst).
+function subCheerBurst(subscriber, sub) {
+  const n = 2 + ((Math.random() * 3) | 0);
+  const used = new Set([subscriber.name]);
+  for (let i = 0; i < n; i++) {
+    const delay = i === 0 ? 300 + Math.random() * 1200 : 500 + Math.random() * 3500;
+    setTimeout(() => {
+      if (state.phase !== 'live') return;
+      const v = sim.pickViewer(viewerWeights());
+      if (!v || used.has(v.name)) return;
+      used.add(v.name);
+      logTemplate(subCheer(), v, 'subcheer', { sub: { name: subscriber.name, months: sub.months } });
+    }, delay);
+  }
 }
 
 function activeSource() {

@@ -196,3 +196,25 @@ export function contagionEcho(age, rnd = Math.random, { p0 = 0.5, life = 6 } = {
   if (age >= life) return false;
   return rnd() < p0 * (1 - age / life);
 }
+
+/* ---- the room has an economy (Layer 5) ----
+ * Law 8/9 (6 real rooms): 0.1-7.6 notices/min (subs, resubs, milestones, mod
+ * actions) and the room reacts within seconds. Ours had zero — no sub ever
+ * happened. A small room (20-40 viewers) sits at the low end, ~1 sub every
+ * 1-2 min. `subGapMs` is the wait to the next notice; `subNotice` shapes it
+ * (resub with a growing tenure, rare prime, occasional gift); `subCheer` is
+ * the free template line a couple of viewers say about it. */
+export const subGapMs = (rnd = Math.random) => 55000 + rnd() * 65000;
+
+export function subNotice(rnd = Math.random) {
+  const r = rnd();
+  const months = r < 0.12 ? 0 : 1 + ((rnd() * 23) | 0);   // ~12% first-timers, else 1-23
+  const kind = months === 0 ? 'sub' : 'resub';
+  const prime = rnd() < 0.18;                              // ~18% are Prime (no months bump)
+  const gifted = rnd() < 0.08;                             // ~8% gift a sub to someone
+  return { kind, months, prime, gifted };
+}
+
+// the free lines the room says about a sub — spammed congrats, not prose.
+const SUB_CHEER = ['welcome', 'congrats', 'W', 'o7', 'based', 'real', 'goated', 'pog', 'nice', 'sheesh'];
+export const subCheer = (rnd = Math.random) => SUB_CHEER[(rnd() * SUB_CHEER.length) | 0];

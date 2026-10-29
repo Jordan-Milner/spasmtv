@@ -309,6 +309,19 @@ main {
   font-size: 12.5px;
 }
 
+/* sub / resub / gift notice — the highlighted line the room reacts to (law 8) */
+.msg.notice {
+  color: #e6d6ff;
+  background: rgba(145,70,255,.14);
+  border-left: 3px solid #9146ff;
+  margin-left: 8px;
+  padding: 4px 11px;
+  border-radius: 3px;
+  font-size: 12.5px;
+}
+.msg.notice .nbadge { color: #b9e0ff; font-weight: 700; margin-right: 6px; }
+.msg.notice .nuser { font-weight: 700; }
+
 /* viewer badges (❓ question-askers, golden chat MVP) */
 .ubadge {
   display: inline-block;

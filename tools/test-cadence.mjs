@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import {
   KIND_WEIGHTS, pickKind, gateKind, nextGapMs, planBurst, templateLine,
   maybeBit, liveBits, ASKERS, PILE_ON_MS, pileOnBurst, pileOnGap, breatherGap, pileOnKind,
-  threadSeed, threadDelayMs, seedContagion, contagionEcho,
+  threadSeed, threadDelayMs, seedContagion, contagionEcho, subGapMs, subNotice, subCheer,
 } from '../js/cadence.js';
 
 const MINUTES = 30;
@@ -169,6 +169,25 @@ assert.equal(maybeBit(bits, 'x'.repeat(60), { hype: true }).length, 1, 'too long
   // monotonic decay: a fixed mid roll echoes early, stops later
   const mid = () => 0.3;
   assert.ok(contagionEcho(0, mid) && !contagionEcho(4, mid), 'echo probability decays with age');
+}
+
+// law 8 economy: subs land on a ~1-2 min cadence (small-room low end of the
+// measured 0.1-7.6 notices/min), resubs carry a growing tenure, and the room
+// has a short cheer vocabulary to react with.
+{
+  const g = subGapMs();
+  assert.ok(g >= 55000 && g <= 120000, `sub gap ${g}ms outside 55-120 s`);
+  let firsts = 0, resubs = 0, maxMonths = 0;
+  for (let i = 0; i < 500; i++) {
+    const s = subNotice();
+    assert.ok(s.kind === 'sub' || s.kind === 'resub', 'notice kind');
+    if (s.kind === 'sub') firsts++; else { resubs++; maxMonths = Math.max(maxMonths, s.months); }
+    assert.ok(typeof s.prime === 'boolean' && typeof s.gifted === 'boolean');
+  }
+  assert.ok(firsts > 20 && firsts < 120, `first-timers ${(firsts / 5).toFixed(0)}% off ~12%`);
+  assert.ok(resubs > 380, 'most notices are resubs with tenure');
+  assert.ok(maxMonths >= 15 && maxMonths <= 23, `resub tenure max ${maxMonths} outside 15-23`);
+  assert.ok(['welcome', 'congrats', 'W', 'o7'].includes(subCheer()) || subCheer().length, 'cheer is a short token');
 }
 
 console.log('ok — cadence budget, kind mix, gating, templates, bits and pile-ons all hold');
