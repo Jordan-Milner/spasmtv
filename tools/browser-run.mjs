@@ -190,6 +190,23 @@ while (Date.now() < DEADLINE) {
   if (chat >= MINUTES * 12 && (!banAt || Date.now() - banAt > 15000)) break;
 }
 
+// A ?video= that 404s (wrong path — bare names resolve against the site root,
+// videos live under /videos/) leaves the capture canvas black and the model
+// "sees" nothing. Every reaction metric then reads clean against black frames
+// and passes silently. Fail loudly instead of shipping a meaningless run.
+if (/video=/.test(PARAMS)) {
+  const vstate = await evaluate(ws, `(() => {
+    const v = document.getElementById('file-video');
+    return v ? JSON.stringify({ err: v.error ? v.error.code : 0, w: v.videoWidth,
+      ready: v.readyState, src: v.currentSrc || v.src }) : 'no-video';
+  })()`);
+  const vs = typeof vstate === 'string' ? JSON.parse(vstate) : vstate;
+  if (vs === 'no-video' || vs.err || !vs.w) {
+    die(1, `video source failed to load (${JSON.stringify(vs)}) — ` +
+      `check the ?video= path: videos live under /videos/, e.g. video=videos/clip.mp4`);
+  }
+}
+
 const dump = await evaluate(ws, 'window.__spasmDump ? __spasmDump() : "[]"');
 const events = JSON.parse(dump);
 writeFileSync(OUT, events.map((e) => JSON.stringify(e)).join('\n') + '\n');
