@@ -347,7 +347,7 @@ async function onCaption(m) {
  */
 const KIND_PROMPT = {
   reaction: 'Say what you think about what is happening right now.',
-  reply:    'Reply to the chat user quoted below — not to the stream.',
+  reply:    'Answer what that other chatter just said, not the stream.',
   banter:   'Talk to the other people in chat, not to the stream.',
   question: 'Ask one short question, ending with a question mark.',
   backseat: 'Tell the streamer what to do next, unprompted.',
@@ -385,14 +385,14 @@ const CHAT_PROMPT_PARTS = (kind, ctx, T = {}) => {
   parts.push(KIND_PROMPT[kind]);
   // exactly ONE quoted line, never the recent window — pasting the window back
   // is the v1.1 echo loop that killed the last build
-  if (ctx.replyTo?.text) parts.push(`Chat user ${clip(ctx.replyTo.name || 'someone', 24)} said: "${clip(ctx.replyTo.text, 90)}"`);
+  if (ctx.replyTo?.text) parts.push(`[reply to ${clip(ctx.replyTo.name || 'someone', 24)}: "${clip(ctx.replyTo.text, 90)}"]`);
   if (ctx.ban?.name) parts.push(`${clip(ctx.ban.name, 24)} was just moderated${ctx.ban.last ? ` — their last message was "${clip(ctx.ban.last, 90)}"` : ''}.`);
   if (ctx.bit) parts.push(`Chat has been repeating: "${clip(ctx.bit, 60)}"`);
   if (ctx.culture) parts.push(`Chat rule lately (mods ban for it): ${clip(ctx.culture, 90)} — most viewers avoid it.`);
   if (ctx.speech) parts.push(`The streamer just said: "${ctx.speech}"`);
   if (ctx.userMsg) parts.push(`The streamer typed in chat: "${ctx.userMsg}"`);
   if (ctx.facts) parts.push(`Things chat knows about the streamer: ${ctx.facts} — use naturally, never list.`);
-  if (ctx.emotes) parts.push(`You may use one emote from: ${ctx.emotes}`);
+  if (ctx.emotes) parts.push(`[emote ok: ${ctx.emotes}]`);
   if (ctx.persona) parts.push(`[vibe ${ctx.persona}]`);
   if (T.extraDirection) parts.push(`Also: ${clip(T.extraDirection, 160)}`);
   if (ctx.styleExamples?.length) parts.push(`Real chat lines look like this (style only — never copy): ${ctx.styleExamples.map((x) => `"${x}"`).join(' / ')}`);
