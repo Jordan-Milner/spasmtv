@@ -4,6 +4,8 @@
 // functions the runtime and the scorer both depend on.
 
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import {
   normTokens, jaccard, tooSimilar, echoesScene, reactionSeed, factCandidate,
   unsafeLine, safeEmote, personaLeak, junkLine, echoesSpeech, tagEcho,
@@ -12,6 +14,12 @@ import { CANNED_POOL } from '../js/real-lines.js';
 import { FACTIONS, DEAD_CHAT_LINES, ONLOOKER_LINES, RELIEF_LINES, spotLine } from '../js/culture.js';
 import { PASTAS, TEXT_FILLS, templateLine } from '../js/cadence.js';
 import { ARCHETYPE_KEYS, ChatSim } from '../js/chat-sim.js';
+
+// toChatLines lives in the worker (top-level https imports → not importable in
+// node). Extract just its source and eval it so the no-mid-word-truncation rule
+// (Layer 6 — the "because I didn…" bug) is pinned, not just eyeballed.
+const WORKER = readFileSync(fileURLToPath(new URL('../workers/llm-worker.js', import.meta.url)), 'utf8');
+const toChatLines = new Function('return ' + WORKER.match(/function toChatLines[\s\S]*?\n}/)[0])();
 
 // reactionSeed: a topic, never a description
 assert.equal(reactionSeed('A green background with a large white letter D.'), 'd');
@@ -162,4 +170,17 @@ for (const ok of ['100%', '240p lag', '10:15', 'top 10', 'gtx 1070'])
   n2 += 3;
 }
 
-console.log(`ok — ${6 + 4 + 10 + 5 + 20 + n2} assertions over js/text.js + every canned line`);
+// Layer 6 — toChatLines must never fake an ellipsis mid-sentence. The old
+// hard-cut produced "because I didn…"; now a line either ends at a clause
+// boundary or stays whole.
+{
+  const trunc = toChatLines('because I didn mean to do that at all', 8, true);
+  assert.ok(!trunc.some((l) => l.endsWith('…')), 'no mid-word ellipsis on a boundary-less line');
+  assert.ok(trunc.length === 1 && trunc[0].split(/\s+/).length > 8, 'kept whole rather than cut');
+  const clause = toChatLines('bro that is crazy, no way you did that', 8, true);
+  assert.deepEqual(clause, ['no way you did that'], 'keeps the clause after the comma');
+  assert.deepEqual(toChatLines('short line', 8, true), ['short line'], 'short line untouched');
+  assert.ok(!toChatLines('one two three four five six seven eight nine ten', 8, true).some((l) => l.endsWith('…')), 'way-over line is not ellipsised');
+}
+
+console.log(`ok — ${6 + 4 + 10 + 5 + 20 + n2 + 4} assertions over js/text.js + every canned line`);

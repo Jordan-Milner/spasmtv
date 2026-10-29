@@ -377,7 +377,7 @@ const CHAT_PROMPT_PARTS = (kind, ctx, T = {}) => {
    * (median 3 words, p90 6), and the last line is a completion cue instead of a
    * warning. keep() still catches an echo — it is the net, not the fix. */
   const parts = [
-    'You are one viewer in a Twitch chat. Write one chat line of 2 to 6 words, lowercase, plain words.',
+    'You are one viewer in a Twitch chat. Write one short chat line, lowercase, plain words. Most lines are a few words; only go longer when you have something to say. Skip exclamation marks.',
   ];
   if (VISUAL_KINDS.has(kind) && ctx.scene) parts.push(`[see ${reactionSeed(ctx.scene, T.seedWords || 3)}]`);
   if (ctx.sceneChange && VISUAL_KINDS.has(kind)) parts.push('[new]');
@@ -411,6 +411,13 @@ const GENDERED_RE = /\b(she|her|hers|woman|lady|gal|girl|he|him|his|man|dude|guy
 
 function softGenderDamp(line, p = 0.5) {
   return GENDERED_RE.test(line) && Math.random() < p;
+}
+
+// law 6: real chat is ~1.4% exclamation, the 450M writes ~12% — a polite-prose
+// shoutiness the prompt can't talk it out of (small models ignore "skip !").
+// Damp most `!` lines out; a few survive so the medium still has its shout.
+function softExclaimDamp(line, p = 0.85) {
+  return line.includes('!') && Math.random() < p;
 }
 
 let workerRecent = [];
@@ -473,7 +480,8 @@ async function onChat(m) {
     .filter((s) => !tagEcho(s))
     .filter((s) => !junkLine(s, [ctx.replyTo?.name, ctx.ban?.name]))
     .filter((s) => ![ctx.speech, ctx.userMsg].some((said) => said && echoesSpeech(s, said)))
-    .filter((s) => !softGenderDamp(s, (T.genderDamp ?? 50) / 100));
+    .filter((s) => !softGenderDamp(s, (T.genderDamp ?? 50) / 100))
+    .filter((s) => !softExclaimDamp(s, (T.exclaimDamp ?? 85) / 100));
 
   let lines = keep(toChatLines(await gen(false), T.maxWords || 14, true));
   chatCalls += 1;
@@ -500,7 +508,8 @@ const META_NEG = /^\s*no\s+(response|reaction|answer|reply|replay|description|re
 
 // strict: a line over maxWords is DROPPED (real chat is short; a rambling line
 // trimmed to "…" reads as a broken sentence). The retry pass trims instead.
-function toChatLines(raw, maxWords = 14, strict = false) {
+// exported so tools/test-text.mjs can pin the no-mid-word-truncation rule.
+export function toChatLines(raw, maxWords = 14, strict = false) {
   let t = raw.replace(/^["'`\s]+|["'`\s]+$/g, '');
   // roleplay leakage: "username:", "@name:", "twitch chat:", "Viewer 2:" prefixes
   t = t.replace(/^@?[\w .-]{2,24}\s*:\s+/, '');
@@ -513,11 +522,20 @@ function toChatLines(raw, maxWords = 14, strict = false) {
   t = t.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{2B00}-\u{2BFF}\u{1F1E6}-\u{1F1FF}]/gu, '');
   t = t.replace(/\s{2,}/g, ' ').trim();
   const lines = t.split(/\n+/).map((s) => s.trim()).filter(Boolean);
-  return lines.slice(0, 2).filter((s) => !(strict && s.split(/\s+/).length > maxWords + 2)).map((s) => {
-    const w = s.split(/\s+/);
-    // the 450M rambles past a chat line; a trimmed line beats an essay
-    if (w.length > maxWords) s = w.slice(0, maxWords).join(' ').replace(/[,;:.-]+$/, '') + '…';
-    return s.length > 120 ? s.slice(0, 117) + '…' : s;
+  return lines.slice(0, 2).filter((s) => !(strict && s.split(/\s+/).length > maxWords + 2)).flatMap((s) => {
+    // The 450M rambles past a chat line. Truncating mid-clause and appending '…'
+    // is what produced "because I didn…" — a broken sentence reads worse than a
+    // long one. So only trim when there's a clean clause boundary (, ;) inside
+    // the budget: keep the clause before it. No boundary → keep the line whole
+    // (maxNewTokens already bounds it); never fake an ellipsis mid-word.
+    if (s.split(/\s+/).length <= maxWords) return [s.length > 120 ? s.slice(0, 117) + '…' : s];
+    const head = s.split(/\s+/, maxWords).join(' ');
+    const cut = Math.max(head.lastIndexOf(','), head.lastIndexOf(';'));
+    if (cut >= 0) {
+      const clause = s.slice(cut + 1).trim().replace(/[,;]+$/, '');
+      if (clause.split(/\s+/).length >= 2 && clause.length <= 90) return [clause];
+    }
+    return [s.length > 120 ? s.slice(0, 117) + '…' : s];
   });
 }
 

@@ -13,8 +13,8 @@ export const TUNE_SCHEMA = [
     { key: 'topP', label: 'top-p', type: 'range', min: 0.5, max: 1, step: 0.01, def: 0.95, worker: true, help: 'Nucleus sampling: only the most likely tokens that add up to this probability are considered. Lower = more predictable.' },
     { key: 'topK', label: 'top-k (0 = off)', type: 'range', min: 0, max: 100, step: 1, def: 40, worker: true, help: 'cuts the long tail of weird tokens' },
     { key: 'repPenalty', label: 'repetition penalty', type: 'range', min: 1, max: 1.5, step: 0.01, def: 1.1, worker: true, help: 'too high makes a 450M model babble to avoid repeating itself' },
-    { key: 'maxNewTokens', label: 'max tokens / line', type: 'range', min: 8, max: 60, step: 1, def: 12, worker: true, help: 'Hard cap on tokens generated per chat line. Short caps cut rambling and speed up chat.' },
-    { key: 'maxWords', label: 'trim lines to N words', type: 'range', min: 4, max: 30, step: 1, def: 8, worker: true, help: 'Lines longer than this are trimmed with an ellipsis after generation.' },
+    { key: 'maxNewTokens', label: 'max tokens / line', type: 'range', min: 8, max: 60, step: 1, def: 16, worker: true, help: 'Hard cap on tokens generated per chat line. Short caps cut rambling and speed up chat; too short truncates a line mid-sentence.' },
+    { key: 'maxWords', label: 'trim lines to N words', type: 'range', min: 4, max: 30, step: 1, def: 10, worker: true, help: 'A line longer than this is kept only up to its last clause boundary (never cut mid-word). Real small-room p90 is ~11 words.' },
   ]},
   { group: 'Prompt', open: true, items: [
     { key: 'seedWords', label: 'scene keywords given to the model', type: 'range', min: 1, max: 12, step: 1, def: 6, worker: true, help: 'was 3 — with so few the model has nothing to react to and goes generic' },
@@ -25,6 +25,7 @@ export const TUNE_SCHEMA = [
     { key: 'echoScene', label: 'caption-echo cutoff (Jaccard)', type: 'range', min: 0.2, max: 0.9, step: 0.05, def: 0.5, worker: true, help: 'lower = stricter against lines that repeat the caption' },
     { key: 'priorSim', label: 'repeat-of-recent cutoff', type: 'range', min: 0.4, max: 1, step: 0.05, def: 0.75, worker: true, help: 'A new line this similar (word overlap) to something recent is thrown away. Lower = stricter anti-repeat.' },
     { key: 'genderDamp', label: 'drop gendered lines %', type: 'range', min: 0, max: 100, step: 5, def: 50, worker: true, help: 'Chance to drop a line that calls the streamer he/she/man/girl. Small models over-assume gender.' },
+    { key: 'exclaimDamp', label: 'drop exclamation lines %', type: 'range', min: 0, max: 100, step: 5, def: 85, worker: true, help: 'Chance to drop a line containing "!". Real chat is ~1.4% exclamation; small models write ~12%. Raise to quiet the shoutiness.' },
     { key: 'keysmash', label: 'reject keysmash', type: 'check', def: true, worker: true, help: 'Reject lines that are mostly vowel-less gibberish like "EZERLAFUNKEBOH". Leave on.' },
   ]},
   { group: 'Cadence', items: [
