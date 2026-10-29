@@ -171,6 +171,7 @@ function ensureWorker() {
     setStatus('err', `worker error: ${e.message || 'unknown'}`);
   };
   state.worker = w;
+  window.__spasmtv.worker = w; // test/debug hook — the ablation tools drive the worker directly through it
   return w;
 }
 
