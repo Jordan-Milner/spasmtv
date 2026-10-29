@@ -330,11 +330,11 @@ function toRawImage(img) {
 
 async function onCaption(m) {
   const text = await generate({
-    prompt: 'Describe the scene in one short sentence.',
+    prompt: 'What is on this screen and what is happening right now? One short sentence.',
     image: toRawImage(m.image),
     maxNewTokens: currentKey === 'omni' ? 40 : 64, // omni calls queue behind each other — shorter captions free the GPU for chat
   });
-  post({ type: 'caption', id: m.id, text });
+  post({ type: 'caption', id: m.id, text, prompt, brain: currentKey });
 }
 
 /* ---- prompt v3: reaction-first, anti-echo --------------------------------
@@ -380,6 +380,13 @@ const CHAT_PROMPT_PARTS = (kind, ctx, T = {}) => {
     'You are one viewer in a Twitch chat. Write one short chat line, lowercase, plain words. Most lines are a few words; only go longer when you have something to say. Skip exclamation marks.',
   ];
   if (VISUAL_KINDS.has(kind) && ctx.scene) parts.push(`[see ${reactionSeed(ctx.scene, T.seedWords || 3)}]`);
+  // temporal context (StreamingVLM's long text window, as prompt): what the
+  // screen showed a moment ago, so a line can react to a *change* not just the
+  // frozen frame. Bracketed tag = an echo of it is unmissable (tagEcho catches
+  // any "[" leak); kept short + past-tense so it reads as memory, not a second
+  // caption to copy. Measured: the 450M pulls nouns from it ("music box prize").
+  if (VISUAL_KINDS.has(kind) && ctx.sceneHistory?.length > 1)
+    parts.push(`[earlier: ${clip(ctx.sceneHistory.slice(0, -1).map((s) => reactionSeed(s, 3)).join(' | '), 120)}]`);
   if (ctx.sceneChange && VISUAL_KINDS.has(kind)) parts.push('[new]');
   parts.push('You have been here for hours. React.');
   parts.push(KIND_PROMPT[kind]);
@@ -489,7 +496,10 @@ async function onChat(m) {
   workerRecent = [...workerRecent, ...lines].slice(-8);
   // cumulative GPU calls / first-pass deaths — the U8 guard is measured by
   // driving calls-per-kept-line toward 1
-  post({ type: 'chat', id: m.id, messages: lines, kind, calls: chatCalls, drops: chatDrops });
+  post({ type: 'chat', id: m.id, messages: lines, kind, calls: chatCalls, drops: chatDrops,
+    // exact prompt + whether a real frame rode along — the ?debug=1 panel shows
+    // what each brain is actually fed, straight from the builder (never a guess)
+    prompt, sawFrame: seeing && !!m.image, brain: currentKey });
 }
 
 // the 450M sometimes degrades into keysmash ("EZERLAFUNKEBOHMTHAZAKABOBT…").

@@ -542,6 +542,47 @@ main {
 .set-note { font-size: 11.5px; color: var(--text-faint); line-height: 1.45; }
 .set-lat { font-size: 12px; color: var(--text-dim); line-height: 1.5; font-variant-numeric: tabular-nums; }
 
+/* ?debug=1 — "what is the model actually being fed?" panel. Sits where the
+ * settings panel does (it is never open at the same time in practice). */
+#feed {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 12px;
+  z-index: 60;
+  width: 420px;
+  max-height: calc(100vh - 90px);
+  overflow-y: auto;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 10px 32px rgba(0,0,0,.55);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#feed .set-note code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text-dim); }
+#feed-log { display: flex; flex-direction: column; gap: 8px; }
+.feed-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 9px;
+  background: rgba(0,0,0,.22);
+}
+.feed-tag {
+  font-size: 10.5px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--text-faint);
+  display: flex; justify-content: space-between; gap: 8px;
+}
+.feed-tag .frame-yes { color: #5ad07a; }
+.feed-tag .frame-no { color: #e0715a; }
+.feed-out { font-size: 12.5px; color: var(--text); margin: 4px 0 5px; }
+.feed-prompt {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px; line-height: 1.5; color: var(--text-dim);
+  white-space: pre-wrap; word-break: break-word; margin: 0;
+}
+
 #lat-chip {
   font-size: 11.5px;
   color: var(--text-faint);

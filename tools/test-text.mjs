@@ -28,6 +28,29 @@ assert.equal(reactionSeed('The scene is described with only stop words.'), 'scen
 assert.equal(reactionSeed(''), 'the stream');
 assert.equal(reactionSeed('a the with'), 'the stream');
 
+// temporal context (PLAN-TEMPORAL): the worker builds an [earlier:] memory line
+// from the rolling scene history — bracketed (tagEcho guards it), built from
+// reactionSeed of each *past* caption (never the current one), only when there
+// is more than one caption. Extract the real expression and exercise it.
+const EARLIER = new Function('ctx', 'clip', 'reactionSeed',
+  'return ' + WORKER.match(/`\[earlier:[\s\S]*?\]`/)[0]);
+const clip = (s, n) => String(s).slice(0, n);
+// The guard (only when >1 caption) lives in the worker's `if`; the extracted
+// expression is the value it pushes. Replicate the guard so the test is honest.
+const earlier = (ctx) => (ctx.sceneHistory?.length > 1
+  ? EARLIER(ctx, clip, reactionSeed) : null);
+// one caption → no memory line (nothing happened yet)
+assert.equal(earlier({ sceneHistory: ['a dark room with a desk fan'] }), null,
+  'single caption must not emit [earlier:]');
+// two captions → the *first* (past) one becomes the memory, current excluded
+const two = earlier({ sceneHistory: ['a dark room with a desk fan', 'a music box on a table'] });
+assert.match(two, /^\[earlier: /, 'memory line is bracketed');
+assert.ok(two.includes('dark room') || two.includes('desk'), 'past caption seeds the memory');
+assert.ok(!/music box/.test(two), 'the current caption must NOT appear in [earlier:]');
+// capped length so a long history can't bloat the prompt
+const many = earlier({ sceneHistory: Array.from({ length: 4 }, (_, i) => `caption number ${i} with some extra descriptive words here`) });
+assert.ok(many.length <= '[earlier: '.length + 120 + 1, '[earlier:] is length-capped');
+
 // echoesScene: the exact lines from the v1.1 sample log (2026-10-27)
 const CAP = 'A green background with a large white letter D and some numbers at the top left corner.';
 for (const bad of [

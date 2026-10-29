@@ -60,6 +60,7 @@ URL parameters:
 | `?grammar=0` | turn off the charset guard on chat generation |
 | `?video=PATH&autolive=1` | play a same-origin video file through the whole pipeline and go live. This is what the test harness uses |
 | `?log=1` | mirror the chat log to `localStorage` |
+| `?debug=1` | (localhost only) the ⚙ panel shows the exact prompt each brain is fed and whether a real frame rode along |
 
 ### Brains
 
