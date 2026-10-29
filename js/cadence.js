@@ -14,7 +14,7 @@ import { pickFresh } from './culture.js';
 // free share. Emote *rate* is still held down by the stricter templateLine below.
 export const KIND_WEIGHTS = {
   reaction: 40, emote: 18, question: 16, backseat: 8,
-  reply: 10, banter: 6, callback: 5, meta: 3, greeting: 2,
+  reply: 15, banter: 6, callback: 5, meta: 3, greeting: 2,
 };
 
 // who is allowed to ask questions — question inflation (§ diagnosis 2) came
@@ -156,3 +156,13 @@ export function maybeBit(bits, line, { hype = false, now = Date.now(), chance = 
 export function liveBits(bits, now = Date.now()) {
   return (bits || []).filter((b) => b.until > now);
 }
+
+/* ---- conversation thread: the room talks to itself (Layer 2) ----
+ * Law 2 (6 real rooms): 6-8% of lines reply to a specific earlier line and
+ * name the person. The scheduler fired `reply` at ~4.5% and pickRecent rarely
+ * landed on a name the reply could use, so the room read as a crowd, not a
+ * room. When a line lands, a chatter answers *that person* within a short
+ * window — a reply is pulled forward, not left to the dice. `threadP` is the
+ * chance a line seeds a reply; `threadDelayMs` how long the reply waits. */
+export const threadSeed = (rnd = Math.random, threadP = 0.16) => rnd() < threadP;
+export const threadDelayMs = (rnd = Math.random) => 1200 + rnd() * 2600;

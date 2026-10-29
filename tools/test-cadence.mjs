@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import {
   KIND_WEIGHTS, pickKind, gateKind, nextGapMs, planBurst, templateLine,
   maybeBit, liveBits, ASKERS, PILE_ON_MS, pileOnBurst, pileOnGap, breatherGap, pileOnKind,
+  threadSeed, threadDelayMs,
 } from '../js/cadence.js';
 
 const MINUTES = 30;
@@ -141,6 +142,16 @@ assert.equal(maybeBit(bits, 'x'.repeat(60), { hype: true }).length, 1, 'too long
   assert.ok(waveRate / rate >= 2, `pile-on only ${(waveRate / rate).toFixed(2)}× the session rate`);
   assert.ok(gen2 / MINUTES <= 20, `pile-ons push generate calls to ${(gen2 / MINUTES).toFixed(1)}/min`);
   assert.ok(rate <= 30, `pile-ons push chat to ${rate.toFixed(1)} lines/min (north star: 1 per 2–3 s)`);
+}
+
+// law 2 conversation thread: a fraction of lines seed a reply, within a short
+// (~10 s) window so the room reads as talking to itself, not a metronome.
+{
+  let seeds = 0;
+  for (let i = 0; i < 1000; i++) if (threadSeed(Math.random)) seeds++;
+  assert.ok(seeds > 100 && seeds < 220, `thread seed rate ${(seeds / 10).toFixed(0)}% off ~16%`);
+  const d = threadDelayMs();
+  assert.ok(d >= 1200 && d <= 3800, `thread delay ${d}ms outside 1.2–3.8 s`);
 }
 
 console.log('ok — cadence budget, kind mix, gating, templates, bits and pile-ons all hold');

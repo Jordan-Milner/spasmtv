@@ -11,7 +11,7 @@ import { CANNED_POOL } from './real-lines.js';
 import { loadEmotes, emoteHintFrom } from './emotes.js';
 import {
   pickKind, gateKind, nextGapMs, planBurst, templateLine, maybeBit, liveBits, maybePasta,
-  PILE_ON_MS, pileOnBurst, pileOnGap, breatherGap, pileOnKind,
+  PILE_ON_MS, pileOnBurst, pileOnGap, breatherGap, pileOnKind, threadSeed, threadDelayMs,
 } from './cadence.js';
 import {
   factionFor, cultureLine, patternOf, trollWeight, defies, moodOf, MOOD_GAP,
@@ -872,10 +872,15 @@ function personaFor(viewer, kind = '') {
   return viewer.personaHint || 'a viewer — one short reaction';
 }
 
-// exactly one prior line for a reply to quote — never the window (§B)
+// exactly one prior line for a reply to quote — never the window (§B).
+// Prefer a line whose author is a name the reply can address: law 2 says a
+// reply names the person, and a bare reaction to an unnamed line reads as fake.
 function pickRecent(excludeName) {
   const pool = state.lastChatLines.filter((l) => l.name !== excludeName);
-  return pool.length ? pool[(Math.random() * pool.length) | 0] : null;
+  if (!pool.length) return null;
+  const nameable = pool.filter((l) => l.name && l.name.length >= 3);
+  const from = nameable.length && Math.random() < 0.8 ? nameable : pool;
+  return from[(Math.random() * from.length) | 0];
 }
 
 function pickStyleExamples(n) {
@@ -888,6 +893,20 @@ function pickStyleExamples(n) {
 function trackRecent(name, text) {
   state.lastChatLines.push({ name, text });
   if (state.lastChatLines.length > 6) state.lastChatLines.shift();
+  // law 2: the room talks to itself. Most lines seed a reply to *this* person
+  // within a short window, so conversation threads instead of a crowd shouting.
+  if (threadSeed() && state.pendingChat < tune.maxPending) {
+    scheduleNext(() => fireThreadReply(name), threadDelayMs());
+  }
+}
+
+// a chatter answers the person who just spoke. If the streamer is mid-question
+// the scheduler's own reply takes precedence — don't double up.
+function fireThreadReply(targetName) {
+  if (state.phase !== 'live' || state.userMsgTicks > 0) return;
+  const viewer = sim.pickViewer(viewerWeights());
+  if (!viewer || viewer.name === targetName) return;
+  sendChatMessage({ viewer, kind: 'reply' });
 }
 
 /* burst frames: which single view of the stream this viewer reacts to */
