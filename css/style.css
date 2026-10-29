@@ -275,7 +275,10 @@ main {
 
 #chat-scroll {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;   /* momentum scroll on iOS */
+  overscroll-behavior: contain;        /* don't hand the gesture to the page at the ends */
   padding: 8px 0;
   scrollbar-width: thin;
   scrollbar-color: var(--line) transparent;
@@ -608,6 +611,9 @@ main {
   #chat-panel {
     width: 100%;
     flex: 1;
+    /* a column flex child grows to content without this, so #chat-scroll has
+       no bounded box to scroll in and the whole window pages instead */
+    min-height: 0;
     border-left: none;
     border-top: 1px solid var(--line);
   }
