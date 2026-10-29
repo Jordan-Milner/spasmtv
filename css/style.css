@@ -631,6 +631,9 @@ main {
 
   /* 16px stops iOS Safari from zooming the page when a field gains focus */
   #chat-input, #fact-input { font-size: 16px; }
+  /* the phone chat sits in a short scroller under a 56% video; 13.5px reads as
+     cramped/tiny there — bump the lines so the chat feels present, not tiny */
+  .msg { font-size: 15px; line-height: 1.5; }
 }
 
 /* chat tuning panel */
