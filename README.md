@@ -54,8 +54,8 @@ URL parameters:
 
 | parameter | effect |
 |---|---|
-| `?brain=fast\|quality\|qwen` | preselect a brain |
-| `?brain=lfm3b\|omni` | add an experimental brain to the picker (below) |
+| `?brain=fast\|quality\|qwen\|omni` | preselect a brain |
+| `?brain=lfm3b` | add an experimental brain to the picker (below) |
 | `?phone` | preview phone mode on a desktop |
 | `?grammar=0` | turn off the charset guard on chat generation |
 | `?video=PATH&autolive=1` | play a same-origin video file through the whole pipeline and go live. This is what the test harness uses |
@@ -68,15 +68,19 @@ URL parameters:
 | Fast chat (default) | [`LiquidAI/LFM2.5-VL-450M-ONNX`](https://huggingface.co/LiquidAI/LFM2.5-VL-450M-ONNX), fp16 vision + q4 decoder | ~800 MB | LFM Open License v1.0 |
 | Sharper chat | [`onnx-community/LFM3-VL-2B-ONNX`](https://huggingface.co/onnx-community/LFM3-VL-2B-ONNX), q4f16 | ~1.9 GB | LFM Open License v1.0 |
 | Qwen 2B | [`onnx-community/Qwen3-VL-2B-Instruct-ONNX`](https://huggingface.co/onnx-community/Qwen3-VL-2B-Instruct-ONNX), q4f16 | ~2.3 GB | Apache-2.0 (Qwen3-VL) |
+| Omni 2B | [`LiquidAI/LFM3-Omni-2B-ONNX`](https://huggingface.co/LiquidAI/LFM3-Omni-2B-ONNX) on raw onnxruntime-web; hears speech itself, no Moonshine. Most Twitch-like output (OMNI-REPORT A/B) | ~1.6 GB, +510 MB audio encoder on first speech | LFM Open License v1.0 |
 | Phone chat (phones only) | [`HuggingFaceTB/SmolVLM-256M-Instruct`](https://huggingface.co/HuggingFaceTB/SmolVLM-256M-Instruct), q4/q8 | ~180 MB | Apache-2.0 |
 | `?brain=lfm3b` (experimental) | [`LiquidAI/LFM2.5-VL-3B-ONNX`](https://huggingface.co/LiquidAI/LFM2.5-VL-3B-ONNX), fp16 vision + q4 decoder | ~4 GB | LFM Open License v1.0 |
-| `?brain=omni` (experimental) | [`LiquidAI/LFM3-Omni-2B-ONNX`](https://huggingface.co/LiquidAI/LFM3-Omni-2B-ONNX) on raw onnxruntime-web; hears speech itself, no Moonshine | ~1.6 GB, +510 MB audio encoder on first speech | LFM Open License v1.0 |
 
 Speech-to-text uses [`onnx-community/moonshine-base-ONNX`](https://huggingface.co/onnx-community/moonshine-base-ONNX)
 (~155 MB, MIT) by default, or `moonshine-tiny` (~76 MB) from ⚙.
 
 The Liquid AI models are under the LFM Open License v1.0, which allows free use,
 including commercial use below a revenue threshold. Read it before building on them.
+
+The regex charset guard (`?grammar=0` to disable) applies to the transformers.js
+brains; Omni runs its own JS sampler so the guard never engages for it — `keep()`
+in the worker still filters unsafe/junk lines for every brain.
 
 ### Phone mode
 

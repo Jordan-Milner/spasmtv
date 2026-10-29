@@ -1443,7 +1443,7 @@ if (new URLSearchParams(location.search).has('autolive')) {
   const androidPhone = navigator.userAgentData?.mobile === true || /Android.+Mobile/i.test(navigator.userAgent);
   {
     // experimental brains stay out of the public picker; ?brain= adds them
-    const EXPERIMENTAL = { omni: 'Liquid Omni 2B (experimental)', lfm3b: 'Liquid 3B (experimental)' };
+    const EXPERIMENTAL = { lfm3b: 'Liquid 3B (experimental)' };
     const b = params.get('brain');
     if (b && EXPERIMENTAL[b] && ![...els.modelSelect.options].some((o) => o.value === b))
       els.modelSelect.add(new Option(EXPERIMENTAL[b], b));

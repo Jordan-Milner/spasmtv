@@ -253,7 +253,10 @@ export class ChatSim {
     if (recase) for (let i = 0; i < words.length; i++) if (!isCode(words[i])) words[i] = recase(words[i]);
     let t = words.join(' ');
     const endsInCode = isCode(words[words.length - 1] || '');
-    if (viewer.archetype.ellipsis && !endsInCode && Math.random() < 0.5 && !/[.!?…]$/.test(t)) t += '…';
+    // trailing ellipsis: real chat is ~0.8% (law 6), so this is rare flavour
+    // for the trailing-off archetypes (doomer's "this is who i am now…"), not a
+    // coin-flip — a 50% rate here was the single biggest over-punctuation source.
+    if (viewer.archetype.ellipsis && !endsInCode && Math.random() < 0.04 && !/[.!?…]$/.test(t)) t += '…';
     // emote affinity per archetype (§A). Measured 2026-10-28 across 6 real
     // rooms: an emote appears in 3-9% of lines, NOT the "about a third" the
     // first build assumed. Kind mix + template lines already supply most of
