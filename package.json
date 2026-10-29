@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "serve": "python3 -m http.server 8619 --bind 127.0.0.1",
-    "test": "node tools/test-text.mjs && node tools/test-cadence.mjs && node tools/test-culture.mjs && node tools/test-compare.mjs && node tools/test-omni-audio.mjs",
+    "test": "node tools/test-text.mjs && node tools/test-cadence.mjs && node tools/test-culture.mjs && node tools/test-viewers.mjs && node tools/test-compare.mjs && node tools/test-omni-audio.mjs",
     "score": "node tools/score-chat.mjs"
   }
 }

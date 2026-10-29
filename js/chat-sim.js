@@ -187,6 +187,7 @@ export class ChatSim {
     }
     // persist just the identity we care about (name + archetype)
     seed.viewers = this.viewers.map((v) => ({ name: v.name, archetype: v.archetypeKey }));
+    this._issued = new Set(this.viewers.map((v) => v.name));
     try { localStorage.setItem(ROSTER_KEY, JSON.stringify(seed)); } catch {}
     this.mvp = null;
     this.lastViewer = null;
@@ -207,7 +208,14 @@ export class ChatSim {
     // per person). A drive-by is a real viewer object that simply never joins
     // the roster, so it speaks once and is gone.
     if (Math.random() < DRIVE_BY_P) {
-      const v = this._makeViewer(makeName(), pickArchetype());
+      // a drive-by must be a name nobody in the room already has — not a regular
+      // and not another drive-by this session — or two speakers merge into one
+      // and the one-line count silently drops
+      if (!this._issued) this._issued = new Set();
+      let name;
+      do { name = makeName(); } while (this._issued.has(name));
+      this._issued.add(name);
+      const v = this._makeViewer(name, pickArchetype());
       v.transient = true;
       return v;
     }
