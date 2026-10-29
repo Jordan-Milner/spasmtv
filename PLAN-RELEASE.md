@@ -10,6 +10,39 @@ established it. Decisions only Jordan can make are marked **[decide]**.
 
 ---
 
+## STATUS — end of the 2026-10-28 session
+
+Shipped in `9a5747a` (all of A, B, C, E and the D-series fixes; `npm test` → 886
+assertions) and measured on one commit + one video with `tools/score-chat.mjs`:
+caption echo 12.8 % → 0 %, question rate 26 % → 2.6 %, emote rate 1.6 % → 43 %,
+unique bigrams 44 % → 88 %, burst 0.4× → 2.46×. Per-brain results for all seven
+shipped brains are in `tasks/SESSION-2026-10-28-part2.md` §9 — read that, not
+this section, for numbers.
+
+**Not done, in order:**
+
+1. **Nothing is pushed.** `9a5747a` is local to this machine; Pages still serves
+   `ca174f8`, so `/PLAN.md` and `/tasks/handoff-2026-10-28.json` are **still live
+   on the public site** until a push happens. That is the one security item left.
+2. Prompt v4 landed after that commit (bracketed data tags, positive-only rules,
+   `2 to 6 words`, `Chat line:` cue) plus the emote `&`-escape render fix and the
+   UI-narration/leading-zero reject rules — chain 3 is re-running fast/phone/omni
+   against it. Compare calls-per-kept-line against the old 122/48.
+3. `README.md:214` points at `docs/sample-chatlog-2026-10-28.jsonl`, **which does
+   not exist** — only `sample-chatlog-2026-10-27.json` does. Ship the real one
+   from chain 3 and delete the stale file, or the README ships a broken link.
+4. **[decide] D5 is answered by data now:** Omni is the most human output of any
+   brain we have (`ok that's a clean line`, `hello from ohio, that's actually
+   insane`) and its only rubric miss is the emote band, which §6 of the session
+   note shows is not a real-world failure. Say the word and it goes in the picker.
+5. Steps 15's tail: push, re-check the live site, confirm `/PLAN.md` 404s.
+
+**[decide] D1–D4 are settled** (D1 MIT — `LICENSE` added; D2 docs → notes branch,
+`/notes/` gitignored here; D4 name kept). D3 (commit email on ~50 public commits)
+is still Jordan's call and untouched.
+
+---
+
 ## A. Public-facing blockers
 
 **A1. The privacy claim is wrong as written.** README + the offline cover say
