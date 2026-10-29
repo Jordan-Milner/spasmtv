@@ -129,6 +129,32 @@ assert.ok(EMOTE_HINT_SET.has('kekw'), 'known emote in hint set (lower-cased keys
 // --- metrics() rejects a malformed / empty log -----------------------------
 assert.throws(() => metrics([]), /need at least/);
 
+// --- law metrics (2,3,5,6): the social/voice numbers the honest bands use ---
+// A room where half the speakers are one-timers, some lines name/reply, and
+// words/punctuation land in band. Asserts metrics() computes them from BOTH the
+// sim (ctx.viewer/ctx.replyTo) and real (name/replyTo) shapes.
+{
+  let t = 0;
+  const sim = [];
+  // 20 one-time speakers + 4 regulars (→ ~20/24 one-line users ≈ 83%)
+  for (let i = 0; i < 20; i++) { t += 3; sim.push(simLine(t, `one_timer_${i}`, 'nice play')); }
+  for (let i = 0; i < 8; i++) { t += 3; sim.push(simLine(t, 'regular', 'gg', { ctx: { replyTo: i % 2 ? { text: 'x' } : null } })); }
+  // a couple that name another chatter by @handle and by bare nickname
+  sim.push(simLine(t += 3, 'regular', 'what do you think @one_timer_3'));
+  const m = metrics(JSON.parse(`[${sim.join(',')}]`));
+  assert.ok(m.pctOneLineUser > 60, `one-line users should be high, got ${m.pctOneLineUser}`);
+  assert.ok(m.pctReply > 0, 'reply rate should be > 0 (ctx.replyTo)');
+  assert.ok(m.pctNamesChatter > 0, 'names-a-chatter should detect @handle');
+  assert.ok(m.pctOneWord > 0, 'one-word rate counted');
+  // real shape: replyTo is a login-name string, name is the speaker
+  const real = [];
+  real.push(realLine(1000, 'alice', 'hello there'));
+  real.push(realLine(2000, 'bob', 'hi alice'));
+  for (let i = 0; i < 9; i++) real.push(realLine(3000 + i * 1000, `u${i}`, 'lol'));
+  const rm = metrics(JSON.parse(`[${real.join(',')}]`));
+  assert.ok(rm.pctNamesChatter > 0, 'real shape: bare nickname names a present chatter');
+}
+
 // --- burstRatio: clustered changes are one window, not many ---------------
 {
   const ev = (s) => ({ t: new Date(1000000 + s * 1000).toISOString() });

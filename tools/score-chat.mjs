@@ -29,16 +29,32 @@ export const EMOTE_HINT_SET = new Set([
   'wkekw', 'ezgif', 'lmao',
 ]);
 
+// Bands are the measured laws in docs/twitch-chat-fingerprint.md (6 real rooms,
+// 2026-10-28), NOT the old guesses. The 25-50% emote band below was a fabrication
+// that steered us away from real chat for weeks — real rooms put an emote in
+// ≤9.4% of lines. See the fingerprint doc §"The laws, as rules".
 const RUBRIC = {
   captionEcho: { max: 0.10, label: 'caption-echo rate (Jaccard > 0.5 vs the caption)' },
   // the real-chat corpus: 4.4 % (vod-fnf-work) and 3.0 % (vod-phantom)
   question: { min: 0.02, max: 0.10, label: 'question rate' },
-  emote: { min: 0.25, max: 0.50, label: 'emote rate (line renders a real code)' },
-  bigram: { min: 0.60, label: 'unique bigram ratio' },
+  // law 1: emotes are seasoning, not sentences. No real room exceeds 9.4%.
+  emote: { max: 0.10, label: 'emote rate (line renders a real code)' },
+  emoteOnly: { max: 0.04, label: 'emote-only rate (line is nothing but an emote)' },
+  // law 4/7: echo is the texture; a high unique-bigram ratio is what real chat
+  // does NOT do. Informational — do not optimise toward it.
+  bigram: { min: 0.0, label: 'unique bigram ratio (informational — real chat echoes, do not optimise)' },
   burst: { min: 2.0, label: 'burst correlation (lines/min in the 10 s after a scene change ÷ baseline)' },
   banLatency: { max: 6000, label: 'ban-reaction latency (ms to the first chat line after a mod action)' },
   templateRepeat: { max: 0.15, label: 'template repeat rate (culture/spot/relief/mood lines already heard)' },
-  // what reading the transcripts caught and the six numbers above missed:
+  // laws 2,3,5,6 — the social/voice texture that made us a crowd, not a room
+  oneLineUser: { min: 0.37, max: 0.66, label: 'one-line-user rate (speakers who say exactly one line)' },
+  namesChatter: { min: 0.04, max: 0.11, label: 'names-another-chatter rate (@handle or addresses someone present)' },
+  reply: { min: 0.06, max: 0.08, label: 'reply rate (line replies to a specific earlier line)' },
+  oneWord: { min: 0.16, max: 0.36, label: 'one-word line rate' },
+  caps: { min: 0.10, max: 0.25, label: 'ALL-CAPS line rate' },
+  exclam: { max: 0.03, label: 'exclamation rate (lines with !)' },
+  ellipsis: { max: 0.01, label: 'ellipsis rate (lines with …)' },
+  // what reading the transcripts caught and the numbers above missed:
   // slurs, the archetype brief as chat, @handle junk, mangled emotes, echo
   unsafe: { max: 0, label: 'unsafe lines (slurs, sexual or body talk, self-harm)' },
   personaLeak: { max: 0.03, label: 'persona-leak rate (model lines narrating the archetype or brief)' },
@@ -89,6 +105,31 @@ export function metrics(events) {
   const mean = counts.reduce((a, b) => a + b, 0) / counts.length;
   const cv = Math.sqrt(counts.reduce((a, b) => a + (b - mean) ** 2, 0) / counts.length) / (mean || 1);
   const viewers = new Set(chat.map(lineViewer).filter(Boolean));
+  // law 3: the silent majority — what share of the people who ever speak say
+  // exactly one line. Real small rooms: 37-66%.
+  const perViewer = new Map();
+  for (const e of chat) {
+    const v = lineViewer(e);
+    if (v) perViewer.set(v, (perViewer.get(v) || 0) + 1);
+  }
+  const oneLineUsers = [...perViewer.values()].filter((n) => n === 1).length;
+  // law 2: lines that name another chatter — an @handle or a bare nickname of
+  // someone actually present. Real small rooms: 4-11%.
+  const nameSet = new Set([...perViewer.keys()]);
+  const namesSomeone = (e) => {
+    const t = lineText(e);
+    if (/@\w{2,}/.test(t)) return true;
+    for (const nm of nameSet) {
+      if (nm.length >= 3 && new RegExp('(^|[^\\w])' + nm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '([^\\w]|$)', 'i').test(t)) return true;
+    }
+    return false;
+  };
+  // law 2: replies to a specific earlier line. Sim logs ctx.replyTo; real rows
+  // carry replyTo (the target's login name).
+  const isReply = (e) => !!(e.ctx?.replyTo || e.replyTo);
+  const oneWord = chat.filter((e) => tokens(e).length === 1).length;
+  const exclam = chat.filter((e) => lineText(e).includes('!')).length;
+  const ellipsis = chat.filter((e) => lineText(e).includes('…')).length;
   const topEmotes = new Map();
   for (const e of chat) {
     const toks = lineCodes(e) || tokens(e).filter((w) => w.length <= 12);
@@ -107,6 +148,12 @@ export function metrics(events) {
     pctEmoteOnly: 100 * chat.filter(emoteOnly).length / chat.length,
     pctQuestion: 100 * chat.filter((e) => lineText(e).includes('?')).length / chat.length,
     pctCaps: 100 * chat.filter((e) => isCaps(lineText(e))).length / chat.length,
+    pctOneLineUser: 100 * oneLineUsers / Math.max(1, perViewer.size),
+    pctNamesChatter: 100 * chat.filter(namesSomeone).length / chat.length,
+    pctReply: 100 * chat.filter(isReply).length / chat.length,
+    pctOneWord: 100 * oneWord / chat.length,
+    pctExclam: 100 * exclam / chat.length,
+    pctEllipsis: 100 * ellipsis / chat.length,
     burstiness: cv,
     msgsViewerMin: chat.length / Math.max(1, viewers.size) / spanMin,
     topEmotes: [...topEmotes.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([k]) => k),
@@ -129,6 +176,10 @@ export function compare(realEvents, simEvents, label = '') {
     { metric: '% emote-only', sim: S.pctEmoteOnly, real: R.pctEmoteOnly, verdict: near(S.pctEmoteOnly, R.pctEmoteOnly, 8) ? 'MATCH' : 'OFF' },
     { metric: '% question lines', sim: S.pctQuestion, real: R.pctQuestion, verdict: near(S.pctQuestion, R.pctQuestion, 10) ? 'MATCH' : 'OFF' },
     { metric: '% ALL-CAPS lines', sim: S.pctCaps, real: R.pctCaps, verdict: near(S.pctCaps, R.pctCaps, 10) ? 'MATCH' : 'OFF' },
+    { metric: '% one-line users', sim: S.pctOneLineUser, real: R.pctOneLineUser, verdict: near(S.pctOneLineUser, R.pctOneLineUser, 12) ? 'MATCH' : 'OFF' },
+    { metric: '% names a chatter', sim: S.pctNamesChatter, real: R.pctNamesChatter, verdict: near(S.pctNamesChatter, R.pctNamesChatter, 5) ? 'MATCH' : 'OFF' },
+    { metric: '% reply lines', sim: S.pctReply, real: R.pctReply, verdict: near(S.pctReply, R.pctReply, 5) ? 'MATCH' : 'OFF' },
+    { metric: '% one-word lines', sim: S.pctOneWord, real: R.pctOneWord, verdict: near(S.pctOneWord, R.pctOneWord, 10) ? 'MATCH' : 'OFF' },
     { metric: 'burstiness (CV 5s)', sim: S.burstiness, real: R.burstiness,
       verdict: ratioIn(S.burstiness, R.burstiness, 0.5, 2) ? 'MATCH' : 'OFF' },
     { metric: 'msgs/viewer/min', sim: S.msgsViewerMin, real: R.msgsViewerMin,
@@ -311,16 +362,17 @@ if (isMain) {
   const banMs = latencies.length ? Math.min(...latencies) : null;
 
   const pct = (v) => (v * 100).toFixed(1) + '%';
+  const m = metrics(events); // laws 2,3,5,6 reuse metrics() — same shape both sides
   const rows = [
     { key: 'captionEcho', value: echoSampled ? echoN / echoSampled : null,
       detail: `${echoN}/${echoSampled} model lines`, kind: 'max' },
     { key: 'question', value: chat.length ? questions / chat.length : null,
       detail: `${questions}/${chat.length} lines`, kind: 'range' },
     { key: 'emote', value: (hasCodes || codeSet.size) && chat.length ? emotes / chat.length : null,
-      detail: `${emotes}/${chat.length} lines`, kind: 'range',
+      detail: `${emotes}/${chat.length} lines`, kind: 'max',
       unavailable: !hasCodes && !codeSet.size ? 'log has no emote codes' : '' },
     { key: 'bigram', value: bigrams.length ? bigramRatio : null,
-      detail: `${new Set(bigrams).size}/${bigrams.length} bigrams`, kind: 'min' },
+      detail: `${new Set(bigrams).size}/${bigrams.length} bigrams`, kind: 'min', informational: true },
     { key: 'burst', value: burst, detail: burst === null ? 'no scene changes in the log'
       : `${burst.toFixed(2)}× baseline`, kind: 'min',
       unavailable: burst !== null && blanketed ? 'captions change continuously — not measurable here' : '' },
@@ -337,6 +389,22 @@ if (isMain) {
     { key: 'emoteRender', value: emoteLines.length ? renderFail / emoteLines.length : null,
       detail: `${renderFail}/${emoteLines.length} emote lines`, kind: 'max',
       unavailable: !hasCodes ? 'log has no rendered emote codes' : emoteLines.length ? '' : 'no emote lines' },
+    { key: 'emoteOnly', value: chat.length ? m.pctEmoteOnly / 100 : null,
+      detail: `${Math.round(m.pctEmoteOnly * chat.length / 100)}/${chat.length} lines`, kind: 'max' },
+    { key: 'oneLineUser', value: chat.length ? m.pctOneLineUser / 100 : null,
+      detail: `${m.uniqueViewers} distinct speakers`, kind: 'range' },
+    { key: 'namesChatter', value: chat.length ? m.pctNamesChatter / 100 : null,
+      detail: `${Math.round(m.pctNamesChatter * chat.length / 100)}/${chat.length} lines`, kind: 'range' },
+    { key: 'reply', value: chat.length ? m.pctReply / 100 : null,
+      detail: `${Math.round(m.pctReply * chat.length / 100)}/${chat.length} lines`, kind: 'range' },
+    { key: 'oneWord', value: chat.length ? m.pctOneWord / 100 : null,
+      detail: `${Math.round(m.pctOneWord * chat.length / 100)}/${chat.length} lines`, kind: 'range' },
+    { key: 'caps', value: chat.length ? m.pctCaps / 100 : null,
+      detail: `${Math.round(m.pctCaps * chat.length / 100)}/${chat.length} lines`, kind: 'range' },
+    { key: 'exclam', value: chat.length ? m.pctExclam / 100 : null,
+      detail: `${Math.round(m.pctExclam * chat.length / 100)}/${chat.length} lines`, kind: 'max' },
+    { key: 'ellipsis', value: chat.length ? m.pctEllipsis / 100 : null,
+      detail: `${Math.round(m.pctEllipsis * chat.length / 100)}/${chat.length} lines`, kind: 'max' },
     { key: 'speechEcho', value: heard.length >= 5 ? speechEchoN / heard.length : null,
       detail: `${speechEchoN}/${heard.length} speech-context lines`, kind: 'max',
       unavailable: heard.length < 5 ? `only ${heard.length} lines written after the streamer spoke` : '' },
@@ -352,13 +420,14 @@ if (isMain) {
       console.log(`  n/a  ${spec.label.padEnd(70)} ${r.unavailable || r.detail}`);
       continue;
     }
-    const ok = r.kind === 'max' ? r.value <= spec.max
+    const ok = r.informational ? true
+      : r.kind === 'max' ? r.value <= spec.max
       : r.kind === 'min' ? r.value >= spec.min
       : r.value >= spec.min && r.value <= spec.max;
     if (!ok) failed++;
     const shown = r.key === 'banLatency' ? `${Math.round(r.value)}ms` : pct(r.value);
-    const bound = r.kind === 'max' ? `≤ ${spec.max}` : r.kind === 'min' ? `> ${spec.min}` : `${spec.min}–${spec.max}`;
-    console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${spec.label.padEnd(70)} ${shown} (want ${bound}) ${r.detail}`);
+    const bound = r.kind === 'max' ? `≤ ${spec.max}` : r.kind === 'min' ? (spec.max === undefined ? `> ${spec.min}` : `${spec.min}–${spec.max}`) : `${spec.min}–${spec.max}`;
+    console.log(`  ${r.informational ? 'INFO' : ok ? 'PASS' : 'FAIL'}  ${spec.label.padEnd(70)} ${shown} (want ${bound}) ${r.detail}`);
   }
   console.log(`\n${failed === 0 ? 'rubric green' : `${failed} metric(s) failing`} · ${skipped} unavailable`);
   process.exit(failed ? 1 : 0);
