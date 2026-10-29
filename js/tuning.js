@@ -36,9 +36,9 @@ export const TUNE_SCHEMA = [
     { key: 'banModelChance', label: 'model line in ban reactions %', type: 'range', min: 0, max: 100, step: 5, def: 55, help: 'When someone is banned, the chance one of the reaction lines is written by the model instead of a template. Templates are instant and free.' },
   ]},
   { group: 'What chat says (kind mix)', items: [
-    { key: 'kw_reaction', label: 'reactions', type: 'range', min: 0, max: 100, step: 1, def: 44, help: 'Relative weight for lines that react to what is on screen.' },
-    { key: 'kw_emote', label: 'emote-only (free)', type: 'range', min: 0, max: 100, step: 1, def: 20, help: 'Relative weight for emote-only lines, F spam and chants. These cost no GPU.' },
-    { key: 'kw_question', label: 'questions', type: 'range', min: 0, max: 100, step: 1, def: 8, help: 'Relative weight for viewers asking a short question.' },
+    { key: 'kw_reaction', label: 'reactions', type: 'range', min: 0, max: 100, step: 1, def: 40, help: 'Relative weight for lines that react to what is on screen.' },
+    { key: 'kw_emote', label: 'emote-only (free)', type: 'range', min: 0, max: 100, step: 1, def: 18, help: 'Relative weight for emote-only lines, F spam and chants. These cost no GPU — the main lever on chat speed.' },
+    { key: 'kw_question', label: 'questions', type: 'range', min: 0, max: 100, step: 1, def: 16, help: 'Relative weight for viewers asking a short question.' },
     { key: 'kw_backseat', label: 'backseat', type: 'range', min: 0, max: 100, step: 1, def: 8, help: 'Relative weight for viewers telling the streamer what to do.' },
     { key: 'kw_reply', label: 'replies', type: 'range', min: 0, max: 100, step: 1, def: 6, help: 'Relative weight for viewers replying to a specific earlier line.' },
     { key: 'kw_banter', label: 'banter', type: 'range', min: 0, max: 100, step: 1, def: 6, help: 'Relative weight for viewers talking to each other instead of the stream.' },

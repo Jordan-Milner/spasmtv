@@ -443,7 +443,7 @@ async function onChat(m) {
   const quoted = [ctx.replyTo?.text, ctx.ban?.last, ctx.bit].filter(Boolean);
   // a viewer talking about the mods or about chat itself is not looking at the
   // frame — no image in the call at all (blank stand-in inside generate())
-  const seeing = VISUAL_KINDS.has(kind) && ctx.sceneChange;
+  const seeing = VISUAL_KINDS.has(kind);
   const gen = (hot) => generate({
     priority: 1,
     prompt,

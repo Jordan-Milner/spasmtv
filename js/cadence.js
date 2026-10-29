@@ -6,12 +6,14 @@
 import { pickFresh } from './culture.js';
 
 // §C weights. "emote" is the only kind that never costs a generate call.
-// Measured 2026-10-28 (docs/twitch-chat-fingerprint.md): the rooms we resemble
-// (13-24 lines/min) put an emote in 3-9% of lines and reply to a specific line
-// 6-8% of the time. The old mix produced emotes in 48% of lines and named
-// another chatter in 0% of them.
+// The free (emote/fill) share is the main speed lever: every non-emote line
+// costs a GPU generation, so starving it backs up the queue and chat goes slow.
+// 2026-10-28: an over-correction toward the measured 3-9% emote stat cut this
+// to ~26% and made chat both slow and (because reactions then ran text-only)
+// unresponsive to the screen. Kept the measured reply bump (6→10); restored the
+// free share. Emote *rate* is still held down by the stricter templateLine below.
 export const KIND_WEIGHTS = {
-  reaction: 39, emote: 8, question: 21, backseat: 8,
+  reaction: 40, emote: 18, question: 16, backseat: 8,
   reply: 10, banter: 6, callback: 5, meta: 3, greeting: 2,
 };
 
@@ -86,9 +88,11 @@ export function pileOnBurst(rnd = Math.random) {
 export const pileOnGap = (rnd = Math.random) => 900 + rnd() * 700;
 // the first gap after the wave: chat catches its breath
 export const breatherGap = (rnd = Math.random) => 6000 + rnd() * 4000;
-// follow-ups lean on free emote lines so the wave costs little GPU — but a
-// measured room only puts an emote in ~8% of lines, so the wave is mostly words
-export const pileOnKind = (rnd = Math.random) => (rnd() < 0.35 ? 'emote' : 'reaction');
+// follow-ups lean on free emote lines so the wave costs little GPU. The wave is
+// a hype moment — real floods after a change are emote-heavy — so it stays
+// emote-forward even though calm chat is not (the 3-9% fingerprint is the calm
+// baseline, not a burst).
+export const pileOnKind = (rnd = Math.random) => (rnd() < 0.55 ? 'emote' : 'reaction');
 
 // template lines — real chat is full of these and they cost no GPU
 export const SMASH = ['asdfghjkl', 'ajskdlfj', 'sdkfjlsd', 'kdjfslkd', 'aksjdlkf'];

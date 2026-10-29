@@ -927,8 +927,12 @@ function sendChatMessage({ viewer, kind, sceneChange, burstIndex = 0, hype = fal
   state.pendingChat += 1;
   pendingMeta.set(id, { kind, sentAt: performance.now(), context, viewer, hype, ban, spot });
   const msg = { type: 'chat', id, context, tune: workerTune() };
-  // scene-change reactions see actual frames; other lines run text-only for speed
-  if (sceneChange && kind !== 'emote') {
+  // every visual line sees the current frame, not just the instant after a
+  // detected change — gating on sceneChange meant most "reactions" ran text-only
+  // and the chat stopped reacting to what was on screen (2026-10-28). The
+  // scene-change burst still gets the varied before/after crop; the rest get the
+  // live capture.
+  if (kind !== 'emote') {
     Object.assign(msg, burstFrames(state.settings.varied, burstIndex));
     const transfer = [];
     if (msg.frames) msg.frames.forEach((fr) => transfer.push(fr.data.buffer));
