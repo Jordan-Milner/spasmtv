@@ -51,6 +51,9 @@ const RUBRIC = {
   namesChatter: { min: 0.04, max: 0.11, label: 'names-another-chatter rate (@handle or addresses someone present)' },
   reply: { min: 0.06, max: 0.08, label: 'reply rate (line replies to a specific earlier line)' },
   oneWord: { min: 0.16, max: 0.36, label: 'one-word line rate' },
+  // law 4: echo is the texture — a share of lines belong to a ≥5×-repeated
+  // line. Real small rooms 2-9%; burst-shaped, not uniform.
+  repeat: { min: 0.02, max: 0.09, label: 'copypasta/repeat rate (lines part of a ≥5×-repeated line)' },
   caps: { min: 0.10, max: 0.25, label: 'ALL-CAPS line rate' },
   exclam: { max: 0.03, label: 'exclamation rate (lines with !)' },
   ellipsis: { max: 0.01, label: 'ellipsis rate (lines with …)' },
@@ -131,6 +134,13 @@ export function metrics(events) {
   const exclam = chat.filter((e) => lineText(e).includes('!')).length;
   const ellipsis = chat.filter((e) => lineText(e).includes('…')).length;
   const topEmotes = new Map();
+  // law 4: copypasta/repeat share — what fraction of lines are part of a line
+  // said ≥5 times. Real small rooms: 2-9% (jynxzi's mega-room: 46%). Burst-
+  // shaped, not uniform. Normalise case/punct so "GG" and "gg!" count together.
+  const normKey = (e) => lineText(e).toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+  const lineFreq = new Map();
+  for (const e of chat) { const k = normKey(e); if (k) lineFreq.set(k, (lineFreq.get(k) || 0) + 1); }
+  const repeatedLines = chat.filter((e) => (lineFreq.get(normKey(e)) || 0) >= 5).length;
   for (const e of chat) {
     const toks = lineCodes(e) || tokens(e).filter((w) => w.length <= 12);
     for (const w of toks) {
@@ -152,6 +162,7 @@ export function metrics(events) {
     pctNamesChatter: 100 * chat.filter(namesSomeone).length / chat.length,
     pctReply: 100 * chat.filter(isReply).length / chat.length,
     pctOneWord: 100 * oneWord / chat.length,
+    pctRepeat: 100 * repeatedLines / chat.length,
     pctExclam: 100 * exclam / chat.length,
     pctEllipsis: 100 * ellipsis / chat.length,
     burstiness: cv,
@@ -180,6 +191,7 @@ export function compare(realEvents, simEvents, label = '') {
     { metric: '% names a chatter', sim: S.pctNamesChatter, real: R.pctNamesChatter, verdict: near(S.pctNamesChatter, R.pctNamesChatter, 5) ? 'MATCH' : 'OFF' },
     { metric: '% reply lines', sim: S.pctReply, real: R.pctReply, verdict: near(S.pctReply, R.pctReply, 5) ? 'MATCH' : 'OFF' },
     { metric: '% one-word lines', sim: S.pctOneWord, real: R.pctOneWord, verdict: near(S.pctOneWord, R.pctOneWord, 10) ? 'MATCH' : 'OFF' },
+    { metric: '% repeated (≥5×) lines', sim: S.pctRepeat, real: R.pctRepeat, verdict: near(S.pctRepeat, R.pctRepeat, 8) ? 'MATCH' : 'OFF' },
     { metric: 'burstiness (CV 5s)', sim: S.burstiness, real: R.burstiness,
       verdict: ratioIn(S.burstiness, R.burstiness, 0.5, 2) ? 'MATCH' : 'OFF' },
     { metric: 'msgs/viewer/min', sim: S.msgsViewerMin, real: R.msgsViewerMin,
@@ -399,6 +411,8 @@ if (isMain) {
       detail: `${Math.round(m.pctReply * chat.length / 100)}/${chat.length} lines`, kind: 'range' },
     { key: 'oneWord', value: chat.length ? m.pctOneWord / 100 : null,
       detail: `${Math.round(m.pctOneWord * chat.length / 100)}/${chat.length} lines`, kind: 'range' },
+    { key: 'repeat', value: chat.length ? m.pctRepeat / 100 : null,
+      detail: `${Math.round(m.pctRepeat * chat.length / 100)}/${chat.length} lines`, kind: 'range' },
     { key: 'caps', value: chat.length ? m.pctCaps / 100 : null,
       detail: `${Math.round(m.pctCaps * chat.length / 100)}/${chat.length} lines`, kind: 'range' },
     { key: 'exclam', value: chat.length ? m.pctExclam / 100 : null,

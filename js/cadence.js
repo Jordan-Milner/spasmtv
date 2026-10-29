@@ -166,3 +166,33 @@ export function liveBits(bits, now = Date.now()) {
  * chance a line seeds a reply; `threadDelayMs` how long the reply waits. */
 export const threadSeed = (rnd = Math.random, threadP = 0.16) => rnd() < threadP;
 export const threadDelayMs = (rnd = Math.random) => 1200 + rnd() * 2600;
+
+/* ---- contagion: echo, not rotation (Layer 4) ----
+ * Law 4/7 (6 real rooms): a token enters the air, a decaying fraction of the
+ * next N lines echo it, then it dies — `lol`×219, `aura`×194, `67`×120. Our
+ * copypasta was template-driven and evenly spread (26% at small-room volume,
+ * where real rooms paste 2-9%). This is the burst the metric wants: a spike
+ * with a half-life, not a rotation. `seedContagion` picks a short token from a
+ * line that just landed; `contagionEcho` is the decaying chance the next line
+ * reuses it; the caller keeps the token alive for a few lines then drops it. */
+// chat-native words that actually go viral — the fingerprint's `lol`/`aura`/`67`/
+// `f`. A whitelist, not a stopword blacklist: prose words (`was`, `nam`) and
+// proper names never become a chant, so only these are allowed into the air.
+const ECHOABLE = new Set(['lol','lmao','oml','kekw','pog','poggers','aura','rizz','cap','fr','real','based','cooked','goated','goat','sheesh','slay','bet','sus','mid','bussin','banger','ratio','gyat','skibidi','ohio','brainrot','cope','seethe','diff','ez','gg','ggs','nice','insane','crazy','wild','67','o7','f','w','l']);
+
+// a token worth echoing: a chat-native word that appears in the line. Returns
+// null when the line has nothing viral in it (most lines — calm chat barely
+// echoes; a real hook like "lol" or "aura" is what starts a burst).
+export function seedContagion(text, rnd = Math.random, seedP = 0.25) {
+  if (rnd() >= seedP) return null;
+  const words = (text || '').toLowerCase().match(/[a-z0-9]{1,9}/g) || [];
+  const cands = words.filter((w) => ECHOABLE.has(w));
+  return cands.length ? cands[(rnd() * cands.length) | 0] : null;
+}
+
+// decaying echo probability: strong right after the seed, fades over `life`
+// lines so the token spikes then dies instead of rotating forever.
+export function contagionEcho(age, rnd = Math.random, { p0 = 0.5, life = 6 } = {}) {
+  if (age >= life) return false;
+  return rnd() < p0 * (1 - age / life);
+}

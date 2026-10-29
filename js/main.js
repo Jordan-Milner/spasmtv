@@ -12,6 +12,7 @@ import { loadEmotes, emoteHintFrom } from './emotes.js';
 import {
   pickKind, gateKind, nextGapMs, planBurst, templateLine, maybeBit, liveBits, maybePasta,
   PILE_ON_MS, pileOnBurst, pileOnGap, breatherGap, pileOnKind, threadSeed, threadDelayMs,
+  seedContagion, contagionEcho,
 } from './cadence.js';
 import {
   factionFor, cultureLine, patternOf, trollWeight, defies, moodOf, MOOD_GAP,
@@ -89,7 +90,7 @@ const state = {
   // audio gate
   pcm: [], pcmSamples: 0, speaking: false, silenceMs: 0,
   // chat context
-  speech: '', speechAt: 0, userMsg: '', userMsgTicks: 0,
+  speech: '', speechAt: 0, userMsg: '', userMsgTicks: 0, contagion: null,
   lastChatLines: [],        // ring of {name, text} — the window replies quote from
   bits: [],                 // running jokes (§C), each {text, until}
   templateRecent: [],       // freshness ring: template lines the crowd just heard
@@ -828,6 +829,12 @@ function fireLine({ offsetMs = 0, burstIndex = 0, hype = false, chant = null, sc
       logTemplate(text, viewer, kind);
       return;
     }
+    // law 4: echo, not rotation — while a token is in the air, a decaying
+    // fraction of lines reuse it (free, no GPU), spiking then dying.
+    if (state.contagion && contagionEcho(state.contagion.age)) {
+      logTemplate(state.contagion.token, viewer, 'echo');
+      return;
+    }
     // a copypasta viewer pastes a classic instead of reacting — no GPU call
     const pasta = maybePasta(kind, viewer.archetypeKey);
     if (pasta) { logTemplate(pasta, viewer, 'copypasta'); return; }
@@ -893,6 +900,10 @@ function pickStyleExamples(n) {
 function trackRecent(name, text) {
   state.lastChatLines.push({ name, text });
   if (state.lastChatLines.length > 6) state.lastChatLines.shift();
+  // law 4: a catchy token enters the air and a decaying few lines echo it.
+  const seed = seedContagion(text);
+  if (seed) state.contagion = { token: seed, age: 0 };
+  else if (state.contagion && ++state.contagion.age > 6) state.contagion = null;
   // law 2: the room talks to itself. Most lines seed a reply to *this* person
   // within a short window, so conversation threads instead of a crowd shouting.
   if (threadSeed() && state.pendingChat < tune.maxPending) {

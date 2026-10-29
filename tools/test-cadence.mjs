@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import {
   KIND_WEIGHTS, pickKind, gateKind, nextGapMs, planBurst, templateLine,
   maybeBit, liveBits, ASKERS, PILE_ON_MS, pileOnBurst, pileOnGap, breatherGap, pileOnKind,
-  threadSeed, threadDelayMs,
+  threadSeed, threadDelayMs, seedContagion, contagionEcho,
 } from '../js/cadence.js';
 
 const MINUTES = 30;
@@ -152,6 +152,23 @@ assert.equal(maybeBit(bits, 'x'.repeat(60), { hype: true }).length, 1, 'too long
   assert.ok(seeds > 100 && seeds < 220, `thread seed rate ${(seeds / 10).toFixed(0)}% off ~16%`);
   const d = threadDelayMs();
   assert.ok(d >= 1200 && d <= 3800, `thread delay ${d}ms outside 1.2–3.8 s`);
+}
+
+// law 4 contagion: a token seeds from a catchy line and echoes with a decaying
+// probability over a few lines, then dies — a spike with a half-life, not a
+// rotation. Stopwords and no-candidate lines seed nothing.
+{
+  assert.equal(seedContagion('what is this about the game', () => 0.01), null, 'prose seeds nothing');
+  assert.equal(seedContagion('that aura is real', () => 0.99), null, 'below seedP seeds nothing');
+  assert.equal(seedContagion('aura everywhere', () => 0.01), 'aura', 'a viral token seeds');
+  assert.equal(seedContagion('gaben plays the game', () => 0.01), null, 'a name seeds nothing');
+  // decays to zero by the life horizon and never echoes past it
+  assert.equal(contagionEcho(6, () => 0), false, 'past life → no echo');
+  assert.equal(contagionEcho(0, () => 0.9), false, 'high roll → no echo');
+  assert.equal(contagionEcho(0, () => 0.0), true, 'fresh token echoes on a low roll');
+  // monotonic decay: a fixed mid roll echoes early, stops later
+  const mid = () => 0.3;
+  assert.ok(contagionEcho(0, mid) && !contagionEcho(4, mid), 'echo probability decays with age');
 }
 
 console.log('ok — cadence budget, kind mix, gating, templates, bits and pile-ons all hold');
