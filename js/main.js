@@ -34,6 +34,7 @@ const els = {
   chatForm: $('chat-form'), chatInput: $('chat-input'), chatPanel: $('chat-panel'),
   chatMessages: $('chat-messages'),
   settingsBtn: $('settings-btn'), settings: $('settings'),
+  feed: $('feed'), feedLog: $('feed-log'), feedCount: $('feed-count'),
   setDetail: $('set-detail'), setFocus: $('set-focus'), setVaried: $('set-varied'),
   setAsr: $('set-asr'), setLatency: $('set-latency'),
   factInput: $('fact-input'), factAdd: $('fact-add'),
@@ -86,7 +87,7 @@ const state = {
   sceneCapHandled: 0, sceneChatHandled: 0,   // the change each consumer already acted on
   chatTimer: 0,             // the pending chatLoop tick, so a scene change can pull it forward
   waveOn: false,            // the last chat tick was part of a pile-on (the next gap is a breather)
-  scene: '', sceneAt: 0,
+  scene: '', sceneAt: 0, sceneHistory: [],
   // audio gate
   pcm: [], pcmSamples: 0, speaking: false, silenceMs: 0,
   // chat context
@@ -212,9 +213,19 @@ function onWorkerMessage(ev) {
     // how close real footage came to the scene-change threshold
     logEvent('caption', m.text || '', {
       diffMax: +state.diffMax.toFixed(4), hotMax: +state.hotMax.toFixed(3),
+      ...(m.prompt ? { prompt: m.prompt } : {}),
     });
     state.diffMax = 0; state.hotMax = 0;
     state.scene = m.text; state.sceneAt = Date.now();
+    // rolling scene memory = StreamingVLM's "long text window": a short history
+    // of what the screen showed, so a reaction can reference a change over time
+    // instead of only the current frame. Deduped so a static scene doesn't pad
+    // it with the same caption.
+    if (m.text) {
+      const last = state.sceneHistory[state.sceneHistory.length - 1];
+      if (!last || last.toLowerCase() !== m.text.toLowerCase())
+        state.sceneHistory = [...state.sceneHistory, m.text].slice(-4);
+    }
   } else if (m.type === 'chat') {
     noteLatency(m.id, 'chat');
     state.pendingChat = Math.max(0, state.pendingChat - 1);
@@ -243,6 +254,7 @@ function onWorkerMessage(ev) {
       // the rendered line (emotes and all) and, implicitly, that a model wrote it
       logEvent('chat', finalText, {
         ...(entry?.context || {}),
+        ...(m.prompt ? { prompt: m.prompt, sawFrame: m.sawFrame } : {}),
         ...(templated ? { model: false } : {}),   // swapped for a template
         kind: m.kind || entry?.kind || 'reaction',
         calls: m.calls, drops: m.drops,
@@ -564,7 +576,7 @@ async function goLiveAfterLoad() {
   sim.startViewerDrift(20 + ((Math.random() * 18) | 0));
   rotateTitle();
 
-  state.scene = ''; state.sceneAt = 0; state.speech = ''; state.lastChatLines = [];
+  state.scene = ''; state.sceneAt = 0; state.sceneHistory = []; state.speech = ''; state.lastChatLines = [];
   // replies still in flight from a previous stream must not hold GPU slots
   state.pendingChat = 0; pendingMeta.clear(); state.diffMax = 0; state.hotMax = 0;
   state.motionHist = []; state.prevThumb = null;
@@ -971,6 +983,7 @@ function sendChatMessage({ viewer, kind, sceneChange, burstIndex = 0, hype = fal
   const context = {
     kind,
     scene: state.scene || 'the stream just started; nobody has described it yet',
+    sceneHistory: state.sceneHistory,
     speech: state.speech || '',
     sceneChange,
     userMsg: state.userMsgTicks > 0 ? state.userMsg : '',
@@ -1331,12 +1344,44 @@ loadSettings();
 
 els.settingsBtn.addEventListener('click', () => {
   els.settings.hidden = !els.settings.hidden;
-  if (!els.settings.hidden) renderLatency();
+  if (els.settings.hidden) els.feed.hidden = true;   // one panel at a time
+  else if (DEBUG) renderFeed();
+  else renderLatency();
 });
 document.addEventListener('click', (e) => {
-  if (!els.settings.hidden && !els.settings.contains(e.target) && !e.target.closest('#settings-btn'))
+  if (!els.settings.hidden && !els.settings.contains(e.target) && !e.target.closest('#settings-btn')) {
     els.settings.hidden = true;
+    if (DEBUG) els.feed.hidden = true;
+  }
 });
+
+/* ---------------- ?debug=1 — what the brains are fed ----------------
+ * The complaint this answers is "is it actually looking at the video, or just
+ * lights and colors?" — so the panel shows the literal prompt string the worker
+ * built for each line (echoed back from the builder, never reconstructed here)
+ * plus whether a real frame rode along. Local/dev only: gated on ?debug=1 AND a
+ * localhost host, so a shared ?debug link on the public site stays dark. */
+const DEBUG = new URLSearchParams(location.search).has('debug')
+  && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+const feedItems = [];
+function pushFeed({ kind, out, prompt, sawFrame, brain }) {
+  if (!DEBUG || !prompt) return;
+  feedItems.push({ kind, out, prompt, sawFrame, brain, t: new Date().toISOString() });
+  if (feedItems.length > 12) feedItems.shift();
+  if (!els.feed.hidden) renderFeed();
+}
+function renderFeed() {
+  els.feedCount.textContent = feedItems.length ? `· ${feedItems.length}` : '';
+  els.feedLog.innerHTML = feedItems.map((it) => {
+    const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    const frame = it.kind === 'chat'
+      ? (it.sawFrame ? '<span class="frame-yes">frame ✓</span>' : '<span class="frame-no">no frame</span>')
+      : '<span class="frame-yes">whole frame</span>';
+    const out = it.kind === 'chat' ? esc(it.out) : esc(it.out.slice(0, 120));
+    return `<div class="feed-item"><div class="feed-tag"><span>${it.kind} · ${it.brain || '?'}</span>${frame}</div>`
+      + `<div class="feed-out">${out}</div><pre class="feed-prompt">${esc(it.prompt)}</pre></div>`;
+  }).join('');
+}
 
 els.setDetail.value = String(state.settings.detail);
 els.setDetail.addEventListener('change', () => {

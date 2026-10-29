@@ -74,6 +74,15 @@
       <div class="set-head">Latency (your machine)</div>
       <div id="set-latency" class="set-lat">no samples yet</div>
     </div>
+
+    <div id="feed" hidden>
+      <div class="set-head">What the brains are fed <span id="feed-count"></span></div>
+      <div class="set-note">the exact prompt each brain received, straight from the
+        builder — caption = the whole frame; chat = the scene seed, the
+        <code>[earlier:]</code> memory and whether a real frame rode along. local
+        debug only (<code>?debug=1</code>), never shown on the public site.</div>
+      <div id="feed-log"></div>
+    </div>
   </header>
 
   <main>
