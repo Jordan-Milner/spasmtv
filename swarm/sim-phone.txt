@@ -1,0 +1,250 @@
+SpasmTV simulated chat, brain=phone, in order with what the page saw:
+
+   [screen] The black background is a bit dark.
+hype-man  template  aceStare
+doomer    model    Lilo's name isn't on this or that, but
+   [screen] The image is a screenshot of a computer screen.
+doomer    model    Shawn has moved on our bamblos and started
+doomer    template  PianoTime
+   [screen] Stream of time is on the screen.
+doomer    template  F in the chat
+regular   template  VapeNation
+   [screen] The screen is showing a picture and the caption is "Stream Time".
+regular   template  ffzCursed
+doomer    template  ffzCursed
+doomer    template  bro im tired
+hype-man  template  F
+   [screen] The screen is showing a bit of the web page.
+parasocialtemplate  now its like normal volume
+doomer    template  FishMoley
+hype-man  template  ffzCursed
+regular   template  o7
+doomer    template  gg
+regular   template  what game is this?
+backseat  template  YOURE ALIVE?!?
+   [screen] Stream Time is on the right.
+regular   template  asdfghjkl
+doomer    template  KaRappa
+doomer    template  PianoTime
+parasocialtemplate  not the music again
+regular   template  aceStare
+hype-man  template  aceStare
+   [screen] The screen shows a graph and the graph is connected to the graph on the right.
+troll     template  aceStare
+copypasta template  i am once again asking for one (1) emote
+doomer    template  M&Mjc
+hype-man  template  RainTime
+regular   template  cvL
+troll     template  f
+earnest   template  D:
+   [screen] Computer with a screen and a drawing on the screen.
+backseat  template  YESSSSSSS
+parasocialtemplate  we are so back
+hype-man  model    Revert it.
+   [screen] Stream of consciousness.
+troll     model    Unwillingly.
+regular   template  7Cinema
+regular   template  7Cinema
+   [screen] Computer with a screen showing "Stream Time" on the top of the screen.
+hype-man  template  7Cinema
+regular   template  ajskdlfj
+doomer    model    Streaming time.
+backseat  template  ok that was clean
+   [screen] The screen shows a music video and the track time is in the stream time.
+hype-man  model    The prequel text seems to be on Ffze
+troll     template  nymnCorn
+regular   template  asdfghjkl
+doomer    template  o7
+   [screen] Stream of consciousness.
+hype-man  template  gg
+earnest   template  F in the chat
+lurker    template  sosGame
+regular   template  CiGrip
+regular   template  cvMask
+   [screen] The screen shows a cartoon of two people with a question in their eyes.
+regular   template  RonSmug
+lurker    template  lol he really did that
+doomer    template  sdkfjlsd
+   [screen] Stream Time is on the screen.
+regular   template  GuitarTime
+earnest   model    FFwow that's good! how can we add
+doomer    model    The rest don't exist yet!?
+   [screen] The screen is showing the word "stream" and a cartoon on it.
+doomer    model    You're doing well, by your name. He's been
+doomer    template  CrayonTime
+regular   template  f
+regular   template  F
+hype-man  template  ffzW
+doomer    template  ManChicken
+doomer    template  RarePepe
+   [screen] Computer screen shows a picture of a person with a pen and writing on it.
+backseat  model    Reward by the streamers, I'm done!
+hype-man  template  7TV
+copypasta model    Hah! i'm so tired! i still think they
+hype-man  template  haHAA
+regular   template  :tf:
+   [screen] The screen has a cartoon on it and the text "StREAM TIME" on the top of the cartoon.
+regular   template  long time no see
+regular   template  TaxiBro
+doomer    model    ...isn't so much of a fit yet? i
+hype-man  template  7Cinema
+troll     template  7Cinema
+hype-man  template  7Cinema
+   [screen] The screen has a cartoon on it with the text "StREAM TIME" and a few other words.
+regular   model    Real, too, I've been on shit! The
+   [screen] The screen shows a cartoon with a question mark and the text "stream time:" on the top of the cartoon.
+doomer    template  WAYTOODANK
+   [screen] The screen has a cartoon of a man with a question mark on the top left corner and the text "StREAM TIME" at the top of the cartoon.
+lurker    template  that sounded better before
+hype-man  model    What're yall new? Let's talk! I'm
+   [screen] A screen saver is open on the right.
+regular   model    Leku y o e fy woy? l
+earnest   model    What was your last message?
+   [screen] Computer screen shows a cartoon with the word "stream" at the top.
+hype-man  template  ariW
+   [screen] The screen is showing a cartoon of a man with a hat and the word "STREAM" on the top.
+regular   model    Been with the new crop wig or shagmy
+   [screen] Computer screen with a cartoon on it and the word "STREAM" at the top.
+   [screen] The word "stream" is on the screen.
+regular   model    How's it go? You're doing great! The new
+doomer    model    You're my best friend!!!!!! This is how i
+   [screen] The screen has a cartoon with the caption "Stream Time" and a red background.
+   [screen] The screen has a cartoon with the caption "Stream Time" and the background is red.
+parasocialtemplate  WAYTOODANK
+copypasta template  WAYTOODANK
+regular   template  WAYTOODANK
+hype-man  model    Faces away but looks back over wall..xxcwx
+hype-man  template  not the music again
+   [screen] The screen has a cartoon with the text "Stream Time" on the left.
+regular   model    No. Rounded up and out.
+   [screen] The screen has a cartoon with the word "stream" at the top.
+troll     template  hello from ohio
+   [screen] Computer screen with a cartoon on it and the caption "Stream Time" in the upper right corner.
+troll     template  ManChicken
+   [screen] The screen shows a cartoon with the word "stream" at the top.
+lurker    template  F in the chat
+hype-man  model    Hype! The ea's great and I got free
+backseat  template  every time lol
+   [screen] Stream of consciousness.
+hype-man  model    The Hateful Man and the Hilarious Rumble
+hype-man  model    Gotta know who's up and we're with you!
+   [screen] The screen shows a cartoon with the word "stream" at the top.
+hype-man  model    Huge fanfic, newbie ranting.
+   [screen] Computer screen displays a cartoon with a caption that reads "Stream Time:" and a red marker has been used to draw the picture.
+troll     template  GuitarTime
+regular   template  GuitarTime
+doomer    template  GuitarTime
+hype-man  model    Haha yeah moo? lol i mean i would
+hype-man  template  gg
+regular   template  CatBag
+   [screen] The screen is showing a chat box with the text "stream time" and a cartoon.
+   [screen] The screen shows a cartoon with the word "stream" at the top.
+doomer    model    I'm getting kinda pissed at my coworker
+   [screen] The screen shows a cartoon with the word "stream" at the top.
+regular   model    Aay ay abingwa mukuhamazha
+regular   template  thats actually insane
+   [screen] A screen saver is open on the computer and a stream of text is visible.
+regular   model    It's not at all.
+   [screen] The screen has a cartoon of a man with a stream of text coming out of his hat.
+regular   template  ZrehplaR
+backseat  template  EZ
+   [screen] The screen shows a cartoon with a caption that reads "Stream Time:"
+regular   model    This is me in a stream.
+   [screen] The screen shows a cartoon with a caption that reads "stream time:"
+regular   model    How are i doing? Goodie, me! Please tell
+   [screen] Computer screen with a cartoon on it and the word "stream" at the top.
+earnest   model    What's up? I've got some pics and tweets
+regular   model    Sharpen your art skills..unexpected gadshat
+troll     template  peepoHappy
+backseat  template  peepoHappy
+   [screen] Computer screen with a logo and some text on it.
+hype-man  template  peepoHappy
+doomer    template  o7
+regular   template  CiGrip
+doomer    template  7Cinema
+regular   template  aceStare
+   [screen] A screen shows a stream of images and text.
+   [screen] The screen is showing a web page.
+regular   model    Fxn ea cmeup me an eqr
+troll     model    I don't really read wikipedans much ... i
+troll     model    The most natural and usual response...haha! Ruff
+doomer    model    No wayyyyyy!!! You're not alone at all
+hype-man  template  asdfghjkl
+   [screen] The screen is a bit red.
+regular   template  sdkfjlsd
+hype-man  template  f
+regular   model    Fwah! I am tired today ..... and feel
+doomer    template  EZ
+troll     model    Rakein' fannyback on our first random T
+doomer    template  peepoSad
+   [screen] The screen is showing a page of text.
+backseat  model    Hello! You're the best. I'm late this time
+earnest   model    This isn't working....? Just don't let on your
+troll     template  where are you from?
+   [screen] The screen is showing a page of text.
+hype-man  model    No wayyyyyy but i'm aking for some
+hype-man  template  Hey man
+   [screen] The screen is a bit dark.
+regular   model    It's all good!!
+doomer    model    ...a new vid on e3... and coo
+troll     template  gg
+doomer    template  bro im tired
+   [screen] A computer screen has a small text box at the top of it and a web page at the top of the screen.
+earnest   template  EZ
+hype-man  template  EZ
+backseat  template  EZ
+   [screen] The screen is showing a conversation.
+   [screen] The screen is showing a cartoon of a bird.
+   [screen] The screen is showing a cartoon on the left and a text on the right.
+troll     template  ZreknarF
+hype-man  template  cvMask
+   [screen] A screen shot of a computer page.
+regular   template  where are you from?
+regular   template  chat is this real
+doomer    model    Hahaha! The man's name was already all over
+   [screen] The word is not present.
+troll     template  kdjfslkd
+earnest   model    Haha... no i don't really feel, it has
+doomer    model    Shay's new friend! We've seen her at the
+hype-man  template  xdx
+   [screen] A computer screen has a cartoon drawing on it.
+regular   template  peepoHappy
+doomer    template  PianoTime
+regular   template  F in the chat
+troll     template  RainTime
+   [screen] A computer screen is showing a drawing of a cartoon face.
+backseat  model    Fwram your mind on that new idea! Caught
+troll     template  7TV
+lurker    template  aksjdlkf
+doomer    model    YESSS SSsysss ssayysyyy
+regular   template  sdkfjlsd
+   [screen] Computer screen and mouse.
+regular   template  sdkfjlsd
+doomer    template  who let him cook
+backseat  template  no wayyyyy
+regular   template  F
+doomer    template  tehPoleCat
+   [screen] A computer screen at the right and a mouse at the left.
+doomer    model    Huge, all the new posts! You're all new
+lurker    template  every time lol
+troll     template  YESSSSSSS
+regular   template  o7
+regular   template  DogChamp
+   [screen] A computer screen has a drawing of a clown on it.
+regular   template  gg
+backseat  template  BroBalt
+doomer    model    I'm Dunkin' and let's talk About it
+troll     template  DogChamp
+regular   template  :tf:
+   [screen] A computer screen has a drawing on it and a text box to the right.
+troll     template  F in the chat
+   [screen] Computer screen with a sketch on it.
+troll     template  where are you from?
+troll     model    Hey all! Cute pics out too yuh?
+   [screen] Computer screen and a mouse.
+hype-man  model    Shit's all over yay! i haven't felt
+troll     model    Gaben's gadsome n' talkin'.
+   [screen] Computer screen and a calculator.
+troll     model    He's making some pretty faceoff snaps! Maybe something
+hype-man  model    Fwahh haaa, haha. I
+   [screen] Computer screen and a mouse pad.

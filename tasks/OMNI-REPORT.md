@@ -37,5 +37,16 @@
 
 ## Not done
 - Latency: each call re-prefills ~250 tokens; prefix-caching the static instruction and the image would cut it.
-- Phone: far too big; phone mode still forces the 256M brain.
+- Phone: too big **for the browser**, fine on a phone natively — checked the same day against
+  https://huggingface.co/LiquidAI/LFM3-Omni-2B-GGUF (`Q4_0` 1.05 GB + `mmproj-Q8_0` 0.54 GB ≈ 1.6 GB,
+  same as the ONNX q4f16 bundle). Native llama.cpp survives that because `use_mmap` makes the weights
+  file-backed pages, which jetsam/LMK treats leniently (https://docs.liquid.ai/deployment/on-device/llama-cpp/mobile);
+  ORT-web has no equivalent — WebGPU buffers are plain tab RSS, and `main.js` already jetsams at ~675 MB.
+  q1/q2 encoders close a third of that gap at best, so no browser variant of this brain is reachable.
+  The route that works is the phone streaming frames/audio to a box running
+  `llama-server -hf LiquidAI/LFM3-Omni-2B-GGUF:Q4_K_M` (omni is upstream in llama.cpp, incl. streaming
+  audio in: ggml-org/llama.cpp#31269). Phone mode still ships the 256M brain.
+- `audio_encoder_fp16` (255 MB vs the 510 MB `audio_encoder` we load) would halve the hearing cost, but the
+  ONNX card says the opposite for this backend: "On WebGPU, pair `decoder_q4f16` with the float32 side graphs
+  of the q4 bundle". Worth one measured try against `/tmp/omni/ref.py` before trusting it.
 - License: `lfm1.0` ("other") — read before shipping anything publicly.

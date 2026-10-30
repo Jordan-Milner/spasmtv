@@ -1,0 +1,162 @@
+SpasmTV simulated chat, brain=omni, in order with what the page saw:
+
+   [screen] The scene is a completely black screen with no visible content.
+doomer    model    this is who i am now
+earnest   model    what's going on here, have you been watching?
+   [screen] A drawing program window displays a line-art sketch of Mario with a speech bubble reading "STREAM TIME." alongside a stream chart panel on the right.
+doomer    template  F in the chat
+regular   model    lilz, lag is so bad today
+troll     template  i cant believe this
+   [screen] A computer screen shows a drawing program with a cartoon Mario character and a speech bubble that reads "STREAM TIME."
+hype-man  model    YESSSSSSS! mario's drawing program is
+hype-man  template  DuckerZ
+regular   template  DuckerZ
+earnest   template  DuckerZ
+   [screen] A computer screen shows a drawing program with a Mario character and a "STREAM TIME." speech bubble, alongside a chat window on the right.
+hype-man  template  asdfghjkl
+hype-man  template  VisLaud
+parasocialtemplate  NaM
+regular   template  ppL
+   [screen] A computer screen shows an Illustrator window with a black-and-white cartoon drawing (including a Mario character and a "STREAM TIME" speech bubble) alongside a dark chat panel full of live messages
+copypasta template  DogChamp
+regular   template  DogChamp
+hype-man  model    THIS IS HOW I'VE BEEN WAIT
+hype-man  template  DogChamp
+earnest   template  sosGame
+doomer    template  not really
+   [screen] A screenshot of Adobe Illustrator showing a black-and-white line drawing of Mario with a speech bubble reading "STREAM TIME." alongside an empty canvas, with a chat log panel open on the
+hype-man  template  f
+regular   model    yeah, always that line drawing
+doomer    template  PianoTime
+doomer    model    stream time, it's me now
+regular   model    stream time, always
+   [screen] A drawing program window displays a black-and-white sketch of a character wearing a cap with the speech bubble "STREAM TIME." alongside a chat log on the right side.
+earnest   template  aksjdlkf
+doomer    template  KKona
+hype-man  model    yooooooooo this sketch is lit!
+hype-man  model    YEAH I'VE BEEN HERE ALL DAY!
+doomer    template  glorp
+lurker    template  sup
+   [screen] A computer screen shows a drawing application with a cartoon character wearing a cap and a speech bubble that reads "STREAM TIME."
+   [screen] A computer screen displays a drawing application with a cartoon character wearing a cap and a speech bubble that reads "STREAM TIME."
+troll     template  SourPls
+parasocialtemplate  SourPls
+regular   template  SourPls
+regular   model    bruh watching this drawing all day
+   [screen] A drawing application window displays a cartoon character wearing a cap with the text "STREAM TIME." in a speech bubble, alongside a small smiley face, with a Discord chat pane visible
+hype-man  model    PLEASE THE DREAM IS REAL!
+backseat  model    omg please stream a bit longer
+regular   template  SaltyCorn
+doomer    template  CrayonTime
+   [screen] A computer screen displays a drawing program with a cartoon character holding a speech bubble that reads "STREAM TIME." alongside a chat window on the right side.
+regular   model    ohio stream, this is over again
+hype-man  template  ariW
+hype-man  template  ariW
+hype-man  template  ariW
+   [screen] A screenshot of an image editing program (Photoshop) shows a black-and-white cartoon character with the speech bubble "STREAM TIME." on the canvas, alongside a chat window on the right
+hype-man  template  Stare
+doomer    template  tehPoleCat
+hype-man  model    that is AWESOME!!!
+doomer    template  ffzW
+hype-man  model    OMG, I'VE BEEN HERE FOR HOUR
+   [screen] A screenshot of a design/illustration program (Adobe Illustrator) showing a cartoon character with the speech bubble "STREAM TIME." alongside two smiley faces, with a chat window
+doomer    template  f
+   [screen] A screenshot of an image editing program (Photoshop) showing a black-and-white cartoon drawing with the speech bubble "STREAM TIME." alongside two smiley faces, with a chat window open
+earnest   template  RoxyPotato
+doomer    template  Merry Christmas
+troll     template  gg
+backseat  template  o7
+hype-man  template  kdjfslkd
+   [screen] A drawing program window displays a black-and-white cartoon of Mario with the speech bubble "STREAM TIME." alongside a small smiley face and an eyes expression, while a chat panel with messages appears
+troll     template  F in the chat
+regular   model    stream time, that's actually insane
+hype-man  template  ppL
+regular   template  gg
+   [screen] A screenshot of the Figma design app shows a black-and-white line drawing of a character with a speech bubble reading "STREAM TIME." alongside a smiley face and another character's face
+troll     template  kdjfslkd
+hype-man  model    RECKH MARIO'S HYPING ON FIRE
+doomer    model    yeah, this is me now.
+regular   template  chat is this real
+doomer    template  BORT
+hype-man  template  BORT
+regular   template  BORT
+regular   template  Hey man
+   [screen] A computer screen shows a drawing application with a black-and-white cartoon character wearing a cap and headphones, accompanied by a speech bubble that reads "STREAM TIME," alongside a chat window on the
+troll     model    the screen just drew a cartoon character
+regular   model    this cartoon screen is over. forever.
+regular   template  F in the chat
+doomer    template  BibleThump
+   [screen] A screenshot of a drawing application (Fremio) showing a black-and-white cartoon character with a speech bubble reading "STREAM TIME," alongside a chat window on the right side.
+regular   template  RainTime
+   [screen] A screenshot of a drawing application (Figma) showing a black-and-white cartoon character wearing a cap and headphones with the speech bubble "STREAM TIME," alongside a chat window on the
+backseat  model    sounds good now 2:15
+troll     template  glorp
+backseat  template  sounds good now
+   [screen] A drawing application window displays a black-and-white cartoon character with the speech bubble "STREAM TIME." alongside a simple smiley face, with a chat log visible in the right-hand panel.
+earnest   model    i'm so back
+regular   template  no lol
+hype-man  model    i can't believe this is happening!
+   [screen] A screenshot of a drawing application (Figma) showing a black-and-white cartoon character wearing a cap with the letter "M" and a speech bubble that reads "STREAM TIME," alongside
+doomer    model    this is who i am now.
+backseat  template  Saturday night
+regular   model    omg that drawing is so funny
+backseat  template  BasedGod
+lurker    template  BasedGod
+regular   template  BasedGod
+   [screen] A screenshot of Adobe Illustrator showing a black-and-white cartoon drawing of Mario with the speech bubble "STREAM TIME." alongside a chat window on the right side.
+hype-man  template  who let him cook
+hype-man  model    PLEASE, THIS IS THE BEST ADOBE I
+   [screen] A computer screen shows the Adobe Illustrator program with a black-and-white cartoon drawing of Mario holding a speech bubble that reads "STREAM TIME," alongside a chat window on the right side.
+regular   template  reckH
+regular   template  F
+   [screen] A screenshot shows a drawing program with a cartoon character wearing a cap and headphones, a speech bubble reading "STREAM TIME," alongside a chat window on the right side.
+regular   template  what game is this?
+   [screen] A screenshot of the StreamChat app shows a black-and-white cartoon drawing of Mario with the text "STREAM TIME." in a speech bubble, alongside a chat window filled with live conversation threads
+lurker    model    lilz
+troll     model    omg please mario is on fire
+   [screen] A screenshot of a drawing application (Figma) shows a black-and-white cartoon character wearing a cap and headphones with the speech bubble "STREAM TIME." displayed above it, alongside a
+hype-man  model    OMG MARIO, THIS IS PEAK!
+lurker    template  LuL
+   [screen] A screenshot of a drawing application (Figma) showing a black-and-white cartoon character wearing a cap and headphones with the speech bubble "STREAM TIME." displayed, alongside a chat window
+hype-man  model    i cant believe this is happening!
+parasocialtemplate  ppL
+   [screen] A computer screen displays a drawing app with a black-and-white cartoon character wearing a cap and headphones, accompanied by the speech bubble "STREAM TIME," alongside a chat window on the right side
+hype-man  template  PoleDoge
+troll     model    im crying at this drawing app
+   [screen] A screenshot of the StreamChart app shows a black-and-white cartoon drawing of a Mario character with a speech bubble reading "STREAM TIME."
+regular   model    omg that's actually insane
+hype-man  model    we are so back! peak time!
+   [screen] A screenshot of a drawing application (Fremio) shows a black-and-white cartoon character wearing a cap and headphones with the speech bubble "STREAM TIME." alongside a small smiley
+regular   template  :tf:
+troll     template  :tf:
+doomer    template  :tf:
+hype-man  template  KappaCool
+   [screen] A screenshot of an image editing program (Photopea) showing a black-and-white cartoon drawing of Mario with the speech bubble "STREAM TIME." alongside a chat window on the right side.
+troll     model    lol the game just leveled up.
+hype-man  model    YES I'M HERE FOR HOURS! CAN'T
+   [screen] A computer screen shows a drawing application with a black-and-white cartoon character wearing a cap and speech bubble saying "STREAM TIME," alongside a chat window on the right side.
+regular   template  it wasnt allat that fun
+backseat  model    yooooooooo time to chat
+regular   template  F in the chat
+   [screen] A screenshot of a drawing application (Fremio) shows a cartoon character wearing a cap with an "M" and a speech bubble reading "STREAM TIME," with a chat window displaying
+hype-man  template  o7
+hype-man  model    THAT'S INSANE! THE CARTOON IS
+   [screen] A screenshot of an image editing program (Adobe Photoshop) displays a black-and-white cartoon drawing of Mario with the speech bubble "STREAM TIME." in the center, alongside a chat window
+lurker    model    im dying
+doomer    model    that's the fun i was aiming for liloposs
+doomer    template  gg
+regular   template  ffzY
+regular   template  sosGame
+   [screen] A computer screen shows a drawing app with a cartoon character wearing a cap and headphones, accompanied by the speech bubble "STREAM TIME," alongside a chat window on the right side.
+troll     template  chat is this real
+troll     model    lilz this cartoon is so hot
+regular   template  F
+troll     model    ffzY, wait what
+regular   template  Bro im tired
+   [screen] A computer screen displays the StreamChart app with a black-and-white cartoon drawing of a Mario character wearing a cap and speech bubble saying "STREAM TIME," alongside a chat window on the right.
+hype-man  model    HAHA THE CHART IS REAL!
+   [screen] A screenshot of the StreamChart app shows a black-and-white cartoon drawing of Mario with the text "STREAM TIME." in a speech bubble, alongside a chat window on the right side.
+copypasta template  i am once again asking for one (1) emote
+troll     template  gg
+   [screen] A screenshot of an image editing program (Adobe Photoshop) showing a cartoon Mario character with the speech bubble "STREAM TIME." displayed in the main canvas, alongside a dark side panel containing
+regular   model    i cant believe this adobe photoshop
