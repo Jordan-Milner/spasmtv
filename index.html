@@ -73,14 +73,18 @@
       <div id="tune-root"></div>
       <div class="set-head">Latency (your machine)</div>
       <div id="set-latency" class="set-lat">no samples yet</div>
+      <div class="set-head">Debug</div>
+      <div class="set-row">
+        <label class="toggle" title="Keep the exact prompt behind every line. ⚙ then opens the feed, and each chat line gets an input fold in its mod view."><input type="checkbox" id="set-debug"/> prompt feed</label>
+      </div>
     </div>
 
     <div id="feed" hidden>
-      <div class="set-head">What the brains are fed <span id="feed-count"></span></div>
+      <div class="set-head">What the brains are fed <span id="feed-count"></span><button id="feed-off" class="ghost">off</button></div>
       <div class="set-note">the exact prompt each brain received, straight from the
         builder — caption = the whole frame; chat = the scene seed, the
-        <code>[earlier:]</code> memory and whether a real frame rode along. local
-        debug only (<code>?debug=1</code>), never shown on the public site.</div>
+        <code>[earlier:]</code> memory and whether a real frame rode along. turn it
+        off here or with <b>off</b> above; <code>?debug=1</code> starts with it on.</div>
       <div id="feed-log"></div>
     </div>
   </header>

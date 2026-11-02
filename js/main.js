@@ -35,9 +35,9 @@ const els = {
   chatForm: $('chat-form'), chatInput: $('chat-input'), chatPanel: $('chat-panel'),
   chatMessages: $('chat-messages'),
   settingsBtn: $('settings-btn'), settings: $('settings'),
-  feed: $('feed'), feedLog: $('feed-log'), feedCount: $('feed-count'),
+  feed: $('feed'), feedLog: $('feed-log'), feedCount: $('feed-count'), feedOff: $('feed-off'),
   setDetail: $('set-detail'), setFocus: $('set-focus'), setVaried: $('set-varied'),
-  setAsr: $('set-asr'), setLatency: $('set-latency'),
+  setAsr: $('set-asr'), setLatency: $('set-latency'), setDebug: $('set-debug'),
   factInput: $('fact-input'), factAdd: $('fact-add'),
   factList: $('fact-list'), factClear: $('fact-clear'),
 };
@@ -77,7 +77,7 @@ const state = {
   phoneMode: false,        // iPhone/iPad/Android phone (or ?phone): SmolVLM-256M brain, no ASR
   grammar: true,           // §H/U8 regex guard on the chat path (off with ?grammar=0)
   // settings (settings panel, persisted)
-  settings: { detail: CAPTURE_DEFAULT, focus: true, varied: true, asr: 'base' },
+  settings: { detail: CAPTURE_DEFAULT, focus: true, varied: true, asr: 'base', debug: false },
   // vision
   prevThumb: null, diffScore: 0,
   fullCanvas: null,         // working-res frame for crops + diff
@@ -253,9 +253,9 @@ function onWorkerMessage(ev) {
         finalText = `@${rt.name} ${finalText}`;
       const shown = sim.chat(finalText, viewer || undefined);
       if (!shown) return;
-      // ?debug=1: keep the input with the line, so the mod view can show what a
-      // given message was actually fed (js/audio-gate.js and ?debug=1 notes)
-      if (DEBUG) {
+      // prompt feed on: keep the input with the line, so the mod view can show
+      // what a given message was actually fed (js/audio-gate.js holds the rules)
+      if (state.settings.debug) {
         const msg = shown.msgs.at(-1);
         if (msg) msg.dbg = {
           prompt: m.prompt || '', sawFrame: m.sawFrame, brain: m.brain,
@@ -1382,18 +1382,20 @@ function loadSettings() {
     if (typeof s.focus === 'boolean') state.settings.focus = s.focus;
     if (typeof s.varied === 'boolean') state.settings.varied = s.varied;
     if (s.asr === 'tiny' || s.asr === 'base') state.settings.asr = s.asr;
+    if (typeof s.debug === 'boolean') state.settings.debug = s.debug;
   } catch { /* storage blocked — defaults */ }
 }
 loadSettings();
 
 els.settingsBtn.addEventListener('click', () => {
-  if (DEBUG) {
+  if (state.settings.debug) {
     els.feed.hidden = !els.feed.hidden;
     els.settings.hidden = true;
     if (!els.feed.hidden) renderFeed();
     return;
   }
   els.settings.hidden = !els.settings.hidden;
+  els.setDebug.checked = state.settings.debug;   // the flag may have moved elsewhere
   if (!els.settings.hidden) renderLatency();
 });
 document.addEventListener('click', (e) => {
@@ -1402,17 +1404,18 @@ document.addEventListener('click', (e) => {
   if (!els.feed.hidden && !els.feed.contains(e.target)) els.feed.hidden = true;
 });
 
-/* ---------------- ?debug=1 — what the brains are fed ----------------
+/* ---------------- prompt feed — what the brains are fed ----------------
  * The complaint this answers is "is it actually looking at the video, or just
  * lights and colors?" — so the panel shows the literal prompt string the worker
  * built for each line (echoed back from the builder, never reconstructed here)
- * plus whether a real frame rode along. Local/dev only: gated on ?debug=1 AND a
- * localhost host, so a shared ?debug link on the public site stays dark. */
-const DEBUG = new URLSearchParams(location.search).has('debug')
-  && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+ * plus whether a real frame rode along. On by request wherever the site runs:
+ * ⚙ → prompt feed, or ?debug=1 to start with it open. Nothing secret is in
+ * there — it is the same text the page just put on screen — and it never leaves
+ * the browser, so a shared link revealing it costs nothing. */
+if (new URLSearchParams(location.search).has('debug')) state.settings.debug = true;
 const feedItems = [];
 function pushFeed({ kind, out, prompt, sawFrame, brain }) {
-  if (!DEBUG || !prompt) return;
+  if (!state.settings.debug || !prompt) return;
   feedItems.push({ kind, out, prompt, sawFrame, brain, t: new Date().toISOString() });
   if (feedItems.length > 12) feedItems.shift();
   if (!els.feed.hidden) renderFeed();
@@ -1444,6 +1447,22 @@ els.setVaried.checked = state.settings.varied;
 els.setVaried.addEventListener('change', () => {
   state.settings.varied = els.setVaried.checked;
   saveSettings();
+});
+els.setDebug.checked = state.settings.debug;
+els.setDebug.addEventListener('change', () => {
+  state.settings.debug = els.setDebug.checked;
+  saveSettings();
+  els.settings.hidden = true;
+  els.feed.hidden = !state.settings.debug;
+  if (state.settings.debug) renderFeed();
+  else { feedItems.length = 0; renderFeed(); }
+});
+els.feedOff.addEventListener('click', () => {
+  state.settings.debug = false;
+  saveSettings();
+  feedItems.length = 0;
+  renderFeed();          // otherwise a hidden panel keeps the last frame's prompts
+  els.feed.hidden = true;
 });
 loadTune();
 renderTunePanel($('tune-root'));
