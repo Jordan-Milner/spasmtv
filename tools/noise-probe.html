@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><title>noise-probe</title>
+<script type="module">
+// What does Omni's own ASR do with non-speech audio? Feeds each fixture in
+// turn and reports the transcript. Fixtures are built by tools/noise-fixture.mjs.
+import { loadOmni, loadOmniAudio, omniTranscribe } from '/workers/omni.js';
+const FIXTURES = ['speech-test', 'noise-silence', 'noise-hum', 'noise-fan', 'noise-keys',
+                  'noise-speech-hum', 'noise-speech-fan', 'noise-tune', 'noise-music'];
+const r = { stage: 'start', out: {} };
+window.__result = r;
+try {
+  await loadOmni(); await loadOmniAudio(); r.stage = 'loaded';
+  for (const name of FIXTURES) {
+    const buf = await (await fetch(`/videos/${name}.f32`)).arrayBuffer();
+    const t = performance.now();
+    r.out[name] = { ms: Math.round(performance.now() - t), text: await omniTranscribe(new Float32Array(buf)) };
+    r.stage = 'ran:' + name;
+  }
+  r.stage = 'done';
+} catch (e) { r.error = String(e?.stack || e).slice(0, 600); r.stage = 'error'; }
+</script>

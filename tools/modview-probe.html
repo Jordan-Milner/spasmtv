@@ -1,0 +1,31 @@
+<!doctype html><meta charset="utf-8"><title>modview-probe</title>
+<div id="chat-scroll"><div id="chat-messages"></div></div><span id="viewer-count"></span>
+<script type="module">
+// Does the mod view actually show a message's input? ?debug=1 makes main.js
+// attach {prompt,…} to each model line; this drives the same path by hand and
+// reports what the card renders. Run: node tools/probe.mjs modview-probe
+import { ChatSim } from '/js/chat-sim.js';
+const r = { stage: 'start', out: {} };
+window.__result = r;
+try {
+  const sim = new ChatSim();
+  sim.buildRoster(6);
+  const v = sim.viewers[0];
+  sim.chat('the hums again??', v);
+  v.msgs.at(-1).dbg = {
+    prompt: 'You are chat on a livestream of "Spasm Quest".\n[see] a man at a microphone\nStreamer just said: who let me cook',
+    sawFrame: true, brain: 'omni', kind: 'reaction', calls: 1, drops: 0,
+  };
+  sim.openModCard(v, 20, 20);
+  const card = document.getElementById('modcard');
+  const d = card.querySelector('.mc-dbg');
+  r.out = {
+    hidden: card.hidden,
+    hasDetails: !!d,
+    summary: d?.querySelector('summary')?.textContent.trim(),
+    prompt: d?.querySelector('pre')?.textContent,
+    box: card.querySelector('.mc-msgs')?.innerHTML.slice(0, 400),
+  };
+  r.stage = 'done';
+} catch (e) { r.error = String(e?.stack || e).slice(0, 500); r.stage = 'error'; }
+</script>

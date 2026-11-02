@@ -5,6 +5,7 @@
 // This file never touches model APIs directly — only the message protocol.
 
 import { ChatSim, ROSTER_KEY } from './chat-sim.js';
+import { looksLikeSpeech, isSoundDescription } from './audio-gate.js';
 import { tune, loadTune, resetTune, kindWeights, workerTune, renderTunePanel } from './tuning.js';
 import { STYLE_EXAMPLES } from './style-examples.js';
 import { CANNED_POOL } from './real-lines.js';
@@ -112,7 +113,7 @@ sim.onCenter = (v) => onCenter(v);
 sim.onUncenter = (v) => onUncenter(v);
 
 // pipeline counters; the ?autolive self-test mirrors these into document.title
-window.__spasmtv = { chat: 0, cap: 0, asr: 0, err: '', lastMsg: '', lastCap: '', lastAsr: '' };
+window.__spasmtv = { chat: 0, cap: 0, asr: 0, noise: 0, err: '', lastMsg: '', lastCap: '', lastAsr: '' };
 
 /* ---------------- chat log (local only) ----------------
  * Every generated message is stored with the context that produced it, so chat
@@ -252,6 +253,15 @@ function onWorkerMessage(ev) {
         finalText = `@${rt.name} ${finalText}`;
       const shown = sim.chat(finalText, viewer || undefined);
       if (!shown) return;
+      // ?debug=1: keep the input with the line, so the mod view can show what a
+      // given message was actually fed (js/audio-gate.js and ?debug=1 notes)
+      if (DEBUG) {
+        const msg = shown.msgs.at(-1);
+        if (msg) msg.dbg = {
+          prompt: m.prompt || '', sawFrame: m.sawFrame, brain: m.brain,
+          kind: m.kind || entry?.kind || 'reaction', calls: m.calls, drops: m.drops,
+        };
+      }
       // the log carries what the §F scorer measures: message kind, archetype,
       // the rendered line (emotes and all) and, implicitly, that a model wrote it
       logEvent('chat', finalText, {
@@ -1270,6 +1280,10 @@ function flushSpeechChunk() {
   state.pcm = []; state.pcmSamples = 0; state.speaking = false; state.silenceMs = 0;
   if (total < sr * 0.6) return; // too short to be speech
   const resampled = resampleTo16k(merged, sr);
+  // energy opened the gate; this is the second question — was it a *voice*? A
+  // steady bed (hum, fan, humming along) rides through RMS and a generative ASR
+  // answers it with a description of the sound, which then becomes chat's topic.
+  if (!looksLikeSpeech(resampled)) { window.__spasmtv.noise += 1; return; }
   post({ type: 'transcribe', id: ++state.reqId, pcm: resampled }, [resampled.buffer]);
 }
 
@@ -1290,6 +1304,12 @@ function resampleTo16k(input, fromSr) {
 function onTranscript(text) {
   const clean = (text || '').trim();
   if (!clean || /^(thank you|you|\[|\.|\s)*$/i.test(clean)) return;
+  // a generative ASR that hears a non-voice answers with a DESCRIPTION of the
+  // sound instead of NONE (measured: a hummed tune → 'The speaker says, "Oh."').
+  // The audio gate catches most of that upstream; this is the net — a
+  // description in state.speech is a topic the room will not let go of, and the
+  // line below pulls a chat burst forward onto it.
+  if (isSoundDescription(clean)) return;
   state.speech = clean.slice(-300);
   state.speechAt = Date.now();
   showCaption(clean);
@@ -1482,7 +1502,7 @@ if (new URLSearchParams(location.search).has('autolive')) {
   if (local) setInterval(() => {
     const L = window.__spasmtv;
     document.title =
-      `SPASMTV phase=${state.phase} chat=${L.chat} cap=${L.cap} asr=${L.asr} ` +
+      `SPASMTV phase=${state.phase} chat=${L.chat} cap=${L.cap} asr=${L.asr} noise=${L.noise} ` +
       `lat=${fmtLatency('chat') || '-'} err=${L.err.slice(0, 40)} ` +
       `| cap:"${L.lastCap.slice(0, 50)}" | msg:"${L.lastMsg.slice(0, 50)}" | asr:"${L.lastAsr.slice(0, 30)}"`;
   }, 1500);

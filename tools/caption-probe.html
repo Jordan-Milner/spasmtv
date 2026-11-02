@@ -1,0 +1,30 @@
+<!doctype html><meta charset="utf-8"><title>caption-probe</title>
+<script type="module">
+// What does each brain's SCENE CAPTION look like on real frames? The complaint:
+// Omni fills the caption with sound descriptions ("hums") that chat then talks
+// about. Same frames, both prompts (the app's current one vs a sight-only one).
+// Frames: ffmpeg -y -i videos/real-stream.mp4 -t 12 -vf "fps=1,scale=512:288" \
+//          -pix_fmt rgba -f rawvideo videos/frames/all.rgba   (then split at 589824 B)
+import { loadOmni, omniGenerate } from '/workers/omni.js';
+const PROMPTS = {
+  now: 'What is on this screen and what is happening right now? One short sentence.',
+  sight: 'Describe only what is visible on this screen — shapes, text, colors, movement. One short sentence.',
+};
+const r = { stage: 'start', out: [] };
+window.__result = r;
+try {
+  await loadOmni(); r.stage = 'loaded';
+  for (let i = 1; i <= 12; i++) {
+    const buf = await (await fetch(`/videos/frames/cap-${String(i).padStart(2, '0')}.rgba`)).arrayBuffer();
+    const image = { data: new Uint8ClampedArray(buf), width: 512, height: 288 };
+    const row = { frame: i };
+    for (const [name, prompt] of Object.entries(PROMPTS)) {
+      const t = performance.now();
+      row[name] = await omniGenerate({ prompt, image, maxNewTokens: 40, temperature: 0 });
+      row[name + 'Ms'] = Math.round(performance.now() - t);
+    }
+    r.out.push(row); r.stage = 'ran:' + i;
+  }
+  r.stage = 'done';
+} catch (e) { r.error = String(e?.stack || e).slice(0, 600); r.stage = 'error'; }
+</script>

@@ -60,7 +60,7 @@ URL parameters:
 | `?grammar=0` | turn off the charset guard on chat generation |
 | `?video=PATH&autolive=1` | play a same-origin video file through the whole pipeline and go live. This is what the test harness uses |
 | `?log=1` | mirror the chat log to `localStorage` |
-| `?debug=1` | (localhost only) the ⚙ panel shows the exact prompt each brain is fed and whether a real frame rode along |
+| `?debug=1` | (localhost only) the ⚙ panel shows the exact prompt each brain is fed and whether a real frame rode along; the mod view adds an `input ▸` fold under every model line |
 
 ### Brains
 
@@ -186,6 +186,10 @@ the scorer's compare mode.
    writes the session log.
 2. `tools/score-chat.mjs` scores the log against a rubric and exits non-zero on
    any failure.
+3. `tools/probe.mjs <page>` runs a browser-only half in headless Chrome and
+   prints `window.__result` — for the things node cannot import: what a brain
+   makes of an image or a sound (`caption-probe`, `noise-probe`) or what the
+   mod view renders (`modview-probe`). Pages live in `tools/*.html`.
 
 ```sh
 node tools/browser-run.mjs --out run.jsonl --minutes 4 \
@@ -196,8 +200,12 @@ npm run score -- run.jsonl
 How the harness behaves:
 
 - Videos go in `videos/`, which is gitignored, so bring your own.
+  `node tools/noise-fixture.mjs` writes the audio fixtures `noise-probe` reads.
 - Run one Chrome at a time: two headless WebGPU Chromes deadlock the second.
 - Without `--mic` the harness forces the mic off.
+- Both drivers disable the CDP cache and reload once attached: `python3
+  -m http.server` sends no `Cache-Control`, so a file you have not touched in a
+  week can come back stale and the run silently tests old code.
 
 The rubric:
 

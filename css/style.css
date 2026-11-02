@@ -471,6 +471,24 @@ main {
 .mc-msg.hot { background: #3b1d1f; }
 .mc-msg.dim { color: #77777f; font-style: italic; }
 
+/* ?debug=1 — the prompt a chat line was built from, inside the mod view */
+.mc-dbg { margin: 3px 0 2px; }
+.mc-dbg summary {
+  font-size: 10.5px;
+  color: #8b8b95;
+  cursor: pointer;
+  list-style: none;
+}
+.mc-dbg summary::before { content: "▸ "; }
+.mc-dbg[open] summary::before { content: "▾ "; }
+.mc-dbg pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px; line-height: 1.5; color: #a5a5b0;
+  white-space: pre-wrap; word-break: break-word;
+  margin: 4px 0 0; padding: 6px 8px;
+  background: #17171b; border-left: 2px solid #34343c; border-radius: 3px;
+}
+
 .msg.streamer {
   background: rgba(145,71,255,.12);
   border-left: 3px solid var(--accent);

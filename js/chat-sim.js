@@ -560,7 +560,15 @@ export class ChatSim {
       ? recent.map((m) =>
           `<div class="mc-msg${viewer.warned ? ' hot' : ''}">` +
           `<span style="color:${viewer.color}">${escapeHtml(viewer.name)}</span> ` +
-          `${escapeHtml(m.text)}</div>`).join('')
+          `${escapeHtml(m.text)}` +
+          // ?debug=1 only: main.js attaches the prompt to model lines. Native
+          // <details>, so this costs no state and stays collapsed by default.
+          (m.dbg ? `<details class="mc-dbg"><summary>input · ${escapeHtml(m.dbg.kind || '?')}` +
+            `${m.dbg.sawFrame ? ' · saw frame' : ' · no frame'}` +
+            `${m.dbg.brain ? ` · ${escapeHtml(m.dbg.brain)}` : ''}` +
+            `${m.dbg.calls ? ` · ${m.dbg.calls} call${m.dbg.calls > 1 ? 's' : ''}${m.dbg.drops ? `, ${m.dbg.drops} dropped` : ''}` : ''}` +
+            `</summary><pre>${escapeHtml(m.dbg.prompt || '(no prompt — canned line)')}</pre></details>` : '') +
+          `</div>`).join('')
       : '<div class="mc-msg dim">no messages yet</div>');
   }
 }
