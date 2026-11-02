@@ -125,6 +125,11 @@ ws.onmessage = (ev) => {
 };
 
 await send(ws, 'Runtime.enable');
+// python http.server sends no Cache-Control, so the CDP profile can hand back a
+// stale js/*.js module and the run silently tests old code. The page already
+// loaded by the time CDP attaches, so reload it once the cache is off.
+await send(ws, 'Network.enable'); await send(ws, 'Network.setCacheDisabled', { cacheDisabled: true });
+await send(ws, 'Page.reload', { ignoreCache: true });
 await send(ws, 'Page.enable');
 // the persistent profile would happily serve the previous run's js/main.js out
 // of the http cache — every measurement would then be of the old code
