@@ -198,7 +198,7 @@ for (const bad of ['The user\u2019s profile picture.', 'The user\'s avatar and n
   'The text reads as follows...', 'The last comment was written by zlox.',
   'Be respectful in your responses if using Twitter.', 'comments were written',
   'STREAMCHART JUST CHANGED LOL', 'bruh something just changed',
-  'real chat lines look like this?', 'things chat know about you'])
+  'real chat lines look like this?', 'real chat lines', 'things chat know about you'])
   assert.equal(personaLeak(bad), true, `should leak: ${bad}`), n2++;
 for (const ok of ['that drawing tho', 'the line work is clean', 'who is this guy',
   'text mode', 'peak comment', 'respect mod', 'changed the whole palette?'])

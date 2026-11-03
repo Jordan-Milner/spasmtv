@@ -71,7 +71,13 @@ export function looksLikeSpeech(pcm) {
 // sentences that merely *mention* a sound mid-sentence ("someone's humming
 // today" is a real thing a streamer says), and it will eat a rare line that
 // really does open with "a man…" / "singing…".
-const SOUND_DESCRIPTION = /^(the (speaker|audio|sound|voice|noise|music|background|clip|recording)|a (person|man|woman|voice|soft|low|steady|constant|gentle|quiet|sound of|noise of)|sound of|noise of|ambient\b|background\b|music\b|singing\b|humming\b|laughter|coughing|applause)/i;
+// The `a …<sound noun>` branch is the 2026-11-02 field fix: the adjective list
+// caught "a soft click" but not the "a metallic click" a keyboard near the mic
+// actually produced, and one such line in state.speech has the room repeating it
+// for minutes.
+// shortcut: it needs the article, so a bare "metallic click" still slips; widen
+// only if a run shows that shape.
+const SOUND_DESCRIPTION = /^(the (speaker|audio|sound|voice|noise|music|background|clip|recording)|a (person|man|woman|voice|soft|low|steady|constant|gentle|quiet|sound of|noise of)|sound of|noise of|ambient\b|background\b|music\b|singing\b|humming\b|laughter|coughing|applause|an?\s[\w -]{0,24}?(click|clack|tap|typing|tapping|beep|buzz|hum|thud|knock|ding|bang|clatter|static|whir|rustl|scratch|footstep|noise|sound)(?:s|ing|ed|ring)?\b)/i;
 
 /** @param text an ASR line @returns {boolean} true when it describes a sound instead of transcribing words */
 export function isSoundDescription(text) {

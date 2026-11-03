@@ -105,11 +105,17 @@ ok('silence after a loud bed is still a bed', looksLikeSpeech(new Float32Array([
 for (const line of ['The speaker says, "Oh."', 'A person is humming softly', 'Background music plays',
   'Music playing in the background', 'Humming', 'The audio is quiet', 'Sound of typing', 'Laughter'])
   ok(`described as sound: ${line}`, isSoundDescription(line) === true);
+// the class the adjective list above missed, reported from a live session
+// 2026-11-02: a keyboard near the mic came back as "a metallic click" and chat
+// talked about the click for minutes
+for (const line of ['A metallic click.', 'a clicking sound continues',
+  'A sharp knock on the desk', 'An audible beep', 'A burst of static noise'])
+  ok(`described as sound: ${line}`, isSoundDescription(line) === true);
 for (const line of ['And someone\'s supposed to show up today, so...',
   'Hopefully resolved by next week \'cause like I\'m trying to grind, man.',
   'Yeah, I need, I need to knock out all of my hard modes today if at all possible.',
   'Hey everyone, welcome back to the stream.', 'i think the music in this level is fire',
-  'someone is humming along in chat lol'])
+  'someone is humming along in chat lol', 'a clickbait title'])
   ok(`real talk kept: ${line.slice(0, 28)}`, isSoundDescription(line) === false);
 
 console.log(`audio-gate: ${n} assertions ok`);

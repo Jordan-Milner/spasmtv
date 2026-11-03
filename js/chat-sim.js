@@ -483,10 +483,21 @@ export class ChatSim {
         card.hidden = true;
         this.onUncenter?.(card._viewer);
       });
+      // Esc too: a keyboard user has no cursor to click past with. Added once, on
+      // document, because Enter opens the card from a username and the keypress
+      // does not have to land inside the card. The card element is created once,
+      // so this cannot stack listeners.
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !card.hidden) this._closeCard(card);
+      });
     }
     const wasCentered = card._viewer;
     card._viewer = viewer;
     card.hidden = false;
+    // focus follows what you opened, so Tab reaches the card's buttons next
+    // instead of walking the whole chat log first
+    card.tabIndex = -1;
+    card.focus({ preventScroll: true });
     card.style.left = Math.min(x, window.innerWidth - 300) + 'px';
     card.style.top = Math.min(y, Math.max(8, window.innerHeight - 380)) + 'px';
     this._renderModCard(viewer);

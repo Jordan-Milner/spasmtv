@@ -94,7 +94,7 @@ export const safeEmote = (code) =>
  * see…" (5 of 47 model lines, from "On screen, roughly:" and "Something on
  * screen just changed."). */
 const PERSONA_LEAK = /\b(react(s|ed|ing|ion|ions)?|hype ?-?m[ae]n|hypem[ae]n|troll(s|ing|ed)?|doomer|parasocial|backseat(s|ing|er)?|copypasta|newcomer|earnest|chatter ?line|chat ?line|persona|archetype)\b/i;
-const PROMPT_LEAK = /\b(react like a viewer|like a viewer who|max ?12 ?words|never describe|write only the message|one short chat message|your vibe|stream_name|no emotes?|no description|no quotes?|no hashtags?|real chat lines look like|things chat know|keep your voice|lowercase only|one emote from|on ?screen,? roughly|something on ?screen|(on ?screen|screen) just changed|just changed)\b|^\W*on ?screen\b/i;
+const PROMPT_LEAK = /\b(react like a viewer|like a viewer who|max ?12 ?words|never describe|write only the message|one short chat message|your vibe|stream_name|no emotes?|no description|no quotes?|no hashtags?|real chat lines|things chat know|keep your voice|lowercase only|one emote from|on ?screen,? roughly|something on ?screen|(on ?screen|screen) just changed|just changed)\b|^\W*on ?screen\b/i;
 /* UI narration — the 256M looking at a screenshot of a stream and describing the
  * interface instead of reacting to it (post2-phone, 7 of 44 model lines, none of
  * them caught by the junk metric): "The user's profile picture.", "The text reads
