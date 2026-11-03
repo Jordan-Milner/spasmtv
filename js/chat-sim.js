@@ -315,7 +315,7 @@ export class ChatSim {
     const el = document.createElement('div');
     el.className = 'msg';
     el.innerHTML =
-      `${badge}<span class="user" style="color:${viewer.color}"></span>` +
+      `${badge}<button class="user" style="color:${viewer.color}"></button>` +
       `<span class="sep">: </span><span class="text"></span>`;
     el.querySelector('.user').textContent = viewer.name;
     el.querySelector('.text').innerHTML = this._formatText(shown);
@@ -518,7 +518,7 @@ export class ChatSim {
           <div class="mc-stat">♥ Following since ${st.followingSince}</div>
           <div class="mc-stat">★ Previously subscribed for ${st.months} month${st.months === 1 ? '' : 's'}</div>
         </div>
-        <span class="mc-close">✕</span>
+        <button class="mc-close" aria-label="Close viewer card">✕</button>
       </div>
       <div class="mc-pills">
         <button class="mc-yell">🛡 Yell</button>

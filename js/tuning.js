@@ -3,6 +3,13 @@
 // live `tune` object is mutated in place so any module can read tune.<key>
 // at use time (no restart needed, except where noted on the control).
 
+// The kind mix has exactly one source. The kw_* rows below used to carry their
+// own hardcoded defaults and drifted from the scheduler: kw_reply shipped 6 while
+// tools/test-cadence.mjs asserted KIND_WEIGHTS.reply = 15, so the Layer-2 reply
+// bump was invisible to the suite built to prove it — reply landed at 5.8% of
+// shipped lines against the 13.3% the test printed.
+import { KIND_WEIGHTS } from './cadence.js';
+
 const KEY = 'spasmtv-tune';
 
 // type: 'range' (min/max/step) | 'check' | 'text'. `worker:true` keys ride along
@@ -37,15 +44,15 @@ export const TUNE_SCHEMA = [
     { key: 'banModelChance', label: 'model line in ban reactions %', type: 'range', min: 0, max: 100, step: 5, def: 55, help: 'When someone is banned, the chance one of the reaction lines is written by the model instead of a template. Templates are instant and free.' },
   ]},
   { group: 'What chat says (kind mix)', items: [
-    { key: 'kw_reaction', label: 'reactions', type: 'range', min: 0, max: 100, step: 1, def: 40, help: 'Relative weight for lines that react to what is on screen.' },
-    { key: 'kw_emote', label: 'emote-only (free)', type: 'range', min: 0, max: 100, step: 1, def: 18, help: 'Relative weight for emote-only lines, F spam and chants. These cost no GPU — the main lever on chat speed.' },
-    { key: 'kw_question', label: 'questions', type: 'range', min: 0, max: 100, step: 1, def: 16, help: 'Relative weight for viewers asking a short question.' },
-    { key: 'kw_backseat', label: 'backseat', type: 'range', min: 0, max: 100, step: 1, def: 8, help: 'Relative weight for viewers telling the streamer what to do.' },
-    { key: 'kw_reply', label: 'replies', type: 'range', min: 0, max: 100, step: 1, def: 6, help: 'Relative weight for viewers replying to a specific earlier line.' },
-    { key: 'kw_banter', label: 'banter', type: 'range', min: 0, max: 100, step: 1, def: 6, help: 'Relative weight for viewers talking to each other instead of the stream.' },
-    { key: 'kw_callback', label: 'callbacks / bits', type: 'range', min: 0, max: 100, step: 1, def: 5, help: 'Relative weight for running jokes resurfacing. Only fires once a bit exists.' },
-    { key: 'kw_meta', label: 'meta', type: 'range', min: 0, max: 100, step: 1, def: 3, help: 'Relative weight for chatter about the stream itself: lag, title, viewer count.' },
-    { key: 'kw_greeting', label: 'greetings', type: 'range', min: 0, max: 100, step: 1, def: 2, help: 'Relative weight for new arrivals saying hi. Only fires during hype.' },
+    { key: 'kw_reaction', label: 'reactions', type: 'range', min: 0, max: 100, step: 1, def: KIND_WEIGHTS.reaction, help: 'Relative weight for lines that react to what is on screen.' },
+    { key: 'kw_emote', label: 'emote-only (free)', type: 'range', min: 0, max: 100, step: 1, def: KIND_WEIGHTS.emote, help: 'Relative weight for emote-only lines, F spam and chants. These cost no GPU — the main lever on chat speed.' },
+    { key: 'kw_question', label: 'questions', type: 'range', min: 0, max: 100, step: 1, def: KIND_WEIGHTS.question, help: 'Relative weight for viewers asking a short question.' },
+    { key: 'kw_backseat', label: 'backseat', type: 'range', min: 0, max: 100, step: 1, def: KIND_WEIGHTS.backseat, help: 'Relative weight for viewers telling the streamer what to do.' },
+    { key: 'kw_reply', label: 'replies', type: 'range', min: 0, max: 100, step: 1, def: KIND_WEIGHTS.reply, help: 'Relative weight for viewers replying to a specific earlier line.' },
+    { key: 'kw_banter', label: 'banter', type: 'range', min: 0, max: 100, step: 1, def: KIND_WEIGHTS.banter, help: 'Relative weight for viewers talking to each other instead of the stream.' },
+    { key: 'kw_callback', label: 'callbacks / bits', type: 'range', min: 0, max: 100, step: 1, def: KIND_WEIGHTS.callback, help: 'Relative weight for running jokes resurfacing. Only fires once a bit exists.' },
+    { key: 'kw_meta', label: 'meta', type: 'range', min: 0, max: 100, step: 1, def: KIND_WEIGHTS.meta, help: 'Relative weight for chatter about the stream itself: lag, title, viewer count.' },
+    { key: 'kw_greeting', label: 'greetings', type: 'range', min: 0, max: 100, step: 1, def: KIND_WEIGHTS.greeting, help: 'Relative weight for new arrivals saying hi. Only fires during hype.' },
   ]},
   { group: 'Who talks (archetype volume ×)', items: [
     ...['hype-man', 'backseat', 'lurker', 'regular', 'earnest', 'doomer', 'parasocial', 'troll', 'newcomer', 'copypasta']

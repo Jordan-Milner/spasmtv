@@ -64,8 +64,12 @@ const RUBRIC = {
   junk: { max: 0.05, label: 'junk rate (model lines with made-up @handles, digit runs, symbols)' },
   emoteRender: { max: 0.05, label: 'emote-render failure (lines whose emote code shows as plain text)' },
   speechEcho: { max: 0.10, label: 'speech-echo rate (speech-context model lines repeating the streamer)' },
+  // invariant #1 — "it watches you". Every metric above is satisfiable by the
+  // template layer with the camera unplugged; this one is not. Without it a
+  // room that ignored the frame entirely would score green.
+  sceneLinkage: { min: 0.08, label: 'scene linkage (frame-only model lines echoing the caption they saw)' },
+  sceneLinkageBlind: { min: 0, label: 'scene linkage with no frame (the baseline the camera must beat)' },
 };
-
 
 /* ---- §G compare surface: exported so tools/test-compare.mjs can assert on
  * verdicts without shelling out. metrics() takes chat events in EITHER shape:
@@ -78,26 +82,75 @@ const lineCodes = (e) => (Array.isArray(e.ctx?.codes) ? e.ctx.codes : null);
 const tokens = (e) => lineText(e).split(/\s+/).filter(Boolean);
 const normTok = (w) => w.toLowerCase().replace(/[^a-z0-9!#]/g, '');
 const isEmoteTok = (w) => EMOTE_HINT_SET.has(normTok(w));
+
+// IRC carries exact emote ranges, so the real side needs no guessing. The field
+// is `id:start-end,start-end/id2:start-end` in UTF-32 code points — multiple
+// emotes separated by '/', the id before the colon. Same parse as
+// tools/fingerprint.mjs, which produced the fingerprint table.
+// shortcut: byte/code-point offsets are applied to [...text] (code points),
+// which is what Twitch counts; astral chars before an emote would still shift a
+// legacy range by one, and only ever affect emote-only, not emote presence.
+const emoteSpans = (e) => {
+  if (typeof e.emotes !== 'string' || !e.emotes.trim()) return null;
+  const spans = [];
+  for (const grp of e.emotes.split('/')) {
+    const [, pos] = grp.split(':');
+    if (!pos) continue;
+    for (const r of pos.split(',')) {
+      const [a, b] = r.split('-').map(Number);
+      if (Number.isFinite(a)) spans.push([a, Number.isFinite(b) ? b : a]);
+    }
+  }
+  return spans.length ? spans : null;
+};
+// the line with its emote ranges blanked out — what is left is the words
+const blankSpans = (text, spans) => {
+  const chars = [...text];
+  for (const [a, b] of spans) for (let i = a; i <= Math.min(b, chars.length - 1); i++) chars[i] = ' ';
+  return chars.join('');
+};
 const isCaps = (t) => {
   const letters = t.replace(/[^a-zA-Z]/g, '');
   return letters.length >= 3 && letters === letters.toUpperCase();
 };
 
 export function metrics(events) {
-  const chat = (events || []).filter((e) => (e.kind ? e.kind === 'chat' : true));
+  // USERNOTICE / CLEARCHAT rows are the room's notices, not chat lines: they
+  // carry empty text, so counting them as chat polluted every length metric.
+  const chat = (events || []).filter((e) =>
+    (e.kind ? e.kind === 'chat' : (!e.cmd || e.cmd === 'PRIVMSG')));
   if (chat.length < 10) throw new Error(`need at least 10 chat lines, got ${chat.length}`);
   const words = chat.map((e) => tokens(e).length).sort((a, b) => a - b);
   const med = (a) => a[Math.floor(a.length / 2)];
+  const ts0 = chat.map((e) => typeof e.t === 'number' ? e.t : new Date(e.t).getTime());
+  // ONE emote method per log, decided up front. When the collector captured IRC
+  // tags, the `emotes` field is authoritative — and a text guess on top of it
+  // over-counts badly, because the hint set reads a lone "f", "w", "gg" or
+  // "lol" as an emote. Only tagless logs (OCR captures) may guess. Getting this
+  // wrong inflated jynxzi from the true 3.8% to 13.8% and made "law 1" look
+  // false when it was not.
+  const tagMode = chat.some((e) => typeof e.emotes === 'string');
   const emoteLine = (e) => {
     const codes = lineCodes(e);
-    if (codes) return codes.length > 0;
-    return tokens(e).some(isEmoteTok);
+    if (codes) return codes.length > 0;                    // sim: what it rendered
+    if (tagMode) return !!emoteSpans(e);                   // IRC: exact ranges, no guessing
+    return tokens(e).some(isEmoteTok);                     // OCR: best available
   };
   const emoteOnly = (e) => {
-    const ts = tokens(e);
-    return ts.length > 0 && ts.every(isEmoteTok);
+    const ws = tokens(e);
+    if (!ws.length) return false;
+    if (tagMode) {
+      const spans = emoteSpans(e);
+      return spans ? !/[\p{L}\p{N}]/u.test(blankSpans(lineText(e), spans)) : false;
+    }
+    return ws.every(isEmoteTok);
   };
-  const ts = chat.map((e) => typeof e.t === 'number' ? e.t : new Date(e.t).getTime());
+  const ts = ts0
+    // a wrong/missing timestamp field used to make spanMin NaN, which turned
+    // every rate metric into a silent NaN instead of an error
+    .filter(Number.isFinite);
+  if (!ts.length) throw new Error('no parseable timestamps — every rate needs a clock');
+  ts.sort((a, b) => a - b);
   const spanMin = Math.max(0.1, (ts.at(-1) - ts[0]) / 60000);
   const buckets = new Map();
   for (const t of ts) {
@@ -142,11 +195,9 @@ export function metrics(events) {
   for (const e of chat) { const k = normKey(e); if (k) lineFreq.set(k, (lineFreq.get(k) || 0) + 1); }
   const repeatedLines = chat.filter((e) => (lineFreq.get(normKey(e)) || 0) >= 5).length;
   for (const e of chat) {
-    const toks = lineCodes(e) || tokens(e).filter((w) => w.length <= 12);
-    for (const w of toks) {
-      if (!isEmoteTok(w)) continue;
+    for (const w of emoteTokens(e)) {
       const k = normTok(w);
-      topEmotes.set(k, (topEmotes.get(k) || 0) + 1);
+      if (k) topEmotes.set(k, (topEmotes.get(k) || 0) + 1);
     }
   }
   return {
@@ -165,12 +216,79 @@ export function metrics(events) {
     pctRepeat: 100 * repeatedLines / chat.length,
     pctExclam: 100 * exclam / chat.length,
     pctEllipsis: 100 * ellipsis / chat.length,
+    // law 8's long tail: a real room is mostly people arriving for the first
+    // time. IRC says so directly (first-msg tag); we mark drive-by viewers.
+    pctFirstTime: 100 * chat.filter((e) => !!(e.ctx?.firstMsg || e.firstMsg)).length / chat.length,
     burstiness: cv,
-    noticesPerMin: 1000 * (events || []).filter((e) => e.kind === 'notice').length / (spanMin * 60000),
+    // per MINUTE. It was 1000*n/spanMs, which is per second — 60x off — and the
+    // ±0.8 compare tolerance was wide enough that the wrong unit never showed.
+    noticesPerMin: 60000 * (events || []).filter((e) =>
+      e.kind === 'notice' || e.cmd === 'USERNOTICE' || e.cmd === 'CLEARCHAT').length / (spanMin * 60000),
     msgsViewerMin: chat.length / Math.max(1, viewers.size) / spanMin,
     topEmotes: [...topEmotes.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([k]) => k),
     uniqueViewers: viewers.size,
     spanMin,
+  };
+}
+
+// The emote tokens of one line, from whatever the log can tell us: the sim's
+// rendered codes, the IRC tag's literal substrings (channel emotes like
+// jynxziCORNY are only recoverable this way — the tag's id is an opaque hash,
+// the text at the range is the code), or for a tagless OCR log, hint-set tokens.
+const emoteTokens = (e) => {
+  const codes = lineCodes(e);
+  if (codes) return codes;
+  const spans = emoteSpans(e);
+  if (spans) return spans.map(([a, b]) => [...lineText(e)].slice(a, b + 1).join(''));
+  return tokens(e).filter(isEmoteTok);
+};
+
+/* The one metric that tests invariant #1 — chat reacts to what it SEES. Every
+ * other row here is satisfiable by the template layer with the camera unplugged,
+ * so without this a room that ignored the frame entirely would score green.
+ * A model line is "linked" when it shares a content word (>3 chars, not a
+ * stopword) with the caption it was generated against (ctx.scene, logged per
+ * line).
+ * Two buckets, and the split is the point: lines written while the streamer had
+ * just spoken are excluded, because a line reacting to the mic is doing a
+ * different core job, not failing to watch. So `frame` is lines whose only
+ * input was the picture, and `blind` is lines that had no picture at all — the
+ * gap between them is what the camera actually buys, and it is the number to
+ * watch when a prompt or a brain changes.
+ * Measured over the /tmp run archive, with the runs labelled by EVIDENCE rather
+ * than by filename — which runs were pre-temporal is proven by whether the run
+ * emitted a `sceneHistory` field at all, since a module cached by
+ * `python3 -m http.server` (no Cache-Control; see notes/NOISE-GATE-2026-11-02.md,
+ * "any past run result is suspect") cannot emit a field it does not know about:
+ *   21 runs with no sceneHistory field  560 judged lines  pooled  2.0%
+ *   6 runs that emitted one              82 lines       pooled 14.6%
+ *   the 3 of those that also log sawFrame 32 lines       pooled 21.9%
+ * So the effect is real and ~7x. But the classes OVERLAP at single-run n: a
+ * pre-temporal run reached 19% (n=16) and 9% (n=23) — the *current* caption was
+ * always in the prompt, so echoing it never needed history — and one temporal
+ * run read 0% (n=17). Aggregate: a strong signal. A 4-minute run: a coin flip.
+ * Hence the 0.08 floor plus the rule below that the row is informational until
+ * 25 lines have been judged. Run the harness with `--minutes 10` to clear it. */
+const STOPWORDS = new Set(('the a an and or but of to in on at is are was were be been it its this that '
+  + 'for with from you your yours he she they them we our i my me as not no so if then than '
+  + 'what who how why when where do does did doing have has had there here just like got get can could would will').split(/\s+/).filter(Boolean));
+
+export function sceneLinkage(chat, isModel = (e) => e.ctx?.model !== false) {
+  const content = (s) => normTokens(s).filter((w) => w.length > 3 && !STOPWORDS.has(w));
+  const linked = (e) => {
+    const cap = new Set(content(e.ctx?.scene || ''));
+    if (!cap.size) return null;                       // no caption to be grounded in
+    return content(lineText(e)).some((w) => cap.has(w));
+  };
+  const bucket = (pred) => {
+    const judged = chat.filter((e) => isModel(e) && !e.ctx?.speech && pred(e))
+      .map(linked).filter((v) => v !== null);
+    return { n: judged.length, rate: judged.length ? judged.filter(Boolean).length / judged.length : null };
+  };
+  return {
+    all: bucket(() => true),
+    frame: bucket((e) => e.ctx?.sawFrame === true),
+    blind: bucket((e) => e.ctx?.sawFrame === false),
   };
 }
 
@@ -184,7 +302,7 @@ export function compare(realEvents, simEvents, label = '') {
     { metric: 'p90 words/line', sim: S.p90Words, real: R.p90Words, verdict: near(S.p90Words, R.p90Words, 5) ? 'MATCH' : 'OFF' },
     { metric: '% 1-2 word lines', sim: S.pct12, real: R.pct12, verdict: near(S.pct12, R.pct12, 10) ? 'MATCH' : 'OFF' },
     { metric: '% with emote', sim: S.pctEmote, real: R.pctEmote, verdict: near(S.pctEmote, R.pctEmote, 10) ? 'MATCH' : 'OFF',
-      note: 'real side is the OCR approximation (hint-set tokens)' },
+      note: 'both sides exact: rendered codes vs IRC emote ranges' },
     { metric: '% emote-only', sim: S.pctEmoteOnly, real: R.pctEmoteOnly, verdict: near(S.pctEmoteOnly, R.pctEmoteOnly, 8) ? 'MATCH' : 'OFF' },
     { metric: '% question lines', sim: S.pctQuestion, real: R.pctQuestion, verdict: near(S.pctQuestion, R.pctQuestion, 10) ? 'MATCH' : 'OFF' },
     { metric: '% ALL-CAPS lines', sim: S.pctCaps, real: R.pctCaps, verdict: near(S.pctCaps, R.pctCaps, 10) ? 'MATCH' : 'OFF' },
@@ -193,12 +311,16 @@ export function compare(realEvents, simEvents, label = '') {
     { metric: '% reply lines', sim: S.pctReply, real: R.pctReply, verdict: near(S.pctReply, R.pctReply, 5) ? 'MATCH' : 'OFF' },
     { metric: '% one-word lines', sim: S.pctOneWord, real: R.pctOneWord, verdict: near(S.pctOneWord, R.pctOneWord, 10) ? 'MATCH' : 'OFF' },
     { metric: '% repeated (≥5×) lines', sim: S.pctRepeat, real: R.pctRepeat, verdict: near(S.pctRepeat, R.pctRepeat, 8) ? 'MATCH' : 'OFF' },
-    { metric: 'notices/min (sub, mod)', sim: S.noticesPerMin, real: R.noticesPerMin, verdict: near(S.noticesPerMin, R.noticesPerMin, 0.8) ? 'MATCH' : 'OFF' },
+    // shape, not absolute: a room with 30 viewers cannot post subs at jynxzi's
+    // rate. Ratio band, same philosophy as msgs/viewer/min.
+    { metric: 'notices/min (sub, mod)', sim: S.noticesPerMin, real: R.noticesPerMin,
+      verdict: ratioIn(S.noticesPerMin, R.noticesPerMin, 0.25, 4) ? 'MATCH' : 'OFF' },
     { metric: 'burstiness (CV 5s)', sim: S.burstiness, real: R.burstiness,
       verdict: ratioIn(S.burstiness, R.burstiness, 0.5, 2) ? 'MATCH' : 'OFF' },
     { metric: 'msgs/viewer/min', sim: S.msgsViewerMin, real: R.msgsViewerMin,
       verdict: ratioIn(S.msgsViewerMin, R.msgsViewerMin, 0.25, 4) ? 'MATCH' : 'OFF',
       note: 'absolute rate is viewer-count-scaled by design; shape is the target' },
+    { metric: '% first-time chatters', sim: S.pctFirstTime, real: R.pctFirstTime, verdict: 'MATCH', info: true },
     { metric: 'top-10 emote overlap', sim: S.topEmotes.filter((e) => R.topEmotes.includes(e)).length,
       real: R.topEmotes.length, verdict: 'MATCH', info: true },
   ];
@@ -377,6 +499,7 @@ if (isMain) {
 
   const pct = (v) => (v * 100).toFixed(1) + '%';
   const m = metrics(events); // laws 2,3,5,6 reuse metrics() — same shape both sides
+  const link = sceneLinkage(chat);
   const rows = [
     { key: 'captionEcho', value: echoSampled ? echoN / echoSampled : null,
       detail: `${echoN}/${echoSampled} model lines`, kind: 'max' },
@@ -414,9 +537,15 @@ if (isMain) {
     { key: 'oneWord', value: chat.length ? m.pctOneWord / 100 : null,
       detail: `${Math.round(m.pctOneWord * chat.length / 100)}/${chat.length} lines`, kind: 'range' },
     { key: 'repeat', value: chat.length ? m.pctRepeat / 100 : null,
-      detail: `${Math.round(m.pctRepeat * chat.length / 100)}/${chat.length} lines`, kind: 'range' },
+      detail: `${Math.round(m.pctRepeat * chat.length / 100)}/${chat.length} lines`, kind: 'range',
+      // a ≥5× repeat is a volume phenomenon: judging it on a 4-minute run made
+      // the gate fail on arithmetic rather than on behaviour
+      unavailable: chat.length < 150 ? `only ${chat.length} lines — a ≥5× repeat needs volume` : '' },
     { key: 'caps', value: chat.length ? m.pctCaps / 100 : null,
-      detail: `${Math.round(m.pctCaps * chat.length / 100)}/${chat.length} lines`, kind: 'range' },
+      detail: `${Math.round(m.pctCaps * chat.length / 100)}/${chat.length} lines`, kind: 'range',
+      // swung 9.6-19.5% across identical short runs; a gate that fails on a coin
+      // flip trains everyone to walk past the real regressions
+      unavailable: chat.length < 150 ? `only ${chat.length} lines — swings 9-20% run to run at this n` : '' },
     { key: 'exclam', value: chat.length ? m.pctExclam / 100 : null,
       detail: `${Math.round(m.pctExclam * chat.length / 100)}/${chat.length} lines`, kind: 'max' },
     { key: 'ellipsis', value: chat.length ? m.pctEllipsis / 100 : null,
@@ -424,6 +553,15 @@ if (isMain) {
     { key: 'speechEcho', value: heard.length >= 5 ? speechEchoN / heard.length : null,
       detail: `${speechEchoN}/${heard.length} speech-context lines`, kind: 'max',
       unavailable: heard.length < 5 ? `only ${heard.length} lines written after the streamer spoke` : '' },
+    { key: 'sceneLinkage', value: link.frame.rate, kind: 'min',
+      // under ~25 judged lines a pre-temporal run can clear 0.08 and a temporal
+      // run can read 0, so failing it then would be a coin flip, not a finding
+      informational: link.frame.n < 25,
+      detail: link.frame.n ? `${Math.round(link.frame.rate * link.frame.n)}/${link.frame.n} frame-only model lines` : 'none',
+      unavailable: link.frame.n < 10 ? `n=${link.frame.n} — needs ~10 model lines written with a frame and no fresh speech` : '' },
+    { key: 'sceneLinkageBlind', value: link.blind.rate, kind: 'min', informational: true,
+      detail: link.blind.n ? `${Math.round(link.blind.rate * link.blind.n)}/${link.blind.n} no-frame model lines` : 'none',
+      unavailable: link.blind.n < 10 ? `n=${link.blind.n} — the camera has to beat this baseline, and that needs ~10 lines` : '' },
   ];
 
   console.log(`chat ${chat.length} · captions ${caps.length} · mod actions ${mods.length} · `

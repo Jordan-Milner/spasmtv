@@ -46,6 +46,13 @@ const CAPTURE_DEFAULT = 512;      // vision detail (settings panel: 512/640/768 
                                   // above 512 the model tiles the frame)
 const DIFF_W = 32, DIFF_H = 18;   // motion grid used for scene diff + focus crop
 const FULL_W = 960;               // working resolution frames are grabbed at
+// One shared downscale target for motionScore, which runs every tick: a fresh
+// canvas + 2D context per tick was pure GC churn on the path that runs while a
+// phone is already at the memory edge.
+const motionCanvas = document.createElement('canvas');
+motionCanvas.width = DIFF_W;
+motionCanvas.height = DIFF_H;
+let motionCtx = null;
 // tunable now (js/tuning.js): SCENE_CHANGE = 0.055;       // mean abs luma delta that counts as a "clip it!" moment
 
 // tunable now (js/tuning.js): TICK_FRAME_MS = 1500;       // frame grab cadence
@@ -81,7 +88,6 @@ const state = {
   // vision
   prevThumb: null, diffScore: 0,
   fullCanvas: null,         // working-res frame for crops + diff
-  prevCapture: null,        // last tick's capture buffer — the "before" in before/after bursts
   diffMax: 0, hotMax: 0,    // peak motion since the last caption (logged with it)
   motionHist: [],           // the last ~30 s of motion scores: the baseline a change must spike over
   sceneChangeAt: 0,         // when the frame last changed (latched — consumers check against it)
@@ -230,12 +236,10 @@ function onWorkerMessage(ev) {
         state.sceneHistory = [...state.sceneHistory, m.text].slice(-4);
     }
   } else if (m.type === 'chat') {
-    noteLatency(m.id, 'chat');
+    const entry = noteLatency(m.id, 'chat');
     state.pendingChat = Math.max(0, state.pendingChat - 1);
     window.__spasmtv.chat += (m.messages || []).length;
     if (m.messages?.length) window.__spasmtv.lastMsg = m.messages[m.messages.length - 1];
-    const entry = pendingMeta.get(m.id);
-    pendingMeta.delete(m.id);
     if (state.phase !== 'live') return;   // a reply that lands after "End stream"
     (m.messages || []).forEach((text) => {
       let viewer = entry?.viewer;
@@ -271,6 +275,9 @@ function onWorkerMessage(ev) {
         kind: m.kind || entry?.kind || 'reaction',
         calls: m.calls, drops: m.drops,
         viewer: shown.name,
+        // a drive-by speaking is, on Twitch, a first message — IRC tags it and
+        // the scorer compares like for like
+        firstMsg: !!shown.transient,
         archetype: shown.archetypeKey,
         shown: sim.lastRendered,
         codes: sim.lastEmotes,
@@ -342,14 +349,20 @@ function renderFacts() {
   });
 }
 
+// Consumes the request's entry: latency in, context out. Deleting here is what
+// keeps this bounded — caption requests (~7/min) have no reader that wants their
+// context, so a get-without-delete leaked one object per request per stream.
 function noteLatency(id, kind) {
   const meta = pendingMeta.get(id);
-  if (meta?.sentAt) {
+  if (!meta) return null;
+  pendingMeta.delete(id);
+  if (meta.sentAt) {
     const arr = state.latency[kind];
     arr.push(performance.now() - meta.sentAt);
     if (arr.length > 10) arr.shift();
     renderLatency();
   }
+  return meta;
 }
 
 function fmtLatency(kind) {
@@ -402,6 +415,7 @@ function logTemplate(text, viewer, kind, ctx = {}) {
   if (!shown) return null;
   logEvent('chat', text, {
     kind, model: false, viewer: shown.name, archetype: shown.archetypeKey,
+    firstMsg: !!shown.transient,
     shown: sim.lastRendered, codes: sim.lastEmotes, ...ctx,
   });
   trackRecent(shown.name, text);
@@ -737,9 +751,7 @@ function noteMotion(score) {
 }
 
 function motionScore(fullCanvas) {
-  const t = document.createElement('canvas');
-  t.width = DIFF_W; t.height = DIFF_H;
-  const ctx = t.getContext('2d', { willReadFrequently: true });
+  const ctx = (motionCtx ||= motionCanvas.getContext('2d', { willReadFrequently: true }));
   ctx.drawImage(fullCanvas, 0, 0, DIFF_W, DIFF_H);
   const px = ctx.getImageData(0, 0, DIFF_W, DIFF_H).data;
   const luma = new Float32Array(DIFF_W * DIFF_H);
@@ -760,9 +772,6 @@ function motionScore(fullCanvas) {
 }
 
 function drawCapture(full, motion) {
-  // stash the previous capture first — it's the "before" of before/after bursts
-  if (els.capture.width > 0) state.prevCapture = grabFrameBuffer(els.capture);
-
   const S = state.settings;
   let sx = 0, sy = 0, sw = full.width, sh = full.height;
   const concentrated =

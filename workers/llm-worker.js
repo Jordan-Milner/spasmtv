@@ -126,9 +126,42 @@ function onProg(e) {
 
 /* ---------------- message protocol ---------------- */
 
-self.onmessage = async (ev) => {
+/* One job at a time, highest priority first. This used to be an async onmessage
+ * with no queue, so two jobs could sit inside model.generate() at once, and:
+ *   - `priority` never reached a scheduler on the four transformers.js brains
+ *     (generateOnce takes it and drops it; only omni.js has a queue), so a scene
+ *     caption — the cheapest thing to be late about — could beat the reply to
+ *     something the user just said, which is the one latency the north star
+ *     promises ("within seconds");
+ *   - a brain switch could get past unloadBrain()'s inflight drain and free the
+ *     model while a job that arrived in between ran against it.
+ * Serialising is close to throughput-neutral (one WebGPU device does not gain
+ * from two concurrent generations) and halves peak KV memory on phones. */
+const JOBS = [];
+let jobSeq = 0;
+let draining = false;
+const JOB_PRI = { load: 3, chat: 2, transcribe: 2, caption: 1, 'asr-model': 1 };
+
+self.onmessage = (ev) => {
   const m = ev.data;
+  JOBS.push({ pri: JOB_PRI[m.type] ?? 0, seq: jobSeq++, run: () => dispatch(m) });
+  drainJobs();
+};
+
+async function drainJobs() {
+  if (draining) return;
+  draining = true;
   try {
+    while (JOBS.length) {
+      JOBS.sort((a, b) => (b.pri - a.pri) || (a.seq - b.seq));
+      const job = JOBS.shift();
+      try { await job.run(); }
+      catch (err) { post({ type: 'error', message: humanizeError(err) }); }
+    }
+  } finally { draining = false; }
+}
+
+async function dispatch(m) {
   if (m.type === 'load') await load(m);
   else if (m.type === 'asr-model') {
     if (ASR_MODELS[m.model] && m.model !== asrModelKey) {
@@ -138,12 +171,9 @@ self.onmessage = async (ev) => {
       if (m.preload && currentKey !== 'omni') ensureAsr();
     }
   } else if (m.type === 'caption') await safeReply(m, onCaption, { text: '' });
-    else if (m.type === 'chat') await safeReply(m, onChat, { messages: [] });
-    else if (m.type === 'transcribe') await safeReply(m, onTranscribe, { text: '' });
-  } catch (err) {
-    post({ type: 'error', message: humanizeError(err) });
-  }
-};
+  else if (m.type === 'chat') await safeReply(m, onChat, { messages: [] });
+  else if (m.type === 'transcribe') await safeReply(m, onTranscribe, { text: '' });
+}
 
 async function safeReply(m, fn, empty) {
   try {

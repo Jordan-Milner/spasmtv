@@ -9,7 +9,7 @@
 // individual verdicts (not just the process exit code).
 
 import assert from 'node:assert/strict';
-import { metrics, compare, EMOTE_HINT_SET, burstRatio } from '../tools/score-chat.mjs';
+import { metrics, compare, sceneLinkage, EMOTE_HINT_SET, burstRatio } from '../tools/score-chat.mjs';
 
 // --- helpers to build jsonl ------------------------------------------------
 const chatLine = (t, user, text, extra = {}) =>
@@ -174,6 +174,53 @@ assert.throws(() => metrics([]), /need at least/);
   const b2 = burstRatio(flat, Array.from({ length: 20 }, (_, i) => new Date(1000000 + i * 5000).getTime()));
   assert.equal(b2.blanketed, true, 'changes every 5 s blanket the span');
   assert.equal(burstRatio([], []).ratio, null, 'no changes → n/a');
+}
+
+// --- IRC ground truth beats the hint-set guess -----------------------------
+// Twitch sends exact emote byte-ranges and USERNOTICE/CLEARCHAT rows. Reading
+// them is what made both sides of '% with emote' the same measurement; treating
+// notices as chat lines previously polluted every length metric on the real side.
+{
+  const rows = [];
+  for (let i = 0; i < 11; i++)
+    rows.push({ t: i * 60000, name: `u${i}`, text: 'nice play go', cmd: 'PRIVMSG' });
+  rows.push({ t: 61000, name: 'u1', text: 'KEKW hello', cmd: 'PRIVMSG', emotes: '25:0-3' });
+  rows.push({ t: 62000, name: 'u2', text: 'KEKW', cmd: 'PRIVMSG', emotes: '25:0-3' });
+  rows.push({ t: 300000, name: 'sub4', text: 'sub4 has subscribed!', cmd: 'USERNOTICE' });
+  const m = metrics(rows);
+  assert.equal(m.n, 13, 'USERNOTICE is a notice, not a chat line');
+  assert.equal(m.pctEmoteOnly > 0, true, 'emote-only counted from IRC ranges, no hint set');
+  assert.ok(m.pctEmote > m.pctEmoteOnly, 'one ranged line has words left, so it is not emote-only');
+  // a single-emote line must count too — the id-before-colon format silently
+  // dropped every one of these the first time this parser was written
+  assert.ok(Math.abs(m.pctEmote - 100 * 2 / 13) < 0.01, `both ranged lines counted, got ${m.pctEmote}`);
+  // 1 notice over a 10-minute span = 0.1/min. The old formula returned per
+  // SECOND (60x off) and a ±0.8 tolerance hid it.
+  assert.ok(Math.abs(m.noticesPerMin - 0.1) < 0.01, `notices/min should be ~0.1, got ${m.noticesPerMin}`);
+}
+
+// --- sceneLinkage: the only metric that tests invariant #1 -----------------
+// Lines are bucketed by whether they were handed a frame, and lines written
+// while the streamer had just spoken are excluded (reacting to the mic is a
+// different core job, not a failure to watch).
+{
+  const line = (text, scene, sawFrame, extra = {}) =>
+    ({ kind: 'chat', text, ctx: { model: true, scene, sawFrame, ...extra } });
+  const chat = [
+    line('the boss fight took forever', 'a hard boss fight fills the screen', true),
+    line('lol', 'a hard boss fight fills the screen', true),
+    line('based', 'a hard boss fight fills the screen', true, { speech: 'i died again' }),
+    line('just got here', 'a cat sits on a keyboard', false),
+    line('nice', 'a cat sits on a keyboard', false),
+    { kind: 'chat', text: 'boss', ctx: { model: false, scene: 'a hard boss fight', sawFrame: true } },
+    { kind: 'chat', text: 'no caption logged', ctx: { model: true, sawFrame: true } },
+  ];
+  const l = sceneLinkage(chat);
+  assert.equal(l.frame.n, 2, 'only frame lines with a caption, no speech, model-written');
+  assert.equal(l.frame.rate, 0.5, 'one of two frame lines echoes its caption');
+  assert.equal(l.blind.n, 2, 'no-frame bucket counted separately');
+  assert.equal(l.blind.rate, 0, 'a chat that never saw the frame cannot link to it');
+  assert.equal(sceneLinkage([]).frame.rate, null, 'nothing to judge -> n/a, not 0');
 }
 
 console.log('ok — compare: MATCH exits 0, MISS exits 1, tolerances honoured');

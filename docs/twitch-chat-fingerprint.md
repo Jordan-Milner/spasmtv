@@ -112,16 +112,48 @@ running.
 
 ## The laws, as rules
 
-1. Emote in ≤10% of lines; emote-only in ≤4%; when present, 1–3 stacked, and usually attached to a sentence.
+1. Emote in ≤10% of lines (measured max 10.8%; in the small/quiet rooms we imitate, 3.3–5.7%); emote-only in ≤6% (measured max 5.8% — the ≤4% this line used to carry was one room's number, not a ceiling); when present, 1–3 stacked, and usually attached to a sentence.
 2. ~8% of lines reply to a specific earlier line, within ~10 s of it; ~6% name another chatter by handle.
 3. ~50% of the people who ever speak say exactly one line; the roster needs a long tail of one-timers, not 34 regulars.
 4. 20-lines/min means a 10-second burst index of 1.5–7, with real silences (median gap ~2 s), not a metronome.
 5. Length: median ~15–25 characters, 16–36% one-word — not 52%.
 6. Punctuation: `!` ≤3%, `…` ≤1%, ALL CAPS 10–25% *of lines that shout*, questions 4–11%.
 7. Repetition is a spike with a half-life, not a rotation: a token enters the air, gets echoed by a decaying fraction of the next N lines, then dies.
-8. Notices happen (sub, milestone, mod action) and the room reacts within seconds.
+8. Notices happen (sub, milestone, mod action) and the room reacts within seconds. Measured exactly (IRC `USERNOTICE`/`CLEARCHAT`): 7.6/min at jynxzi, 0.8 at lirik, 1.8 at hasanabi, 0.1–0.3 in the small rooms — so a small room sees roughly one notice every 10 minutes, not every 1–2.
 9. Mods/VIPs/subs exist and are visible; a mod's line carries weight.
 10. The topic is shared: in a small room most lines are about the same thing at the same time, and they build on each other.
+11. **Chat reacts to what is on screen.** No shape metric can see this, so the table above could not fail a chat that never looked at the camera — and the pre-temporal runs did exactly that, at shape numbers indistinguishable from a chat that watched. Measured as `sceneLinkage` in `tools/score-chat.mjs`: the share of model-written, frame-only lines (no fresh speech to react to) that share a content word with the caption that was in their prompt. Runs are labelled by evidence, not filename — a run that emitted no `sceneHistory` field ran pre-temporal code, and no HTTP cache can fake that: **21 such runs, 560 judged lines, pooled 2.0%; 6 runs that emitted it, 82 lines, pooled 14.6%** (the 3 current ones: 21.9%). Real, and ~7×. But the classes overlap at single-run n — a pre-temporal run reached 19%, a temporal one read 0% — because the *current* caption was always in the prompt, so echoing it never needed history. Aggregate signal, not a 4-minute-run gate; the scorer reports it informationally below 25 judged lines. The no-frame bucket is the baseline the camera must beat.
+
+## The room class we actually imitate
+
+The headline table mixes jynxzi (347 lines/min) with b0aty (14). The product
+imitates the quiet end, so tune against the quiet end. Same `metrics()` the
+tools use, per room, n = 20–400 captured lines — the three rooms that land in
+that window (n0thing 23, b0aty 212, shroud 335); cdawg's 13 lines are noise and
+sykkuno at 430 falls outside it:
+
+| metric | range | median |
+|---|---|---|
+| % one-word lines | 17–36 | 33 |
+| % 1–2 word lines | 30–49 | 43 |
+| median words/line | 3–6 | 3 |
+| **% lines with an emote** | **3.3–5.7** | **4.3** |
+| % emote-only | 0–2.1 | 0.5 |
+| % ALL-CAPS | 0–15 | 7.5 |
+| % reply | 5.7–17.4 | 7.5 |
+| % names a chatter | 6.9–21.7 | 9.9 |
+| % one-line users | 36–55 | 52 |
+| notices/min | 0.1–0.3 | 0.1 |
+| burstiness (CV of 5 s buckets) | 0.6–1.4 | 0.9 |
+
+Reproduce with `node tools/score-chat.mjs --compare data/real/<capture>.jsonl <sim-run>.jsonl`.
+One rule about the measurement, learned the hard way: when a log carries IRC
+tags, the `emotes` field is the only emote evidence to use. Guessing emotes from
+text on top of it reads a lone `w`, `f`, `gg` or `lol` as an emote and inflated
+jynxzi from the true 3.8% to 10.7% — which is how "law 1" briefly looked false to
+a tool that was itself wrong. `metrics()` now picks one method per log and
+reproduces this document's table from the raw files, independent of
+`tools/fingerprint.mjs`.
 
 ## What we still do not know
 

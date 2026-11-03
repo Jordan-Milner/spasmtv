@@ -73,6 +73,19 @@ for (const [k, w] of Object.entries(KIND_WEIGHTS)) {
 assert.ok(chantLines > 0 && (kindCount.emote || 0) > 0, 'template lines exist');
 assert.equal(lines - genCalls, chantLines + (kindCount.emote || 0), 'every non-model line is a template');
 
+// the tune sliders' defaults ARE these weights. They used to be two hand-typed
+// lists and drifted: kw_reply shipped 6 while the block above asserted 15, so
+// the Layer-2 reply bump was invisible to the suite built to prove it.
+{
+  const { TUNE_SCHEMA } = await import('../js/tuning.js');
+  const rows = TUNE_SCHEMA.flatMap((g) => g.items || []);
+  for (const [k, v] of Object.entries(KIND_WEIGHTS)) {
+    const row = rows.find((r) => r.key === 'kw_' + k);
+    assert.ok(row, `tune schema has no kw_${k} row`);
+    assert.equal(row.def, v, `tune default kw_${k}=${row.def} drifted from KIND_WEIGHTS.${k}=${v}`);
+  }
+}
+
 // gateKind degradation — no interrogating doomers, no callbacks with no bits
 assert.equal(gateKind('question', { archetypeKey: 'hype-man' }), 'reaction');
 assert.equal(gateKind('question', { archetypeKey: 'earnest' }), 'question');
@@ -171,12 +184,13 @@ assert.equal(maybeBit(bits, 'x'.repeat(60), { hype: true }).length, 1, 'too long
   assert.ok(contagionEcho(0, mid) && !contagionEcho(4, mid), 'echo probability decays with age');
 }
 
-// law 8 economy: subs land on a ~1-2 min cadence (small-room low end of the
-// measured 0.1-7.6 notices/min), resubs carry a growing tenure, and the room
-// has a short cheer vocabulary to react with.
+// law 8 economy: resubs carry a growing tenure and the room has a short cheer
+// vocabulary. The gap is 3-7 min: measured exactly (IRC USERNOTICE rows, no
+// guessing) at 0.13 notices/min in the small rooms, where the old 55-120 s was
+// about 5x too fast.
 {
   const g = subGapMs();
-  assert.ok(g >= 55000 && g <= 120000, `sub gap ${g}ms outside 55-120 s`);
+  assert.ok(g >= 180000 && g <= 420000, `sub gap ${g}ms outside 180-420 s`);
   let firsts = 0, resubs = 0, maxMonths = 0;
   for (let i = 0; i < 500; i++) {
     const s = subNotice();

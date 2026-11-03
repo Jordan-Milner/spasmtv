@@ -295,7 +295,12 @@ main {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: none; }
 }
-.msg .user { font-weight: 700; }
+/* a <button>, not a <span>: it is the only way to open a viewer card, so it has
+   to be tabbable and reachable from a keyboard. Reset to look like a name. */
+.msg .user {
+  font: inherit; font-weight: 700; background: none; border: 0;
+  padding: 0; margin: 0; color: inherit; cursor: pointer;
+}
 .msg .sep { color: var(--text-dim); }
 .msg .text { color: var(--text); }
 .msg .emote { font-weight: 700; color: #f5a9ff; }
@@ -389,7 +394,10 @@ main {
   white-space: nowrap;
 }
 .mc-stat { font-size: 11px; color: #adadb8; line-height: 1.5; white-space: nowrap; }
-.mc-close { color: #77777f; cursor: pointer; font-size: 13px; }
+.mc-close {
+  color: #77777f; cursor: pointer; font-size: 13px;
+  font: inherit; font-size: 13px; background: none; border: 0; padding: 0; margin: 0;
+}
 .mc-close:hover { color: #efeff1; }
 
 .mc-pills {

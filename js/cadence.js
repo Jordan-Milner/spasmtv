@@ -200,11 +200,15 @@ export function contagionEcho(age, rnd = Math.random, { p0 = 0.5, life = 6 } = {
 /* ---- the room has an economy (Layer 5) ----
  * Law 8/9 (6 real rooms): 0.1-7.6 notices/min (subs, resubs, milestones, mod
  * actions) and the room reacts within seconds. Ours had zero — no sub ever
- * happened. A small room (20-40 viewers) sits at the low end, ~1 sub every
- * 1-2 min. `subGapMs` is the wait to the next notice; `subNotice` shapes it
- * (resub with a growing tenure, rare prime, occasional gift); `subCheer` is
- * the free template line a couple of viewers say about it. */
-export const subGapMs = (rnd = Math.random) => 55000 + rnd() * 65000;
+ * happened. `subNotice` shapes each one (resub with a growing tenure, rare
+ * prime, occasional gift); `subCheer` is the free template line a couple of
+ * viewers say about it.
+ * The gap was 55-120 s, which is 0.5-1.1 notices/min — that was read off the
+ * 0.1-7.6 range as "small rooms sit at the low end" without doing the division.
+ * Measured exactly on the round-2 IRC capture (USERNOTICE rows, emotes/tags, no
+ * guessing): 2 notices in 15.8 min = 0.13/min, i.e. one every ~8 minutes. 3-7 min
+ * is the honest small-room cadence and still leaves the room visibly reacting. */
+export const subGapMs = (rnd = Math.random) => 180000 + rnd() * 240000;
 
 export function subNotice(rnd = Math.random) {
   const r = rnd();

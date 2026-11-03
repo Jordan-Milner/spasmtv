@@ -29,5 +29,11 @@ streamer voice, real moderation of real people. Phones get a deliberately
 smaller brain (phone mode) rather than parity.
 
 **Where truth lives:** this file and the repo; `tools/score-chat.mjs` is the
-measure of whether chat is good. The working plans and run reports are kept in
-the maintainer's local `notes/` worktree (branch `notes`, never pushed).
+measure of whether chat is good — with one caveat: every band in it measures
+*shape*, and a chat that never looked at the camera passes all of them. The row
+that tests the premise is `scene linkage` (frame-only model lines that echo the
+caption in their own prompt): pooled across the run archive, 2.0% before scene
+history existed and 14.6% after — a strong aggregate signal, informational on a
+4-minute run because the classes overlap at that n. The working plans and run
+reports are kept in the maintainer's local `notes/` worktree (branch `notes`,
+never pushed).
