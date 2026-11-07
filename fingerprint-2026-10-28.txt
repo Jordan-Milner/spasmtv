@@ -1,0 +1,75 @@
+metric                         REAL         SIM  note
+lines/min                       374       23.16  ✗ volume of the room
+gap median (ms)               29.00        1451  ✗ time between lines
+gap p95 (ms)                    523        7963  ✗ 
+back-to-back ≤2 s             98.91       60.00  ~ chat arrives in waves
+burst index (10 s)            56.55        1.72  ✗ 1 = poisson, 0 = metronome, real ≫ 1
+dead 30 s stretches            0.00        0.00  ~ 
+chars median                   9.00       10.00  ~ how long a line is
+chars p90                     42.00       37.00  ~ 
+words mean                     3.46        3.06  ~ 
+one-word lines                45.49       52.19  ~ the one-word drive-by
+emote-only lines               4.17       36.84  ✗ a line that is just an emote
+ALL CAPS lines                21.48        7.02  ✗ shouting
+lowercase start               32.20       42.11  ~ nobody capitalises
+ends ?                         4.08        4.39  ~ questions
+has !                          1.39       11.40  ✗ 
+ellipsis                       0.84        4.17  ✗ 
+keysmash                       4.39       10.09  ✗ asdfghjkl
+emoji lines                    0.95        0.00  ✗ 
+digit-run lines                1.45        0.00  ✗ 
+lines with emote               6.15       47.81  ✗ emote density
+emotes per emote line          2.16        1.00  ✗ 
+distinct emotes                 239       75.00  ✗ vocabulary of the room
+top-10 emote share            36.07       31.51  ~ 
+distinct users                 2793       34.00  ✗ 
+lines per user                 3.32       13.41  ✗ 
+top 1 % share                 11.01        5.04  ✗ how much a few people dominate
+one-line users                48.48        0.00  ✗ the silent majority
+reply lines                    3.31        3.29  ~ actual conversation
+first-msg lines                0.60        0.00  ✗ 
+mod/vip lines                  2.14        0.00  ✗ 
+names another chatter          2.99        0.00  ✗ people talk to each other
+exact repeats                 48.71       58.11  ~ people say the same thing
+copypasta (≥5×)               35.91       26.32  ~ pasted lines
+repeated 3-grams              27.20       19.90  ~ shared phrasing
+unique lines                  56.51       57.02  ~ type-token, novelty
+notices/min                    6.01        0.00  ✗ subs/raids as texture
+moderation/min                 1.73        0.00  ✗ 
+
+REAL — top emotes: 425618×182 58765×56 emotesv2_db44b4f670b3467ead03653a2f43bb00×41 25×28 emotesv2_bea88a2caa044e409c1b32ee0850b825×28 emotesv2_69603b0e915c4aaa984df1bd4a7a9ddc×24 emotesv2_a1a917e42b3e4ceb936e7945962be591_SQ×22 305954156×21 41×21 22639×21
+REAL — most repeated lines:
+   × 219  lol
+   × 194  aura
+   × 187  d3
+   × 120  67
+   × 118  classic
+   × 104  f
+   ×  91  saj
+   ×  87  kekw
+   ×  77  son
+   ×  71  cap
+REAL — per channel: jynxzi=4832 lirik=2374 hasanabi=1046 sykkuno=430 shroud=335 b0aty=212 n0thing=23 cdawg=13 auronplay=4 cohhcarnage=2
+
+SIM — top emotes: EZ×11 7Cinema×10 peepoHappy×7 BasedGod×6 FishMoley×6 (7TV)×6 :tf:×6 AngelThump×6 DogChamp×6 7TV×5
+SIM — most repeated lines:
+   ×  14  f
+   ×  13  f in the chat
+   ×  12  gg
+   ×  10  o7
+   ×  10  7tv
+   ×   9  7cinema
+   ×   9  ez
+   ×   7  peepohappy
+   ×   6  tf
+   ×   5  bro im tired
+SIM — per channel: sim=456
+
+per channel (6 rooms with ≥30 lines)
+channel          lines/min gap media burst ind chars med one-word  lines wit emote-onl ALL CAPS     ends ? distinct  top 1 % s one-line  reply lin names ano exact rep copypasta repeated  notices/m moderatio
+jynxzi                 347      56.0      22.6       7.0      54.1       3.8       3.5      22.2       3.9      1335      11.3      46.8       0.4       0.8      59.4      46.2      45.8       7.6       2.6
+lirik                  170       205       7.6      11.0      46.0       9.4       5.8      25.2       1.9       584       8.1      36.8       2.9       2.9      42.0      30.1      18.4       0.8       0.0
+hasanabi              75.9       524       2.9      25.0      23.1       7.6       3.6      23.5       4.6       495       8.2      65.9      14.1      10.9      19.7       8.8      15.1       1.8       0.4
+shroud                24.4      1051       3.3      17.0      32.8       5.7       2.1      11.6      11.0       150       6.9      52.0       5.7       3.9      18.8       8.1      24.3       0.3       0.0
+sykkuno               17.3      1944       1.5      25.0      15.8       9.1       3.5       3.0       9.1       117       8.6      41.9       7.7       6.5      36.7       2.1      30.5       0.0       0.0
+b0aty                 13.6      1916       7.0      14.0      36.3       3.3       0.5      10.4       8.5      92.0       8.5      55.4       7.5       6.1      22.2       6.6       6.2       0.1       0.1
