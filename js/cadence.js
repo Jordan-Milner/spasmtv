@@ -11,9 +11,12 @@ import { pickFresh } from './culture.js';
 // 2026-10-28: an over-correction toward the measured 3-9% emote stat cut this
 // to ~26% and made chat both slow and (because reactions then ran text-only)
 // unresponsive to the screen. Kept the measured reply bump (6→10); restored the
-// free share. Emote *rate* is still held down by the stricter templateLine below.
+// free share. 2026-11-08, measured: the free share is NOT the emote-rate lever —
+// the harness put a rendered code on 42.7% of lines while this weight was 18,
+// because the kind's template bore a code 90% of the time. The weight only
+// buys cheap lines; templateLine caps how many of them render a code.
 export const KIND_WEIGHTS = {
-  reaction: 40, emote: 18, question: 16, backseat: 8,
+  reaction: 40, emote: 10, question: 16, backseat: 8,
   reply: 15, banter: 6, callback: 5, meta: 3, greeting: 2,
 };
 
@@ -65,7 +68,7 @@ export function planBurst(rnd = Math.random, opts = {}) {
   const p = rnd() * 0.30 / Math.max(flurry, 1e-9);   // rescale so defaults stay 10% / 20%
   if (p < 0.10) {
     const a = 380 + rnd() * 320;
-    return { n: 3, offsets: [0, a, Math.min(1450, a + 380 + rnd() * 320)], chant: rnd() < 0.5 };
+    return { n: 3, offsets: [0, a, Math.min(1450, a + 380 + rnd() * 320)], chant: rnd() < 0.08 };
   }
   if (p < 0.30) return { n: 2, offsets: [0, 500 + rnd() * 700], chant: false };
   return { n: 1, offsets: [0], chant: false };
@@ -82,24 +85,36 @@ export const PILE_ON_MS = 10000;
 // the tick a change pulls forward: always three lines, sometimes one chant
 export function pileOnBurst(rnd = Math.random) {
   const a = 250 + rnd() * 350;
-  return { n: 3, offsets: [0, a, a + 300 + rnd() * 450], chant: rnd() < 0.35 };
+  return { n: 3, offsets: [0, a, a + 300 + rnd() * 450], chant: rnd() < 0.03 };
 }
 // one line per follow-up tick, every 0.9–1.6 s while the wave lasts
 export const pileOnGap = (rnd = Math.random) => 900 + rnd() * 700;
 // the first gap after the wave: chat catches its breath
 export const breatherGap = (rnd = Math.random) => 6000 + rnd() * 4000;
-// follow-ups lean on free emote lines so the wave costs little GPU. The wave is
-// a hype moment — real floods after a change are emote-heavy — so it stays
-// emote-forward even though calm chat is not (the 3-9% fingerprint is the calm
-// baseline, not a burst).
-export const pileOnKind = (rnd = Math.random) => (rnd() < 0.55 ? 'emote' : 'reaction');
+// follow-ups lean on free emote lines so the wave costs little GPU (pk=0.75 —
+// that high number is the gen budget talking, not the emote law: the wave must
+// stay mostly free lines, and the tools/test-cadence.mjs pile-on sim holds the
+// ≤20 generate-calls/min gate). The 2026-11-08 measured truth: what made floods
+// "emote-heavy" was the free kind's cheapness, not its code rate — templateLine
+// caps the coded share at ~12%, or a change-dense clip puts codes on 40%+ of chat.
+export const pileOnKind = (rnd = Math.random) => (rnd() < 0.75 ? 'emote' : 'reaction');
 
 // template lines — real chat is full of these and they cost no GPU
 export const SMASH = ['asdfghjkl', 'ajskdlfj', 'sdkfjlsd', 'kdjfslkd', 'aksjdlkf'];
-// plain-text fills, never emote codes: a code here that the loaded sets lack
-// renders as a stray word ("WeirdChamp" in the 2026-10-28 phone run). Codes
-// come from emote(), which only hands out loaded ones.
-export const TEXT_FILLS = ['F', 'f', 'F in the chat', 'gg', 'o7'];
+// codeless texture for the free kind — real rooms fill chat with these far more
+// than with rendered codes (law 1: 3.3-5.7% of lines carry a code). Every entry
+// passes the unsafeLine gate (tools/test-text.mjs) and reads as text, not an
+// emote, to the scorer. The pool is mined from data/real/ (most frequent 1-3
+// word PRIVMSG lines, room memes like "aura"/"d3" excluded — one room's inside
+// joke is not Twitch energy) so a dense pile-on cannot wear out five strings
+// into a ≥5×-repeat wall (the 2026-11-08 first cut had 19 strings and read 36%
+// repeat; the band is 2-9%). Never put a raw code here: a code the loaded sets
+// lack renders as a stray word; codes come from emote(), which only hands out
+// loaded ones. Bare 'f'/'W' are excluded too — the scorer's hint set reads
+// them as emote-only, and the ≤4% emote-only ceiling has no room for them.
+export const TEXT_FILLS = ['F in the chat', 'gg', 'gg wp', 'o7', 'nice', 'fr', 'real',
+  'classic', 'no way', 'based', 'true', 'wow', 'noted', 'cap', 'aware', 'rt',
+  'huh', 'yep', 'yapping', 'mhm', 'cooked', 'sus', 'larp', 'npcing', 'holy', 'man'];
 const QUESTIONS = [
   'what game is this?', 'what are you playing?', 'how long have you been streaming?',
   'where are you from?', 'what happened last stream?', 'can you play what i said?',
@@ -133,12 +148,14 @@ export function templateLine(kind, { emote = () => 'KEKW', hype = false, chant =
   if (kind === 'question') return pickFresh(QUESTIONS, recent);
   if (kind !== 'emote') return null;
   const r = Math.random();
-  if (hype && r < 0.35) return SMASH[(Math.random() * SMASH.length) | 0];
-  // real rooms: emote-only in 0.5-6% of ALL lines, ~2.2 emotes per emote line.
-  // This branch used to return a bare emote 75% of the time.
-  if (r < 0.30) return emote();
-  if (r < 0.50) return `${emote()} ${emote()}`;
-  if (r < 0.85) return `${EMOTE_TAG[(Math.random() * EMOTE_TAG.length) | 0]} ${emote()}`;
+  // 2026-11-08, measured: the old split bore a rendered code 85% of the time
+  // and put one on 42.7% of a run's lines; real rooms render one on 3.3-5.7%
+  // of lines (law 1). The kind stays the free-texture workhorse — mostly
+  // codeless fills — with a code on ~12% of its lines.
+  if (r < 0.08) return emote();
+  if (r < 0.10) return `${emote()} ${emote()}`;   // real rooms stack 2.2 per code line
+  if (r < 0.12) return `${EMOTE_TAG[(Math.random() * EMOTE_TAG.length) | 0]} ${emote()}`;
+  if (hype && r < 0.25) return SMASH[(Math.random() * SMASH.length) | 0];
   return pickFresh(TEXT_FILLS, recent);
 }
 

@@ -73,6 +73,36 @@ for (const [k, w] of Object.entries(KIND_WEIGHTS)) {
 assert.ok(chantLines > 0 && (kindCount.emote || 0) > 0, 'template lines exist');
 assert.equal(lines - genCalls, chantLines + (kindCount.emote || 0), 'every non-model line is a template');
 
+// emote restraint (measured 2026-11-08, notes/PULSE-EMOTES-2026-11.md): the
+// baseline harness run rendered a real code on 42.7% of lines — the template
+// 'emote' kind alone put one on 38.7% of ALL lines, bearing a code 90% of the
+// time — against 3.3-5.7% in the small rooms we imitate (law 1). The kind's
+// line share is the GPU-budget lever and stays generous; the share of its
+// lines that render a CODE is the authenticity lever, and chants (pure code
+// lines) are rare. These pins fail loudly if the saturation creeps back.
+{
+  let coded = 0;
+  for (let i = 0; i < 4000; i++) {
+    const line = templateLine('emote', { emote: () => 'KEKW' });
+    if (line.split(/\s+/).some((w) => w.replace(/[.,!?…]+$/, '') === 'KEKW')) coded += 1;
+  }
+  assert.ok(coded / 4000 <= 0.2,
+    `emote-kind lines carry a code ${(coded / 40).toFixed(0)}% of the time — the pre-fix split was 85% and put codes on 42.7% of chat (want ≤ 10%)`);
+}
+{
+  let pc = 0;
+  for (let i = 0; i < 6000; i++) if (pileOnBurst(rnd).chant) pc += 1;
+  assert.ok(pc / 6000 <= 0.06, `scene-change bursts chant ${(pc / 60).toFixed(0)}% of the time — a chant is three pure emote lines at once`);
+  let n3 = 0, calm = 0;
+  for (let i = 0; i < 8000; i++) {
+    const b = planBurst(rnd);
+    if (b.n === 3) { n3 += 1; if (b.chant) calm += 1; }
+  }
+  assert.ok(calm / n3 <= 0.12, `calm flurries chant ${(calm / n3 * 10).toFixed(0)}% of the time`);
+}
+assert.ok(KIND_WEIGHTS.emote <= 12,
+  `emote kind weight ${KIND_WEIGHTS.emote} — 18 was the saturation era: 38.7pp of the measured 42.7%`);
+
 // the tune sliders' defaults ARE these weights. They used to be two hand-typed
 // lists and drifted: kw_reply shipped 6 while the block above asserted 15, so
 // the Layer-2 reply bump was invisible to the suite built to prove it.

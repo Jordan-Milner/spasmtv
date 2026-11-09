@@ -860,7 +860,7 @@ function chatLoop() {
   // a spoken sentence always earns at least one line — a drought burst (n=0)
   // must not swallow the reaction the north star promises within seconds.
   if (speechTrigger && burst.n < 1) { burst.n = 1; burst.offsets = [0]; }
-  // (piling alone isn't hype: hype turns a third of emote lines into keysmash)
+  // (piling alone isn't hype: hype turns some emote lines into keysmash)
   const hype = sceneChange || Date.now() - state.hypeAt < 2500;
   // a chant = the whole burst is one emote, from three different viewers
   const chant = burst.chant ? sim.randomEmote() : null;
