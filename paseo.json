@@ -1,0 +1,17 @@
+{
+  "scripts": {
+    "serve": {
+      "type": "service",
+      "port": 8619,
+      "command": "npm run serve"
+    },
+    "test": {
+      "type": "script",
+      "command": "npm test"
+    },
+    "score": {
+      "type": "script",
+      "command": "npm run score"
+    }
+  }
+}
